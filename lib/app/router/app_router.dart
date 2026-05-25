@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/screen/login_screen.dart';
 import '../../features/auth/screen/signup_screen.dart';
+import '../../features/book_info/screen/book_info_screen.dart';
 import '../../features/book_search/screen/add_book_screen.dart';
 import '../../features/book_search/screen/manual_book_input_screen.dart';
 import '../../features/book_search/screen/search_book_screen.dart';
+import '../../features/history/screen/history_screen.dart';
 import '../../features/home/screen/home_screen.dart';
+import '../../features/my_book_search/screen/my_book_search_screen.dart';
+import '../../features/settings/screen/settings_screen.dart';
 import '../../features/splash/screen/splash_screen.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
 import 'routes.dart';
@@ -43,7 +47,7 @@ final appRouter = GoRouter(
     GoRoute(
       path: Routes.barcode,
       builder: (context, _) =>
-          const Scaffold(body: Center(child: Text('Barcode - Phase 4'))),
+          const Scaffold(body: Center(child: Text('바코드 스캐너 — Phase 4'))),
     ),
     // ── Main shell with BottomNavBar ──────────────────────────────────
     ShellRoute(
@@ -62,25 +66,21 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: Routes.history,
-          builder: (context, _) =>
-              const Scaffold(body: Center(child: Text('History - Phase 3d'))),
+          builder: (context, _) => const HistoryScreen(),
         ),
         GoRoute(
           path: Routes.setting,
-          builder: (context, _) =>
-              const Scaffold(body: Center(child: Text('Setting - Phase 3d'))),
+          builder: (context, _) => const SettingsScreen(),
         ),
         GoRoute(
           path: Routes.searchMyBook,
-          builder: (context, _) =>
-              const Scaffold(body: Center(child: Text('SearchMyBook - Phase 3c'))),
+          builder: (context, _) => const MyBookSearchScreen(),
         ),
         GoRoute(
           path: '/main/book-info/:mybookId',
           builder: (context, state) {
             final id = int.parse(state.pathParameters['mybookId']!);
-            return Scaffold(
-                body: Center(child: Text('BookInfo $id - Phase 3c')));
+            return BookInfoScreen(mybookId: id);
           },
         ),
       ],

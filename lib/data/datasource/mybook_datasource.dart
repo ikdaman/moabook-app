@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../domain/model/my_book_detail.dart';
 import '../../domain/model/store_book.dart';
 
 abstract interface class MyBookDataSource {
@@ -9,9 +10,17 @@ abstract interface class MyBookDataSource {
     bool descending = true,
   });
 
+  Future<MyBookDetail> getMyBookDetail(int mybookId);
+
+  Future<List<StoreBookItem>> searchMyBooks(String query, {int page = 0, int size = 20});
+
+  Future<List<HistoryBookInfo>> getHistoryBooks({int page = 0, int size = 20, bool descending = true});
+
   Future<void> deleteMyBook(int mybookId);
 
   Future<void> updateReadingStatus(int mybookId, String status);
+
+  Future<void> updateMyBook(int mybookId, Map<String, dynamic> data);
 
   Future<void> saveMyBook(Map<String, dynamic> request);
 }
@@ -72,6 +81,96 @@ class MyBookDataSourceImpl implements MyBookDataSource {
   @override
   Future<void> saveMyBook(Map<String, dynamic> request) async {
     await _dio.post<void>('/mybooks', data: request);
+  }
+
+  @override
+  Future<MyBookDetail> getMyBookDetail(int mybookId) async {
+    final r = await _dio.get<Map<String, dynamic>>('/mybooks/$mybookId');
+    final d = r.data!;
+    final b = d['bookInfo'] as Map<String, dynamic>? ?? {};
+    final h = d['historyInfo'] as Map<String, dynamic>? ?? {};
+    return MyBookDetail(
+      mybookId:      d['mybookId']?.toString() ?? '',
+      readingStatus: d['readingStatus'] as String? ?? '',
+      createdDate:   d['createdDate']   as String? ?? '',
+      reason:        d['reason']        as String?,
+      bookInfo: MyBookDetailInfo(
+        title:       b['title']       as String? ?? '',
+        author:      b['author']      as String? ?? '',
+        coverImage:  b['coverImage']  as String?,
+        publisher:   b['publisher']   as String?,
+        totalPage:   (b['totalPage']  as num?)?.toInt(),
+        publishDate: b['publishDate'] as String?,
+        isbn:        b['isbn']        as String?,
+        description: b['description'] as String?,
+        aladinId:    b['aladinId']?.toString(),
+      ),
+      historyInfo: MyBookDetailHistory(
+        startedDate:  h['startedDate']  as String?,
+        finishedDate: h['finishedDate'] as String?,
+      ),
+    );
+  }
+
+  @override
+  Future<List<StoreBookItem>> searchMyBooks(String query, {int page = 0, int size = 20}) async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '/mybooks',
+      queryParameters: {'query': query, 'page': page, 'size': size},
+    );
+    final books = r.data?['books'] as List<dynamic>? ?? [];
+    return books.map((e) {
+      final m = e as Map<String, dynamic>;
+      final b = m['bookInfo'] as Map<String, dynamic>? ?? {};
+      final authorRaw = b['author'];
+      final List<String> authorList = authorRaw is List
+          ? authorRaw.map((a) => a.toString()).toList()
+          : authorRaw is String ? [authorRaw] : [];
+      return StoreBookItem(
+        mybookId:    m['mybookId']    as int,
+        createdDate: m['createdDate'] as String? ?? '',
+        title:       b['title']       as String? ?? '',
+        author:      authorList,
+        coverImage:  b['coverImage']  as String?,
+        description: b['description'] as String?,
+        reason:      null,
+      );
+    }).toList();
+  }
+
+  @override
+  Future<List<HistoryBookInfo>> getHistoryBooks({int page = 0, int size = 20, bool descending = true}) async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '/mybooks/history',
+      queryParameters: {
+        'page': page,
+        'size': size,
+        'sort': descending ? 'startedDate,desc' : 'startedDate,asc',
+      },
+    );
+    final books = r.data?['books'] as List<dynamic>? ?? [];
+    return books.map((e) {
+      final m = e as Map<String, dynamic>;
+      final b = m['bookInfo'] as Map<String, dynamic>? ?? {};
+      final authorRaw = b['author'];
+      final List<String> authorList = authorRaw is List
+          ? authorRaw.map((a) => a.toString()).toList()
+          : authorRaw is String ? [authorRaw] : [];
+      return HistoryBookInfo(
+        mybookId:     m['mybookId']     as int,
+        title:        b['title']        as String? ?? '',
+        author:       authorList,
+        coverImage:   b['coverImage']   as String?,
+        description:  b['description']  as String?,
+        startedDate:  m['startedDate']  as String? ?? '',
+        finishedDate: m['finishedDate'] as String?,
+      );
+    }).toList();
+  }
+
+  @override
+  Future<void> updateMyBook(int mybookId, Map<String, dynamic> data) async {
+    await _dio.patch<void>('/mybooks/$mybookId', data: data);
   }
 
   StoreBookItem _parseStoreBookItem(Map<String, dynamic> e) {
