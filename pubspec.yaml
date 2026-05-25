@@ -7,6 +7,10 @@ version: 2.0.0+23
 environment:
   sdk: ^3.12.0
 
+dependency_overrides:
+  flutter_naver_login:
+    path: patches/flutter_naver_login
+
 dependencies:
   flutter:
     sdk: flutter
@@ -25,7 +29,7 @@ dependencies:
   json_annotation: ^4.9.0
 
   # 저장소
-  flutter_secure_storage: ^9.2.2
+  flutter_secure_storage: ^10.3.0
 
   # 소셜 로그인
   kakao_flutter_sdk_user: ^1.9.10

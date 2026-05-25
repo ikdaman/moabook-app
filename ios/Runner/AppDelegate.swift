@@ -1,5 +1,5 @@
 import Flutter
-import NaverThirdPartyLogin
+import NidThirdPartyLogin
 import UIKit
 
 @main
@@ -8,15 +8,6 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Naver Login SDK 초기화
-    let naverInstance = NaverThirdPartyLoginConnection.getSharedInstance()
-    naverInstance?.isNaverAppOauthEnable = true
-    naverInstance?.isInAppOauthEnable = true
-    naverInstance?.serviceUrlScheme = "naverlogin"
-    naverInstance?.consumerKey = "HHcc6QmC3xAJOcNxFyFt"
-    naverInstance?.consumerSecret = "zW0NHMQk7g"
-    naverInstance?.appName = "모아북"
-
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -25,8 +16,10 @@ import UIKit
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
-    // Naver 로그인 콜백 처리
-    NaverThirdPartyLoginConnection.getSharedInstance()?.receiveAccessToken(url)
+    // Naver 로그인 콜백 처리 (NidOAuth 신규 방식)
+    if NidOAuth.shared.handleURL(url) {
+      return true
+    }
     return super.application(app, open: url, options: options)
   }
 

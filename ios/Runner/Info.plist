@@ -29,6 +29,15 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Naver Login SDK v5+ 설정 키 (2.1.0 migration) -->
+	<key>NidUrlScheme</key>
+	<string>naverlogin</string>
+	<key>NidClientID</key>
+	<string>HHcc6QmC3xAJOcNxFyFt</string>
+	<key>NidClientSecret</key>
+	<string>zW0NHMQk7g</string>
+	<key>NidAppName</key>
+	<string>모아북</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>kakaokompassauth</string>
