@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'app/router/app_router.dart';
+import 'app/theme/app_theme.dart';
 
 void main() {
-  runApp(const App());
+  runApp(const ProviderScope(child: App()));
 }
 
 class App extends StatelessWidget {
@@ -9,11 +12,10 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp.router(
       title: '모아북',
-      home: Scaffold(
-        body: Center(child: Text('모아북')),
-      ),
+      theme: appTheme,
+      routerConfig: appRouter,
     );
   }
 }
