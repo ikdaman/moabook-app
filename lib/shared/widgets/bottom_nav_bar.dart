@@ -1,15 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/router/routes.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_typography.dart';
+import '../../features/auth/provider/auth_provider.dart';
 
-class BottomNavBar extends StatelessWidget {
+class BottomNavBar extends ConsumerWidget {
   const BottomNavBar({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
+    final isLoggedIn = ref.watch(isLoggedInProvider).valueOrNull ?? false;
+
+    void navigateIfLoggedIn(String route) {
+      if (isLoggedIn) {
+        context.go(route);
+      } else {
+        context.go(Routes.login);
+      }
+    }
 
     return Container(
       color: AppColors.backgroundDefault,
@@ -30,13 +41,13 @@ class BottomNavBar extends StatelessWidget {
               _NavItem(
                 label: '책 추가',
                 isSelected: location == Routes.searchBook,
-                onTap: () => context.go(Routes.searchBook),
+                onTap: () => navigateIfLoggedIn(Routes.searchBook),
               ),
               _Divider(),
               _NavItem(
                 label: '히스토리',
                 isSelected: location == Routes.history,
-                onTap: () => context.go(Routes.history),
+                onTap: () => navigateIfLoggedIn(Routes.history),
               ),
             ],
           ),

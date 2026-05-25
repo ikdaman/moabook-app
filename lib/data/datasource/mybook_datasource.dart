@@ -37,13 +37,15 @@ class MyBookDataSourceImpl implements MyBookDataSource {
     int size = 10,
     bool descending = true,
   }) async {
+    // sort 파라미터는 쉼표 포함 → Dio의 queryParameters에 넣으면 %2C로 인코딩됨
+    // 원본 Android: @Query("sort", encoded = true) — path에 직접 포함해 인코딩 우회
+    final sortVal = descending ? 'createdDate,desc' : 'createdDate,asc';
     final response = await _dio.get<Map<String, dynamic>>(
-      '/mybooks/store',
+      '/mybooks/store?sort=$sortVal',
       queryParameters: {
         if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
         'page': page,
         'size': size,
-        'sort': descending ? 'createdDate,desc' : 'createdDate,asc',
       },
     );
     final data = response.data!;
@@ -140,12 +142,12 @@ class MyBookDataSourceImpl implements MyBookDataSource {
 
   @override
   Future<List<HistoryBookInfo>> getHistoryBooks({int page = 0, int size = 20, bool descending = true}) async {
+    final sortVal = descending ? 'startedDate,desc' : 'startedDate,asc';
     final r = await _dio.get<Map<String, dynamic>>(
-      '/mybooks/history',
+      '/mybooks/history?sort=$sortVal',
       queryParameters: {
         'page': page,
         'size': size,
-        'sort': descending ? 'startedDate,desc' : 'startedDate,asc',
       },
     );
     final books = r.data?['books'] as List<dynamic>? ?? [];

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../env/env.dart';
 import 'auth_interceptor.dart';
@@ -18,6 +19,7 @@ Dio createDioClient(FlutterSecureStorage storage) {
   dio.interceptors.addAll([
     AuthInterceptor(storage),
     TokenRefreshInterceptor(refreshDio, storage),
+    if (kDebugMode) LogInterceptor(requestBody: true, responseBody: true),
   ]);
 
   return dio;
