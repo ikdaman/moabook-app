@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/screen/login_screen.dart';
 import '../../features/auth/screen/signup_screen.dart';
+import '../../features/splash/screen/splash_screen.dart';
 import 'routes.dart';
 
 final appRouter = GoRouter(
@@ -9,8 +10,7 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(
       path: Routes.splash,
-      builder: (context, _) =>
-          const Scaffold(body: Center(child: Text('Splash'))),
+      builder: (context, _) => const SplashScreen(),
     ),
     GoRoute(
       path: Routes.login,
