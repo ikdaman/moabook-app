@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/auth/screen/login_screen.dart';
+import '../../features/auth/screen/signup_screen.dart';
 import 'routes.dart';
 
 final appRouter = GoRouter(
@@ -7,19 +9,28 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(
       path: Routes.splash,
-      builder: (context, _) => const Scaffold(body: Center(child: Text('Splash'))),
+      builder: (context, _) =>
+          const Scaffold(body: Center(child: Text('Splash'))),
     ),
     GoRoute(
       path: Routes.login,
-      builder: (context, _) => const Scaffold(body: Center(child: Text('Login'))),
+      builder: (context, _) => const LoginScreen(),
     ),
     GoRoute(
       path: Routes.signup,
-      builder: (context, _) => const Scaffold(body: Center(child: Text('Signup'))),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, String>? ?? {};
+        return SignupScreen(
+          socialToken: extra['socialToken'] ?? '',
+          provider:    extra['provider']    ?? '',
+          providerId:  extra['providerId']  ?? '',
+        );
+      },
     ),
     GoRoute(
       path: Routes.addBook,
-      builder: (context, _) => const Scaffold(body: Center(child: Text('AddBook'))),
+      builder: (context, _) =>
+          const Scaffold(body: Center(child: Text('AddBook'))),
     ),
     GoRoute(
       path: Routes.manualBookInput,
@@ -28,14 +39,16 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: Routes.barcode,
-      builder: (context, _) => const Scaffold(body: Center(child: Text('Barcode'))),
+      builder: (context, _) =>
+          const Scaffold(body: Center(child: Text('Barcode'))),
     ),
     ShellRoute(
       builder: (context, state, child) => child,
       routes: [
         GoRoute(
           path: Routes.home,
-          builder: (context, _) => const Scaffold(body: Center(child: Text('Home'))),
+          builder: (context, _) =>
+              const Scaffold(body: Center(child: Text('Home'))),
         ),
         GoRoute(
           path: Routes.searchBook,
@@ -59,7 +72,7 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: '/main/book-info/:mybookId',
-          builder: (_, state) {
+          builder: (context, state) {
             final id = int.parse(state.pathParameters['mybookId']!);
             return Scaffold(body: Center(child: Text('BookInfo $id')));
           },
