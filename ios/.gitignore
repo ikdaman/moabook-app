@@ -35,3 +35,6 @@ Runner/GeneratedPluginRegistrant.*
 
 fastlane/AuthKey_*.p8
 fastlane/report.xml
+fastlane/.env
+fastlane/.env.*
+!fastlane/.env.example
