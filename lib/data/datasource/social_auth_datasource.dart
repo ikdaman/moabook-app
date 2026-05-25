@@ -16,8 +16,10 @@ abstract interface class SocialAuthDataSource {
 }
 
 class SocialAuthDataSourceImpl implements SocialAuthDataSource {
+  // serverClientId = Web Client ID → Android에서 idToken을 받기 위해 필요.
+  // clientId는 iOS 전용 파라미터이므로 Android에서는 효과 없음.
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: Env.googleClientId.isNotEmpty ? Env.googleClientId : null,
+    serverClientId: Env.googleClientId.isNotEmpty ? Env.googleClientId : null,
     scopes: ['email'],
   );
 
