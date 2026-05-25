@@ -1,0 +1,105 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Sync certificates and profiles via Match"
+  lane :sync_certs do
+    setup_ci if is_ci
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_KEY_ID"] || "35SHWLN842",
+      issuer_id: ENV["APP_STORE_ISSUER_ID"] || "e7624601-1e53-41bd-b54d-7bf952728abd",
+      key_filepath: ENV["APP_STORE_KEY_PATH"] || "fastlane/AuthKey_35SHWLN842.p8",
+    )
+
+    match(
+      type: "appstore",
+      api_key: api_key,
+      readonly: is_ci,
+    )
+  end
+
+  desc "Build and deploy to TestFlight"
+  lane :deploy_testflight do
+    setup_ci if is_ci
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_KEY_ID"] || "35SHWLN842",
+      issuer_id: ENV["APP_STORE_ISSUER_ID"] || "e7624601-1e53-41bd-b54d-7bf952728abd",
+      key_filepath: ENV["APP_STORE_KEY_PATH"] || "fastlane/AuthKey_35SHWLN842.p8",
+    )
+
+    match(
+      type: "appstore",
+      api_key: api_key,
+      readonly: true,
+    )
+
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: "Runner.xcodeproj",
+      team_id: "T583WJWNAK",
+      code_sign_identity: "Apple Distribution",
+      profile_name: "match AppStore com.gogochang.Ikdaman",
+      targets: ["Runner"],
+    )
+
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      clean: false,
+      output_directory: "../build/ios",
+      output_name: "Runner.ipa",
+      export_options: {
+        provisioningProfiles: {
+          "com.gogochang.Ikdaman" => "match AppStore com.gogochang.Ikdaman",
+        }
+      }
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true,
+    )
+  end
+
+  desc "Build only (no deploy)"
+  lane :build_only do
+    setup_ci if is_ci
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_KEY_ID"] || "35SHWLN842",
+      issuer_id: ENV["APP_STORE_ISSUER_ID"] || "e7624601-1e53-41bd-b54d-7bf952728abd",
+      key_filepath: ENV["APP_STORE_KEY_PATH"] || "fastlane/AuthKey_35SHWLN842.p8",
+    )
+
+    match(
+      type: "appstore",
+      api_key: api_key,
+      readonly: true,
+    )
+
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: "Runner.xcodeproj",
+      team_id: "T583WJWNAK",
+      code_sign_identity: "Apple Distribution",
+      profile_name: "match AppStore com.gogochang.Ikdaman",
+      targets: ["Runner"],
+    )
+
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      clean: false,
+      output_directory: "../build/ios",
+      output_name: "Runner.ipa",
+      export_options: {
+        provisioningProfiles: {
+          "com.gogochang.Ikdaman" => "match AppStore com.gogochang.Ikdaman",
+        }
+      }
+    )
+  end
+end
