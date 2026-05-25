@@ -34,3 +34,4 @@ Runner/GeneratedPluginRegistrant.*
 !default.perspectivev3
 
 fastlane/AuthKey_*.p8
+fastlane/report.xml
