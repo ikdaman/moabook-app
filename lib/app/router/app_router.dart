@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/screen/login_screen.dart';
 import '../../features/auth/screen/signup_screen.dart';
+import '../../features/book_search/screen/add_book_screen.dart';
+import '../../features/book_search/screen/manual_book_input_screen.dart';
+import '../../features/book_search/screen/search_book_screen.dart';
 import '../../features/home/screen/home_screen.dart';
 import '../../features/splash/screen/splash_screen.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
@@ -31,13 +34,11 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: Routes.addBook,
-      builder: (context, _) =>
-          const Scaffold(body: Center(child: Text('AddBook - Phase 3b'))),
+      builder: (context, _) => const AddBookScreen(),
     ),
     GoRoute(
       path: Routes.manualBookInput,
-      builder: (context, _) =>
-          const Scaffold(body: Center(child: Text('ManualBookInput - Phase 3b'))),
+      builder: (context, _) => const ManualBookInputScreen(),
     ),
     GoRoute(
       path: Routes.barcode,
@@ -57,8 +58,7 @@ final appRouter = GoRouter(
         ),
         GoRoute(
           path: Routes.searchBook,
-          builder: (context, _) =>
-              const Scaffold(body: Center(child: Text('SearchBook - Phase 3b'))),
+          builder: (context, _) => const SearchBookScreen(),
         ),
         GoRoute(
           path: Routes.history,
