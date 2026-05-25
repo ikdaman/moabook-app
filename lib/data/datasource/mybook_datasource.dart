@@ -39,7 +39,8 @@ class MyBookDataSourceImpl implements MyBookDataSource {
   }) async {
     // sort 파라미터는 쉼표 포함 → Dio의 queryParameters에 넣으면 %2C로 인코딩됨
     // 원본 Android: @Query("sort", encoded = true) — path에 직접 포함해 인코딩 우회
-    final sortVal = descending ? 'createdDate,desc' : 'createdDate,asc';
+    // 서버 JPA 엔티티 필드명 기준: createdAt (JSON 응답의 createdDate와 다름)
+    final sortVal = descending ? 'createdAt,desc' : 'createdAt,asc';
     final response = await _dio.get<Map<String, dynamic>>(
       '/mybooks/store?sort=$sortVal',
       queryParameters: {
@@ -142,7 +143,7 @@ class MyBookDataSourceImpl implements MyBookDataSource {
 
   @override
   Future<List<HistoryBookInfo>> getHistoryBooks({int page = 0, int size = 20, bool descending = true}) async {
-    final sortVal = descending ? 'startedDate,desc' : 'startedDate,asc';
+    final sortVal = descending ? 'createdAt,desc' : 'createdAt,asc';
     final r = await _dio.get<Map<String, dynamic>>(
       '/mybooks/history?sort=$sortVal',
       queryParameters: {

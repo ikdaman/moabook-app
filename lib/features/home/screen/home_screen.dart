@@ -23,13 +23,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(isLoggedInProvider.future).then((loggedIn) {
-        if (loggedIn && mounted) {
-          ref.read(homeProvider.notifier).load();
-        }
-      });
-    });
     _scrollController.addListener(_onScroll);
   }
 
@@ -50,6 +43,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final state      = ref.watch(homeProvider);
     final isLoggedIn = ref.watch(isLoggedInProvider).valueOrNull ?? false;
+
+    ref.listen(homeProvider.select((s) => s.snackbarMessage), (_, message) {
+      if (message != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+        ref.read(homeProvider.notifier).clearSnackbar();
+      }
+    });
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDefault,
@@ -88,7 +90,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: Row(
                           children: [
                             Text(
-                              '최신순',
+                              state.sortDescending ? '최신순' : '오래된순',
                               style: AppTypography.dungGeunMoSubtitle
                                   .copyWith(color: AppColors.textPrimary),
                             ),

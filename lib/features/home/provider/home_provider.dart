@@ -20,15 +20,17 @@ class HomeState {
   final bool hasMore;
   final bool sortDescending;
   final int currentPage;
+  final String? snackbarMessage;
 
   const HomeState({
-    this.books        = const [],
-    this.isLoading    = false,
-    this.isLoadingMore = false,
+    this.books          = const [],
+    this.isLoading      = false,
+    this.isLoadingMore  = false,
     this.error,
-    this.hasMore      = true,
+    this.hasMore        = true,
     this.sortDescending = true,
-    this.currentPage  = 0,
+    this.currentPage    = 0,
+    this.snackbarMessage,
   });
 
   HomeState copyWith({
@@ -39,28 +41,30 @@ class HomeState {
     bool? hasMore,
     bool? sortDescending,
     int? currentPage,
+    String? snackbarMessage,
+    bool clearSnackbar = false,
   }) => HomeState(
-    books:          books          ?? this.books,
-    isLoading:      isLoading      ?? this.isLoading,
-    isLoadingMore:  isLoadingMore  ?? this.isLoadingMore,
-    error:          error,
-    hasMore:        hasMore        ?? this.hasMore,
-    sortDescending: sortDescending ?? this.sortDescending,
-    currentPage:    currentPage    ?? this.currentPage,
+    books:           books           ?? this.books,
+    isLoading:       isLoading       ?? this.isLoading,
+    isLoadingMore:   isLoadingMore   ?? this.isLoadingMore,
+    error:           error,
+    hasMore:         hasMore         ?? this.hasMore,
+    sortDescending:  sortDescending  ?? this.sortDescending,
+    currentPage:     currentPage     ?? this.currentPage,
+    snackbarMessage: clearSnackbar ? null : (snackbarMessage ?? this.snackbarMessage),
   );
 }
 
 // ── Notifier ──────────────────────────────────────────────────────────────
 
 class HomeNotifier extends Notifier<HomeState> {
-  static const _pageSize = 10;
+  static const _pageSize = 5;
 
   @override
   HomeState build() {
-    // 로그인 상태 변화를 감지: 로그아웃 → 목록 초기화, 로그인 → 재로드
+    // 로그인 상태 변화 감지: 로그아웃 → 목록 초기화, 로그인 → 재로드
     ref.listen(loginStateProvider, (prev, next) {
       if (next is LoginInitial) {
-        // 로그아웃 후 상태 초기화
         state = const HomeState();
       }
     });
@@ -68,20 +72,30 @@ class HomeNotifier extends Notifier<HomeState> {
       final prevLoggedIn = prev?.valueOrNull;
       final currLoggedIn = next.valueOrNull;
       if (currLoggedIn == false && prevLoggedIn == true) {
-        // 로그아웃됨 — 책 목록 초기화
         state = const HomeState();
       } else if (currLoggedIn == true && prevLoggedIn == false) {
-        // 로그인됨 — 재로드
         load();
       }
     });
+
+    // 앱 시작 시 이미 로그인 상태이면 즉시 로드
+    // Future.microtask 사용: build() 완료 후 실행되어 상태 업데이트 안전
+    Future.microtask(() {
+      if (ref.read(isLoggedInProvider).valueOrNull == true) {
+        load();
+      } else {
+        ref.read(isLoggedInProvider.future).then((loggedIn) {
+          if (loggedIn) load();
+        });
+      }
+    });
+
     return const HomeState(isLoading: true);
   }
 
   MyBookDataSource get _ds => ref.read(myBookDataSourceProvider);
 
   Future<void> load() async {
-    // 로그아웃 상태에서는 API 호출하지 않음 — 401 유발 방지
     if (ref.read(isLoggedInProvider).valueOrNull != true) {
       state = const HomeState();
       return;
@@ -105,7 +119,7 @@ class HomeNotifier extends Notifier<HomeState> {
   }
 
   Future<void> loadMore() async {
-    if (!state.hasMore || state.isLoadingMore) return;
+    if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
     state = state.copyWith(isLoadingMore: true);
     try {
       final nextPage = state.currentPage + 1;
@@ -115,10 +129,10 @@ class HomeNotifier extends Notifier<HomeState> {
         descending: state.sortDescending,
       );
       state = state.copyWith(
-        books:          [...state.books, ...result.content],
-        isLoadingMore:  false,
-        hasMore:        !result.last,
-        currentPage:    nextPage,
+        books:         [...state.books, ...result.content],
+        isLoadingMore: false,
+        hasMore:       !result.last,
+        currentPage:   nextPage,
       );
     } catch (_) {
       state = state.copyWith(isLoadingMore: false);
@@ -131,14 +145,28 @@ class HomeNotifier extends Notifier<HomeState> {
   }
 
   Future<void> deleteBook(int mybookId) async {
-    await _ds.deleteMyBook(mybookId);
-    state = state.copyWith(
-      books: state.books.where((b) => b.mybookId != mybookId).toList(),
-    );
+    try {
+      await _ds.deleteMyBook(mybookId);
+      state = state.copyWith(
+        books:           state.books.where((b) => b.mybookId != mybookId).toList(),
+        snackbarMessage: '책이 삭제되었어요.',
+      );
+    } catch (e) {
+      state = state.copyWith(snackbarMessage: '삭제에 실패했어요.');
+    }
   }
 
   Future<void> startReading(int mybookId) async {
-    await _ds.updateReadingStatus(mybookId, 'READING');
+    try {
+      await _ds.updateReadingStatus(mybookId, 'READING');
+      state = state.copyWith(snackbarMessage: '시작한 책은 히스토리에서 볼 수 있어요.');
+    } catch (e) {
+      state = state.copyWith(snackbarMessage: '독서 시작에 실패했어요.');
+    }
+  }
+
+  void clearSnackbar() {
+    state = state.copyWith(clearSnackbar: true);
   }
 }
 

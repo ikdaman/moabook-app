@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:flutter_naver_login/flutter_naver_login.dart';
@@ -16,8 +18,11 @@ abstract interface class SocialAuthDataSource {
 }
 
 class SocialAuthDataSourceImpl implements SocialAuthDataSource {
-  // serverClientId = Web Client ID → Android에서 idToken을 받기 위해 필요.
-  // clientId는 iOS 전용 파라미터이므로 Android에서는 효과 없음.
+  // Android: CredentialManager via MethodChannel (key.properties에서 CLIENT_ID 주입)
+  // iOS: google_sign_in SDK 사용
+  static const _googleAuthChannel =
+      MethodChannel('project.side.ikdaman/google_auth');
+
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     serverClientId: Env.googleClientId.isNotEmpty ? Env.googleClientId : null,
     scopes: ['email'],
@@ -91,17 +96,53 @@ class SocialAuthDataSourceImpl implements SocialAuthDataSource {
 
   @override
   Future<SocialLoginResult> googleLogin() async {
+    if (Platform.isAndroid) {
+      return _googleLoginAndroid();
+    }
+    return _googleLoginIOS();
+  }
+
+  Future<SocialLoginResult> googleLoginAndroidForTest() => _googleLoginAndroid();
+  Future<void> googleLogoutAndroidForTest() async {
+    try { await _googleAuthChannel.invokeMethod<void>('logout'); } catch (_) {}
+  }
+
+  Future<SocialLoginResult> _googleLoginAndroid() async {
+    try {
+      final result = await _googleAuthChannel.invokeMapMethod<String, dynamic>('login');
+      if (result == null) {
+        return const SocialLoginResult(isSuccess: false, errorMessage: '구글 로그인 결과가 없습니다.');
+      }
+      final idToken = result['idToken'] as String?;
+      if (idToken == null || idToken.isEmpty) {
+        return const SocialLoginResult(isSuccess: false, errorMessage: 'ID 토큰을 가져올 수 없습니다.');
+      }
+      return SocialLoginResult(
+        isSuccess:         true,
+        socialAccessToken: idToken,
+        provider:          'GOOGLE',
+        providerId:        result['providerId'] as String? ?? '',
+      );
+    } on PlatformException catch (e) {
+      if (e.code == 'CREDENTIAL_EXCEPTION' && (e.message?.contains('cancel') == true || e.message?.contains('16') == true)) {
+        return const SocialLoginResult(isSuccess: false, errorMessage: '구글 로그인이 취소되었습니다.');
+      }
+      return SocialLoginResult(isSuccess: false, errorMessage: e.message ?? e.toString());
+    } catch (e) {
+      return SocialLoginResult(isSuccess: false, errorMessage: e.toString());
+    }
+  }
+
+  Future<SocialLoginResult> _googleLoginIOS() async {
     try {
       final account = await _googleSignIn.signIn();
       if (account == null) {
-        return const SocialLoginResult(
-            isSuccess: false, errorMessage: '구글 로그인이 취소되었습니다.');
+        return const SocialLoginResult(isSuccess: false, errorMessage: '구글 로그인이 취소되었습니다.');
       }
       final auth    = await account.authentication;
       final idToken = auth.idToken;
       if (idToken == null) {
-        return const SocialLoginResult(
-            isSuccess: false, errorMessage: 'ID 토큰을 가져올 수 없습니다.');
+        return const SocialLoginResult(isSuccess: false, errorMessage: 'ID 토큰을 가져올 수 없습니다.');
       }
       return SocialLoginResult(
         isSuccess:         true,
@@ -116,10 +157,13 @@ class SocialAuthDataSourceImpl implements SocialAuthDataSource {
 
   @override
   Future<void> googleLogout() async {
-    try { await _googleSignIn.signOut(); } catch (_) {}
+    if (Platform.isAndroid) {
+      try { await _googleAuthChannel.invokeMethod<void>('logout'); } catch (_) {}
+    } else {
+      try { await _googleSignIn.signOut(); } catch (_) {}
+    }
   }
 
-  // JWT payload에서 sub 추출 (Android GoogleAuth.getProviderId 동일 로직)
   String _extractSub(String idToken) {
     final parts = idToken.split('.');
     if (parts.length < 2) return '';
