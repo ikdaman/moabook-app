@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/datasource/mybook_datasource.dart';
 import '../../../domain/model/store_book.dart';
 import '../../../features/auth/provider/auth_provider.dart';
+import '../../../domain/model/login_state.dart';
 
 // ── DataSource Provider ───────────────────────────────────────────────────
 
@@ -56,12 +57,35 @@ class HomeNotifier extends Notifier<HomeState> {
 
   @override
   HomeState build() {
+    // 로그인 상태 변화를 감지: 로그아웃 → 목록 초기화, 로그인 → 재로드
+    ref.listen(loginStateProvider, (prev, next) {
+      if (next is LoginInitial) {
+        // 로그아웃 후 상태 초기화
+        state = const HomeState();
+      }
+    });
+    ref.listen(isLoggedInProvider, (prev, next) {
+      final prevLoggedIn = prev?.valueOrNull;
+      final currLoggedIn = next.valueOrNull;
+      if (currLoggedIn == false && prevLoggedIn == true) {
+        // 로그아웃됨 — 책 목록 초기화
+        state = const HomeState();
+      } else if (currLoggedIn == true && prevLoggedIn == false) {
+        // 로그인됨 — 재로드
+        load();
+      }
+    });
     return const HomeState(isLoading: true);
   }
 
   MyBookDataSource get _ds => ref.read(myBookDataSourceProvider);
 
   Future<void> load() async {
+    // 로그아웃 상태에서는 API 호출하지 않음 — 401 유발 방지
+    if (ref.read(isLoggedInProvider).valueOrNull != true) {
+      state = const HomeState();
+      return;
+    }
     state = state.copyWith(isLoading: true, currentPage: 0);
     try {
       final result = await _ds.getStoreBooks(

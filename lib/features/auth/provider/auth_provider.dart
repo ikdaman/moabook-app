@@ -5,6 +5,7 @@ import '../../../data/datasource/auth_remote_datasource.dart';
 import '../../../data/datasource/social_auth_datasource.dart';
 import '../../../data/repository/auth_repository_impl.dart';
 import '../../../domain/model/login_state.dart';
+import '../../../domain/model/logout_state.dart';
 import '../../../domain/model/signup_state.dart';
 import '../../../domain/repository/auth_repository.dart';
 
@@ -34,7 +35,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 // ── State providers ───────────────────────────────────────────────────────
 
 final loginStateProvider =
-    StateProvider<LoginState>((ref) => const LoginSuccess());
+    StateProvider<LoginState>((ref) => const LoginInitial());
 
 final signupStateProvider =
     StateProvider<SignupState>((ref) => const SignupSuccess());
@@ -88,14 +89,17 @@ class AuthNotifier extends Notifier<void> {
 
   Future<void> logout() async {
     final provider = await _repo.getProvider();
-    final stream = switch (provider) {
+    final stream = switch (provider?.toUpperCase()) {
       'KAKAO'  => _repo.kakaoLogout(),
       'NAVER'  => _repo.naverLogout(),
       'GOOGLE' => _repo.googleLogout(),
       _        => _repo.kakaoLogout(),
     };
-    await for (final _ in stream) {}
+    await for (final state in stream) {
+      if (state is LogoutError) break;
+    }
     ref.invalidate(isLoggedInProvider);
+    ref.read(loginStateProvider.notifier).state = const LoginInitial();
   }
 }
 

@@ -9,3 +9,8 @@ class LogoutLoading extends LogoutState {
 class LogoutSuccess extends LogoutState {
   const LogoutSuccess();
 }
+
+class LogoutError extends LogoutState {
+  final String message;
+  const LogoutError(this.message);
+}

@@ -80,10 +80,15 @@ class AuthRepositoryImpl implements AuthRepository {
 
   Stream<LogoutState> _logout(Future<void> Function() socialLogoutFn) async* {
     yield const LogoutLoading();
-    try { await _remote.logout(); } catch (_) {}
-    await socialLogoutFn();
-    await _storage.deleteAll();
-    yield const LogoutSuccess();
+    try {
+      try { await _remote.logout(); } catch (_) {}
+      await socialLogoutFn();
+      await _storage.deleteAll();
+      yield const LogoutSuccess();
+    } catch (e) {
+      await _storage.deleteAll();
+      yield LogoutError(e.toString());
+    }
   }
 
   // ── Signup ────────────────────────────────────────────────────────────────

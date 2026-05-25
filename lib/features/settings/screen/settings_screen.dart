@@ -19,6 +19,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _nickname = '';
   bool _editingNickname = false;
+  bool _loggingOut = false;
   final _nicknameCtrl = TextEditingController();
 
   @override
@@ -56,7 +57,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _logout() async {
-    await ref.read(authNotifierProvider.notifier).logout();
+    if (_loggingOut) return;
+    setState(() => _loggingOut = true);
+    try {
+      await ref.read(authNotifierProvider.notifier).logout();
+    } finally {
+      if (mounted) setState(() => _loggingOut = false);
+    }
     if (mounted) context.go(Routes.login);
   }
 
@@ -207,16 +214,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               child: GestureDetector(
-                onTap: _logout,
+                onTap: _loggingOut ? null : _logout,
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     border: Border.all(color: AppColors.borderBlack),
+                    color: _loggingOut
+                        ? AppColors.backgroundGray
+                        : AppColors.backgroundDefault,
                   ),
-                  child: Text('로그아웃',
-                      style: AppTypography.dungGeunMoBody
-                          .copyWith(color: AppColors.textPrimary)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _loggingOut ? '로그아웃 중...' : '로그아웃',
+                        style: AppTypography.dungGeunMoBody
+                            .copyWith(color: AppColors.textPrimary),
+                      ),
+                      if (_loggingOut) ...[
+                        const SizedBox(width: 8),
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ),

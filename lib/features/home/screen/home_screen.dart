@@ -24,7 +24,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(homeProvider.notifier).load();
+      ref.read(isLoggedInProvider.future).then((loggedIn) {
+        if (loggedIn && mounted) {
+          ref.read(homeProvider.notifier).load();
+        }
+      });
     });
     _scrollController.addListener(_onScroll);
   }

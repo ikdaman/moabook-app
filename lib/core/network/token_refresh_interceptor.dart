@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'auth_event.dart';
 
 class TokenRefreshInterceptor extends Interceptor {
   final Dio _refreshDio;
@@ -55,6 +56,6 @@ class TokenRefreshInterceptor extends Interceptor {
 
   Future<void> _clearTokens() async {
     await _storage.deleteAll();
-    // TODO Phase 2: AuthEvent 발행 → /login 강제 이동
+    notifyAuthExpired();
   }
 }
