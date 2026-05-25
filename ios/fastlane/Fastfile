@@ -39,7 +39,7 @@ platform :ios do
       path: "Runner.xcodeproj",
       team_id: "T583WJWNAK",
       code_sign_identity: "Apple Distribution",
-      profile_name: "match AppStore com.gogochang.Ikdaman",
+      profile_name: "match AppStore com.Ikdaman",
       targets: ["Runner"],
     )
 
@@ -52,7 +52,7 @@ platform :ios do
       output_name: "Runner.ipa",
       export_options: {
         provisioningProfiles: {
-          "com.gogochang.Ikdaman" => "match AppStore com.gogochang.Ikdaman",
+          "com.Ikdaman" => "match AppStore com.Ikdaman",
         }
       }
     )
@@ -84,7 +84,7 @@ platform :ios do
       path: "Runner.xcodeproj",
       team_id: "T583WJWNAK",
       code_sign_identity: "Apple Distribution",
-      profile_name: "match AppStore com.gogochang.Ikdaman",
+      profile_name: "match AppStore com.Ikdaman",
       targets: ["Runner"],
     )
 
@@ -97,7 +97,7 @@ platform :ios do
       output_name: "Runner.ipa",
       export_options: {
         provisioningProfiles: {
-          "com.gogochang.Ikdaman" => "match AppStore com.gogochang.Ikdaman",
+          "com.Ikdaman" => "match AppStore com.Ikdaman",
         }
       }
     )

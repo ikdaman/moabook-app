@@ -1,5 +1,5 @@
 git_url("https://github.com/ikdaman/moabook_ios_private.git")
 storage_mode("git")
 type("appstore")
-app_identifier(["com.gogochang.Ikdaman"])
+app_identifier(["com.Ikdaman"])
 team_id("T583WJWNAK")

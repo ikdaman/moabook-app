@@ -31,9 +31,9 @@ VC=$(grep 'versionCode' "$ROOT/android/app/build.gradle.kts" | grep -o '[0-9]*' 
 check "Android versionCode ($VC) > 22" "$?"
 
 # 4. iOS bundle ID
-grep -q 'PRODUCT_BUNDLE_IDENTIFIER = com.gogochang.Ikdaman;' \
+grep -q 'PRODUCT_BUNDLE_IDENTIFIER = com.Ikdaman;' \
   "$ROOT/ios/Runner.xcodeproj/project.pbxproj" 2>/dev/null
-check "iOS PRODUCT_BUNDLE_IDENTIFIER == com.gogochang.Ikdaman" "$?"
+check "iOS PRODUCT_BUNDLE_IDENTIFIER == com.Ikdaman" "$?"
 
 # 5. project.side.moabook (flutter create 기본값) 잔재 없음
 ! grep -q 'project\.side\.moabook' \
