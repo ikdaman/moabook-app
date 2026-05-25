@@ -37,6 +37,7 @@ android {
         targetSdk = 36
         versionCode = 23
         versionName = "2.0.0"
+        manifestPlaceholders["KAKAO_APP_KEY"] = keyProps.getProperty("KAKAO_APP_KEY", "")
     }
 
     buildTypes {
