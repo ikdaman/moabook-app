@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/screen/login_screen.dart';
 import '../../features/auth/screen/signup_screen.dart';
+import '../../features/home/screen/home_screen.dart';
 import '../../features/splash/screen/splash_screen.dart';
+import '../../shared/widgets/bottom_nav_bar.dart';
 import 'routes.dart';
 
 final appRouter = GoRouter(
@@ -30,51 +32,55 @@ final appRouter = GoRouter(
     GoRoute(
       path: Routes.addBook,
       builder: (context, _) =>
-          const Scaffold(body: Center(child: Text('AddBook'))),
+          const Scaffold(body: Center(child: Text('AddBook - Phase 3b'))),
     ),
     GoRoute(
       path: Routes.manualBookInput,
       builder: (context, _) =>
-          const Scaffold(body: Center(child: Text('ManualBookInput'))),
+          const Scaffold(body: Center(child: Text('ManualBookInput - Phase 3b'))),
     ),
     GoRoute(
       path: Routes.barcode,
       builder: (context, _) =>
-          const Scaffold(body: Center(child: Text('Barcode'))),
+          const Scaffold(body: Center(child: Text('Barcode - Phase 4'))),
     ),
+    // ── Main shell with BottomNavBar ──────────────────────────────────
     ShellRoute(
-      builder: (context, state, child) => child,
+      builder: (context, state, child) => Scaffold(
+        body: child,
+        bottomNavigationBar: const BottomNavBar(),
+      ),
       routes: [
         GoRoute(
           path: Routes.home,
-          builder: (context, _) =>
-              const Scaffold(body: Center(child: Text('Home'))),
+          builder: (context, _) => const HomeScreen(),
         ),
         GoRoute(
           path: Routes.searchBook,
           builder: (context, _) =>
-              const Scaffold(body: Center(child: Text('SearchBook'))),
+              const Scaffold(body: Center(child: Text('SearchBook - Phase 3b'))),
         ),
         GoRoute(
           path: Routes.history,
           builder: (context, _) =>
-              const Scaffold(body: Center(child: Text('History'))),
+              const Scaffold(body: Center(child: Text('History - Phase 3d'))),
         ),
         GoRoute(
           path: Routes.setting,
           builder: (context, _) =>
-              const Scaffold(body: Center(child: Text('Setting'))),
+              const Scaffold(body: Center(child: Text('Setting - Phase 3d'))),
         ),
         GoRoute(
           path: Routes.searchMyBook,
           builder: (context, _) =>
-              const Scaffold(body: Center(child: Text('SearchMyBook'))),
+              const Scaffold(body: Center(child: Text('SearchMyBook - Phase 3c'))),
         ),
         GoRoute(
           path: '/main/book-info/:mybookId',
           builder: (context, state) {
             final id = int.parse(state.pathParameters['mybookId']!);
-            return Scaffold(body: Center(child: Text('BookInfo $id')));
+            return Scaffold(
+                body: Center(child: Text('BookInfo $id - Phase 3c')));
           },
         ),
       ],
