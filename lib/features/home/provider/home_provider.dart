@@ -21,16 +21,20 @@ class HomeState {
   final bool sortDescending;
   final int currentPage;
   final String? snackbarMessage;
+  /// 로그인 직후 첫 fetch 가 끝났는지 여부.
+  /// false 인 동안에는 빈 CTA 대신 RetroLoading 을 표시해 깜빡임을 방지한다.
+  final bool storeBooksLoaded;
 
   const HomeState({
-    this.books          = const [],
-    this.isLoading      = false,
-    this.isLoadingMore  = false,
+    this.books            = const [],
+    this.isLoading        = false,
+    this.isLoadingMore    = false,
     this.error,
-    this.hasMore        = true,
-    this.sortDescending = true,
-    this.currentPage    = 0,
+    this.hasMore          = true,
+    this.sortDescending   = true,
+    this.currentPage      = 0,
     this.snackbarMessage,
+    this.storeBooksLoaded = false,
   });
 
   HomeState copyWith({
@@ -43,15 +47,17 @@ class HomeState {
     int? currentPage,
     String? snackbarMessage,
     bool clearSnackbar = false,
+    bool? storeBooksLoaded,
   }) => HomeState(
-    books:           books           ?? this.books,
-    isLoading:       isLoading       ?? this.isLoading,
-    isLoadingMore:   isLoadingMore   ?? this.isLoadingMore,
-    error:           error,
-    hasMore:         hasMore         ?? this.hasMore,
-    sortDescending:  sortDescending  ?? this.sortDescending,
-    currentPage:     currentPage     ?? this.currentPage,
-    snackbarMessage: clearSnackbar ? null : (snackbarMessage ?? this.snackbarMessage),
+    books:            books            ?? this.books,
+    isLoading:        isLoading        ?? this.isLoading,
+    isLoadingMore:    isLoadingMore    ?? this.isLoadingMore,
+    error:            error,
+    hasMore:          hasMore          ?? this.hasMore,
+    sortDescending:   sortDescending   ?? this.sortDescending,
+    currentPage:      currentPage      ?? this.currentPage,
+    snackbarMessage:  clearSnackbar ? null : (snackbarMessage ?? this.snackbarMessage),
+    storeBooksLoaded: storeBooksLoaded ?? this.storeBooksLoaded,
   );
 }
 
@@ -108,13 +114,18 @@ class HomeNotifier extends Notifier<HomeState> {
         descending: state.sortDescending,
       );
       state = state.copyWith(
-        books:       result.content,
-        isLoading:   false,
-        hasMore:     !result.last,
-        currentPage: 0,
+        books:            result.content,
+        isLoading:        false,
+        hasMore:          !result.last,
+        currentPage:      0,
+        storeBooksLoaded: true,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(
+        isLoading:        false,
+        error:            e.toString(),
+        storeBooksLoaded: true,
+      );
     }
   }
 

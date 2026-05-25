@@ -7,7 +7,8 @@ class PixelShadowBox extends StatelessWidget {
   final Color shadowColor;
   final double shadowOffset;
   final bool showBorder;
-  final AlignmentGeometry contentAlignment;
+  /// null 이면 부모 크기로 expand 하지 않고 child 크기로 shrink-wrap 한다.
+  final AlignmentGeometry? contentAlignment;
 
   const PixelShadowBox({
     super.key,

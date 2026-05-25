@@ -46,6 +46,7 @@ class _AppState extends ConsumerState<App> {
       title: '모아북',
       theme: appTheme,
       routerConfig: appRouter,
+      debugShowCheckedModeBanner: false,
     );
   }
 }

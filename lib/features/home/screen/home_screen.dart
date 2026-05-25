@@ -5,9 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../core/util/date_formatter.dart';
 import '../../../domain/model/store_book.dart';
 import '../../../features/auth/provider/auth_provider.dart';
 import '../../../shared/widgets/pixel_shadow_box.dart';
+import '../../../shared/widgets/retro_loading.dart';
+import '../../../shared/widgets/svg_icon.dart';
 import '../provider/home_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -59,28 +62,102 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
-            // ── Header ────────────────────────────────────────────────
-            SliverToBoxAdapter(child: _Header(isLoggedIn: isLoggedIn)),
+            // ── Header (설정 아이콘 + 제목 + [+] 책 추가) ───────────────
+            const SliverToBoxAdapter(child: _Header()),
 
             // ── Not logged in ─────────────────────────────────────────
             if (!isLoggedIn)
-              SliverFillRemaining(
-                child: Center(
-                  child: GestureDetector(
-                    onTap: () => context.go(Routes.login),
-                    child: Text(
-                      '로그인 후 책을 추가해 보세요',
-                      style: AppTypography.dungGeunMoSubtitle
-                          .copyWith(color: AppColors.textPrimary),
-                    ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      Text(
+                        '로그인 후 책을 추가해 보세요',
+                        style: AppTypography.dungGeunMoSubtitle
+                            .copyWith(color: AppColors.textPrimary),
+                      ),
+                      const SizedBox(height: 20),
+                      GestureDetector(
+                        onTap: () => context.go(Routes.login),
+                        child: Image.asset(
+                          'assets/images/default_image.png',
+                          fit: BoxFit.fitWidth,
+                          width: double.infinity,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               )
-            else ...[
-              // ── Sort bar ───────────────────────────────────────────
+            // ── First fetch 전 → RetroLoading (깜빡임 방지) ──────────────
+            else if (!state.storeBooksLoaded && state.books.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: SizedBox(
+                  height: 320,
+                  child: RetroLoading(fillBackground: false),
+                ),
+              )
+            // ── Loading (수동 새로고침/정렬변경 등) ────────────────────
+            else if (state.isLoading && state.books.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: RetroLoading(fillBackground: false),
+              )
+            // ── Error ──────────────────────────────────────────────
+            else if (state.error != null && state.books.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        state.error!,
+                        style: AppTypography.dungGeunMoSubtitle.copyWith(
+                          color: AppColors.textPrimary.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () =>
+                            ref.read(homeProvider.notifier).load(),
+                        child: Text(
+                          '다시 시도',
+                          style: AppTypography.dungGeunMoSubtitle,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            // ── Empty (로그인 + 첫 fetch 완료 + 책 없음) ────────────
+            else if (state.books.isEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 60),
+                      GestureDetector(
+                        onTap: () => context.go(Routes.searchBook),
+                        child: Image.asset(
+                          'assets/images/default_image.png',
+                          fit: BoxFit.fitWidth,
+                          width: double.infinity,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            // ── Book list ──────────────────────────────────────────
+            else ...[
+              // Sort bar (정렬 + 내 책 검색 아이콘)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -94,14 +171,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               style: AppTypography.dungGeunMoSubtitle
                                   .copyWith(color: AppColors.textPrimary),
                             ),
-                            Icon(
-                              state.sortDescending
-                                  ? Icons.keyboard_arrow_down
-                                  : Icons.keyboard_arrow_up,
-                              size: 16,
-                              color: AppColors.textPrimary,
+                            Padding(
+                              padding: const EdgeInsets.only(left: 2),
+                              child: Icon(
+                                state.sortDescending
+                                    ? Icons.keyboard_arrow_down
+                                    : Icons.keyboard_arrow_up,
+                                size: 14,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      GestureDetector(
+                        onTap: () => context.push(Routes.searchMyBook),
+                        child: const SvgIcon(
+                          'assets/images/search.svg',
+                          size: 16,
                         ),
                       ),
                     ],
@@ -109,94 +197,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
 
-              // ── Loading ────────────────────────────────────────────
-              if (state.isLoading)
-                const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()),
-                )
-
-              // ── Error ──────────────────────────────────────────────
-              else if (state.error != null && state.books.isEmpty)
-                SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(state.error!,
-                            style: AppTypography.wantedSansBodySmall),
-                        TextButton(
-                          onPressed: () =>
-                              ref.read(homeProvider.notifier).load(),
-                          child: const Text('다시 시도'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-
-              // ── Empty ──────────────────────────────────────────────
-              else if (state.books.isEmpty)
-                SliverFillRemaining(
-                  child: Center(
-                    child: GestureDetector(
-                      onTap: () => context.go(Routes.searchBook),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '지금 떠오르는\n책이 있나요...!\n',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.dungGeunMoHomeTitle
-                                .copyWith(color: AppColors.textPrimary),
-                          ),
-                          const SizedBox(height: 8),
-                          PixelShadowBox(
-                            backgroundColor: AppColors.backgroundGray,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 8),
-                              child: Text(
-                                '[+] 책 추가',
-                                style: AppTypography.dungGeunMoBody
-                                    .copyWith(color: AppColors.textPrimary),
-                              ),
-                            ),
-                          ),
-                        ],
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                sliver: SliverList.separated(
+                  itemCount: state.books.length,
+                  separatorBuilder: (context, _) => const SizedBox(height: 30),
+                  itemBuilder: (context, i) {
+                    final book = state.books[i];
+                    return _BookCard(
+                      book:          book,
+                      onTap: () => context.push(Routes.bookInfo(book.mybookId)),
+                      onStartReading: () => ref
+                          .read(homeProvider.notifier)
+                          .startReading(book.mybookId),
+                      onDelete: () => _confirmDelete(context, book.mybookId),
+                    );
+                  },
+                ),
+              ),
+              if (state.isLoadingMore)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: SizedBox(
+                        height: 60,
+                        child: RetroLoading(fillBackground: false),
                       ),
                     ),
                   ),
-                )
-
-              // ── Book list ──────────────────────────────────────────
-              else ...[
-                SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverList.separated(
-                    itemCount: state.books.length,
-                    separatorBuilder: (context, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, i) {
-                      final book = state.books[i];
-                      return _BookCard(
-                        index:         state.totalIndex(i),
-                        book:          book,
-                        onTap: () => context.push(Routes.bookInfo(book.mybookId)),
-                        onStartReading: () => ref
-                            .read(homeProvider.notifier)
-                            .startReading(book.mybookId),
-                        onDelete: () => _confirmDelete(context, book.mybookId),
-                      );
-                    },
-                  ),
                 ),
-                if (state.isLoadingMore)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  ),
-              ],
             ],
           ],
         ),
@@ -217,42 +247,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 // ── Header ────────────────────────────────────────────────────────────────
 
-class _Header extends ConsumerWidget {
-  final bool isLoggedIn;
-
-  const _Header({required this.isLoggedIn});
+class _Header extends StatelessWidget {
+  const _Header();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: isLoggedIn
-                ? GestureDetector(
-                    onTap: () => context.push(Routes.searchMyBook),
-                    child: Container(
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: AppColors.inputBackground,
-                        border: Border.all(color: AppColors.borderBlack),
-                      ),
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        '내 책 검색',
-                        style: AppTypography.wantedSansBodySmall
-                            .copyWith(color: AppColors.textGray),
-                      ),
-                    ),
-                  )
-                : const SizedBox.shrink(),
+          // Settings icon (우상단)
+          Align(
+            alignment: Alignment.centerRight,
+            child: PixelShadowButton(
+              onTap: () => context.push(Routes.setting),
+              backgroundColor: AppColors.backgroundGray,
+              child: const SizedBox(
+                width: 30,
+                height: 30,
+                child: Center(
+                  child: SvgIcon('assets/images/settings.svg', size: 18),
+                ),
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => context.push(Routes.setting),
-            child: const Icon(Icons.settings, color: AppColors.textPrimary),
+          // Title
+          Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: Text(
+              '지금 떠오르는\n책이 있나요...!\n',
+              style: AppTypography.dungGeunMoHomeTitle
+                  .copyWith(color: AppColors.textPrimary),
+            ),
+          ),
+          // [+] ADD BOOK
+          Padding(
+            padding: const EdgeInsets.only(bottom: 40),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                PixelShadowButton(
+                  onTap: () => context.go(Routes.searchBook),
+                  backgroundColor: AppColors.backgroundGray,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 4),
+                    child: Text(
+                      '[+] 책 추가',
+                      style: AppTypography.dungGeunMoBody
+                          .copyWith(color: AppColors.textPrimary),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -263,14 +312,12 @@ class _Header extends ConsumerWidget {
 // ── BookCard ──────────────────────────────────────────────────────────────
 
 class _BookCard extends StatelessWidget {
-  final int index;
   final StoreBookItem book;
   final VoidCallback onTap;
   final VoidCallback onStartReading;
   final VoidCallback onDelete;
 
   const _BookCard({
-    required this.index,
     required this.book,
     required this.onTap,
     required this.onStartReading,
@@ -279,9 +326,7 @@ class _BookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = book.createdDate.length >= 8
-        ? book.createdDate.substring(2, 8)
-        : book.createdDate;
+    final dateStr = DateFormatter.toShortDate(book.createdDate);
 
     return PixelShadowButton(
       onTap: onTap,
@@ -297,25 +342,31 @@ class _BookCard extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  '#${index.toString().padLeft(3, '0')}  ($dateStr)',
+                  '#${book.mybookId.toString().padLeft(3, '0')}  ($dateStr)',
                   style: AppTypography.dungGeunMoSubtitle
                       .copyWith(color: AppColors.textPrimary),
                 ),
                 const Spacer(),
                 GestureDetector(
                   onTap: onStartReading,
-                  child: Text('독서 시작',
-                      style: AppTypography.dungGeunMoSubtitle
-                          .copyWith(color: AppColors.textPrimary)),
-                ),
-                Text(' ㅣ ',
+                  child: Text(
+                    '독서 시작',
                     style: AppTypography.dungGeunMoSubtitle
-                        .copyWith(color: AppColors.textPrimary)),
+                        .copyWith(color: AppColors.textPrimary),
+                  ),
+                ),
+                Text(
+                  ' ㅣ ',
+                  style: AppTypography.dungGeunMoSubtitle
+                      .copyWith(color: AppColors.textPrimary),
+                ),
                 GestureDetector(
                   onTap: onDelete,
-                  child: Text('삭제',
-                      style: AppTypography.dungGeunMoSubtitle
-                          .copyWith(color: AppColors.textPrimary)),
+                  child: Text(
+                    '삭제',
+                    style: AppTypography.dungGeunMoSubtitle
+                        .copyWith(color: AppColors.textPrimary),
+                  ),
                 ),
               ],
             ),
@@ -326,25 +377,12 @@ class _BookCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 25),
             child: Row(
               children: [
-                // Cover
                 SizedBox(
                   width: 110,
                   child: Center(
-                    child: book.coverImage != null
-                        ? CachedNetworkImage(
-                            imageUrl: book.coverImage!,
-                            width: 81,
-                            height: 114,
-                            fit: BoxFit.cover,
-                          )
-                        : Container(
-                            width: 81,
-                            height: 114,
-                            color: AppColors.surfaceGray,
-                          ),
+                    child: _BookCover(coverImage: book.coverImage),
                   ),
                 ),
-                // Info
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(right: 10),
@@ -359,18 +397,23 @@ class _BookCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 9),
-                        Text(
-                          book.reason?.isNotEmpty == true
-                              ? book.reason!
-                              : '이 책을 읽고 싶은 이유는 무엇인가요?',
-                          style: AppTypography.wantedSansBodySmall.copyWith(
-                            color: book.reason?.isNotEmpty == true
-                                ? AppColors.textPrimary
-                                : AppColors.textGray,
+                        if (book.reason?.isNotEmpty == true)
+                          Text(
+                            book.reason!,
+                            style: AppTypography.wantedSansBodySmall
+                                .copyWith(color: AppColors.textPrimary),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        else
+                          Text(
+                            '이 책을 읽고 싶은 이유는 무엇인가요?',
+                            style: AppTypography.wantedSansBodySmall.copyWith(
+                              color: AppColors.textPrimary
+                                  .withValues(alpha: 0.6),
+                            ),
+                            maxLines: 1,
                           ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
                       ],
                     ),
                   ),
@@ -379,6 +422,37 @@ class _BookCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _BookCover extends StatelessWidget {
+  final String? coverImage;
+  const _BookCover({required this.coverImage});
+
+  @override
+  Widget build(BuildContext context) {
+    const w = 81.0;
+    const h = 114.0;
+    final border = Border.all(color: AppColors.borderBlack);
+    if (coverImage != null && coverImage!.isNotEmpty) {
+      return Container(
+        decoration: BoxDecoration(border: border),
+        child: CachedNetworkImage(
+          imageUrl: coverImage!,
+          width: w,
+          height: h,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    return Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceGray,
+        border: border,
       ),
     );
   }
@@ -472,10 +546,4 @@ class _DeleteDialog extends StatelessWidget {
       ),
     );
   }
-}
-
-// Extension
-extension HomeStateX on HomeState {
-  int totalIndex(int listIndex) => totalElements - (currentPage * 10) - listIndex;
-  int get totalElements => books.length; // 간단 구현 (정확한 값은 서버 응답에서)
 }

@@ -80,6 +80,28 @@ class BookSearchNotifier extends Notifier<BookSearchState> {
     }
   }
 
+  /// ISBN으로 알라딘 단건 조회. 결과를 [selectedBook]에 세팅.
+  /// 성공 시 true, 결과가 없거나 실패 시 false.
+  Future<bool> searchByIsbn(String isbn) async {
+    state = state.copyWith(isLoading: true, query: isbn);
+    try {
+      final results = await _aladin.searchByIsbn(isbn);
+      if (results.isEmpty) {
+        state = state.copyWith(isLoading: false, error: '해당 ISBN의 책을 찾을 수 없어요.');
+        return false;
+      }
+      state = state.copyWith(
+        isLoading: false,
+        selectedBook: results.first,
+        results: results,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+  }
+
   Future<void> loadMore() async {
     if (!state.hasMore || state.isLoadingMore) return;
     state = state.copyWith(isLoadingMore: true);
