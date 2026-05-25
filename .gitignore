@@ -47,5 +47,5 @@ app.*.map.json
 # Sensitive files (never commit)
 release.keystore
 android/key.properties
-env/
+/env/*.json
 fastlane/AuthKey_*.p8
