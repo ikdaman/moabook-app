@@ -132,7 +132,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
     if (ok != true || !mounted) return;
-    // 실제 withdraw API 호출은 향후 추가. 일단 로그아웃과 동일하게 처리.
+    try {
+      final ds = MemberDataSource(ref.read(dioProvider));
+      await ds.withdraw();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('회원탈퇴 실패: $e')),
+      );
+      return;
+    }
+    // 토큰 폐기 + 로그인 화면 복귀
     await _logout();
   }
 
