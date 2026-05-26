@@ -95,6 +95,7 @@ class MyBookDataSourceImpl implements MyBookDataSource {
     return MyBookDetail(
       mybookId:      d['mybookId']?.toString() ?? '',
       readingStatus: d['readingStatus'] as String? ?? '',
+      shelfType:     d['shelfType']     as String?,
       createdDate:   d['createdDate']   as String? ?? '',
       reason:        d['reason']        as String?,
       bookInfo: MyBookDetailInfo(
@@ -107,6 +108,7 @@ class MyBookDataSourceImpl implements MyBookDataSource {
         isbn:        b['isbn']        as String?,
         description: b['description'] as String?,
         aladinId:    b['aladinId']?.toString(),
+        source:      b['source']      as String?,
       ),
       historyInfo: MyBookDetailHistory(
         startedDate:  h['startedDate']  as String?,

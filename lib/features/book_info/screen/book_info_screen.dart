@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/util/date_formatter.dart';
+import '../../../domain/model/my_book_detail.dart';
+import '../../../shared/widgets/book_edit_bottom_sheet.dart';
 import '../../../shared/widgets/pixel_popup.dart';
 import '../../../shared/widgets/retro_loading.dart';
 import '../../../shared/widgets/title_bar.dart';
@@ -173,7 +175,7 @@ class BookInfoScreen extends ConsumerWidget {
                 const SizedBox(height: 30),
                 _SectionWithHeader(
                   title: '독서 이력',
-                  onEdit: () => _showEditTodo(context),
+                  onEdit: () => _showEdit(context, ref, detail, initialTab: 1),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 18),
@@ -205,7 +207,7 @@ class BookInfoScreen extends ConsumerWidget {
                 const SizedBox(height: 20),
                 _SectionWithHeader(
                   title: '읽고 싶었던 이유',
-                  onEdit: () => _showEditTodo(context),
+                  onEdit: () => _showEdit(context, ref, detail),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 18),
@@ -265,9 +267,24 @@ class BookInfoScreen extends ConsumerWidget {
     );
   }
 
-  void _showEditTodo(BuildContext context) {
+  Future<void> _showEdit(
+    BuildContext context,
+    WidgetRef ref,
+    MyBookDetail detail, {
+    int? initialTab,
+  }) async {
+    final result = await showBookEditSheet(
+      context,
+      detail: detail,
+      initialTab: initialTab,
+    );
+    if (result == null) return;
+    final ok = await ref
+        .read(bookInfoProvider(mybookId).notifier)
+        .applyEdit(mybookId, result);
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('편집 기능은 곧 추가될 예정이에요')),
+      SnackBar(content: Text(ok ? '저장했어요' : '저장에 실패했어요')),
     );
   }
 }

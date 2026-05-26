@@ -1,6 +1,8 @@
 class MyBookDetail {
   final String mybookId;
   final String readingStatus;
+  /// `STORE` 또는 `HISTORY` — 어느 선반에 속한 책인지.
+  final String? shelfType;
   final String createdDate;
   final String? reason;
   final MyBookDetailInfo bookInfo;
@@ -9,6 +11,7 @@ class MyBookDetail {
   const MyBookDetail({
     required this.mybookId,
     required this.readingStatus,
+    this.shelfType,
     required this.createdDate,
     this.reason,
     required this.bookInfo,
@@ -26,6 +29,8 @@ class MyBookDetailInfo {
   final String? isbn;
   final String? description;
   final String? aladinId;
+  /// `ALADIN` / `CUSTOM` / `MANUAL` — 책 정보 출처. CUSTOM/MANUAL 일 때만 책정보 편집 가능.
+  final String? source;
 
   const MyBookDetailInfo({
     required this.title,
@@ -37,6 +42,7 @@ class MyBookDetailInfo {
     this.isbn,
     this.description,
     this.aladinId,
+    this.source,
   });
 }
 
