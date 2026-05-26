@@ -130,13 +130,14 @@ class MyBookDataSourceImpl implements MyBookDataSource {
           ? authorRaw.map((a) => a.toString()).toList()
           : authorRaw is String ? [authorRaw] : [];
       return StoreBookItem(
-        mybookId:    m['mybookId']    as int,
-        createdDate: m['createdDate'] as String? ?? '',
-        title:       b['title']       as String? ?? '',
-        author:      authorList,
-        coverImage:  b['coverImage']  as String?,
-        description: b['description'] as String?,
-        reason:      null,
+        mybookId:      m['mybookId']      as int,
+        createdDate:   m['createdDate']   as String? ?? '',
+        readingStatus: m['readingStatus'] as String?,
+        title:         b['title']         as String? ?? '',
+        author:        authorList,
+        coverImage:    b['coverImage']    as String?,
+        description:   b['description']   as String?,
+        reason:        null,
       );
     }).toList();
   }

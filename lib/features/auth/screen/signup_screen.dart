@@ -5,6 +5,8 @@ import '../../../app/router/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../domain/model/signup_state.dart';
+import '../../../shared/widgets/pixel_shadow_box.dart';
+import '../../../shared/widgets/title_bar.dart';
 import '../provider/auth_provider.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -32,6 +34,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     super.dispose();
   }
 
+  void _onComplete() {
+    final nickname = _controller.text.trim();
+    if (nickname.isEmpty) return;
+    ref.read(authNotifierProvider.notifier).signup(
+          socialToken: widget.socialToken,
+          provider: widget.provider,
+          providerId: widget.providerId,
+          nickname: nickname,
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(signupStateProvider, (_, state) {
@@ -44,66 +57,63 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     });
 
     final signupState = ref.watch(signupStateProvider);
-    final isLoading   = signupState is SignupLoading;
+    final isDuplicate = signupState is SignupNicknameDuplicate;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDefault,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 40),
-              Text('닉네임을 입력해주세요',
-                  style: AppTypography.dungGeunMoHeader
-                      .copyWith(color: AppColors.textPrimary)),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _controller,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: '닉네임',
-                  filled: true,
-                  fillColor: AppColors.inputBackground,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.zero,
-                    borderSide:
-                        const BorderSide(color: AppColors.borderBlack),
+        child: Column(
+          children: [
+            TitleBar(
+              title: '닉네임 입력',
+              showBackButton: true,
+              onBack: () => context.pop(),
+              rightText: '완료',
+              onRight: _onComplete,
+            ),
+            const SizedBox(height: 60),
+            Text(
+              '닉네임을 입력해주세요.',
+              style: AppTypography.dungGeunMoHeader
+                  .copyWith(color: AppColors.textPrimary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 60),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PixelShadowBox(
+                    backgroundColor: AppColors.backgroundWhite,
+                    contentAlignment: Alignment.centerLeft,
+                    child: TextField(
+                      controller: _controller,
+                      autofocus: true,
+                      style: AppTypography.wantedSansBody
+                          .copyWith(color: AppColors.textPrimary),
+                      decoration: const InputDecoration(
+                        isCollapsed: true,
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                      ),
+                    ),
                   ),
-                ),
+                  if (isDuplicate) ...[
+                    const SizedBox(height: 6),
+                    Text('중복된 닉네임이에요.',
+                        style: AppTypography.dungGeunMoTag
+                            .copyWith(color: AppColors.primary)),
+                    const SizedBox(height: 6),
+                    Text('닉네임을 다시 확인해주세요.',
+                        style: AppTypography.dungGeunMoTag
+                            .copyWith(color: AppColors.primary)),
+                  ],
+                ],
               ),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.textWhite,
-                    shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero),
-                  ),
-                  onPressed: isLoading
-                      ? null
-                      : () {
-                          final nickname = _controller.text.trim();
-                          if (nickname.isEmpty) return;
-                          ref.read(authNotifierProvider.notifier).signup(
-                                socialToken: widget.socialToken,
-                                provider:    widget.provider,
-                                providerId:  widget.providerId,
-                                nickname:    nickname,
-                              );
-                        },
-                  child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text('시작하기',
-                          style: AppTypography.dungGeunMoBody),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

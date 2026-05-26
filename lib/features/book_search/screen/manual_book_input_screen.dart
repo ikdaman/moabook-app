@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../app/router/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
-import '../../../shared/widgets/pixel_shadow_box.dart';
+import '../../../shared/widgets/book_register_bottom_sheet.dart';
+import '../../../shared/widgets/title_bar.dart';
 import '../provider/book_search_provider.dart';
 
 class ManualBookInputScreen extends ConsumerStatefulWidget {
@@ -16,118 +18,135 @@ class ManualBookInputScreen extends ConsumerStatefulWidget {
 
 class _ManualBookInputScreenState
     extends ConsumerState<ManualBookInputScreen> {
-  final _titleCtrl  = TextEditingController();
-  final _authorCtrl = TextEditingController();
-  final _reasonCtrl = TextEditingController();
+  final _title = TextEditingController();
+  final _author = TextEditingController();
+  final _publisher = TextEditingController();
+  final _pubDate = TextEditingController();
+  final _isbn = TextEditingController();
+  final _pageCount = TextEditingController();
 
   @override
   void dispose() {
-    _titleCtrl.dispose();
-    _authorCtrl.dispose();
-    _reasonCtrl.dispose();
+    _title.dispose();
+    _author.dispose();
+    _publisher.dispose();
+    _pubDate.dispose();
+    _isbn.dispose();
+    _pageCount.dispose();
     super.dispose();
+  }
+
+  Future<void> _onSave() async {
+    final title = _title.text.trim();
+    final author = _author.text.trim();
+    if (title.isEmpty || author.isEmpty) return;
+    final result = await showBookRegisterSheet(context);
+    if (result == null || !mounted) return;
+    final ok = await ref.read(bookSearchProvider.notifier).saveManualBook(
+          title: title,
+          author: author,
+          reason: result.reason,
+        );
+    if (ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('책을 저장했어요')),
+      );
+      context.go(Routes.home);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isSaving = ref.watch(bookSearchProvider).isSaving;
-
     return Scaffold(
       backgroundColor: AppColors.backgroundDefault,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: const Icon(Icons.arrow_back,
-                        color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(width: 12),
-                  Text('직접 입력',
-                      style: AppTypography.dungGeunMoHeader
-                          .copyWith(color: AppColors.textPrimary)),
-                ],
-              ),
-              const SizedBox(height: 32),
-
-              _InputField(
-                  label: '책 제목 *', controller: _titleCtrl),
-              const SizedBox(height: 16),
-              _InputField(
-                  label: '저자 *', controller: _authorCtrl),
-              const SizedBox(height: 16),
-              _InputField(
-                  label: '읽고 싶은 이유',
-                  controller: _reasonCtrl,
-                  maxLines: 3),
-
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                child: PixelShadowButton(
-                  onTap: isSaving
-                      ? () {}
-                      : () async {
-                          final title  = _titleCtrl.text.trim();
-                          final author = _authorCtrl.text.trim();
-                          if (title.isEmpty || author.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('제목과 저자를 입력해주세요.')),
-                            );
-                            return;
-                          }
-                          final ok = await ref
-                              .read(bookSearchProvider.notifier)
-                              .saveManualBook(
-                                title:  title,
-                                author: author,
-                                reason: _reasonCtrl.text.trim().isEmpty
-                                    ? null
-                                    : _reasonCtrl.text.trim(),
-                              );
-                          if (ok && context.mounted) context.go('/main/home');
-                        },
-                  backgroundColor: AppColors.primary,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Center(
-                      child: isSaving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2))
-                          : Text('저장',
-                              style: AppTypography.dungGeunMoBody
-                                  .copyWith(color: AppColors.textWhite)),
+        child: Column(
+          children: [
+            TitleBar(
+              title: '직접 입력',
+              showBackButton: true,
+              onBack: () => context.pop(),
+              rightText: 'SAVE',
+              onRight: _onSave,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 16),
+                    Image.asset(
+                      'assets/images/book_default.png',
+                      width: 131,
+                      height: 181,
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    _Field(
+                      label: '제목',
+                      required: true,
+                      controller: _title,
+                      hint: '책 제목을 입력하세요',
+                    ),
+                    const SizedBox(height: 20),
+                    _Field(
+                      label: '작가',
+                      required: true,
+                      controller: _author,
+                      hint: '작가를 입력하세요',
+                    ),
+                    const SizedBox(height: 20),
+                    _Field(
+                      label: '출판사',
+                      controller: _publisher,
+                      hint: '출판사를 입력하세요',
+                    ),
+                    const SizedBox(height: 20),
+                    _Field(
+                      label: '출간일',
+                      controller: _pubDate,
+                      hint: 'YYYY-MM-DD',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 20),
+                    _Field(
+                      label: 'ISBN',
+                      controller: _isbn,
+                      hint: 'ISBN을 입력하세요',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 20),
+                    _Field(
+                      label: '페이지 수',
+                      controller: _pageCount,
+                      hint: '페이지 수를 입력하세요',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 32),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _InputField extends StatelessWidget {
+class _Field extends StatelessWidget {
   final String label;
+  final bool required;
   final TextEditingController controller;
-  final int maxLines;
+  final String hint;
+  final TextInputType keyboardType;
 
-  const _InputField({
+  const _Field({
     required this.label,
+    this.required = false,
     required this.controller,
-    this.maxLines = 1,
+    required this.hint,
+    this.keyboardType = TextInputType.text,
   });
 
   @override
@@ -135,29 +154,38 @@ class _InputField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: AppTypography.dungGeunMoSubtitle
-                .copyWith(color: AppColors.textPrimary)),
-        const SizedBox(height: 4),
-        TextField(
-          controller: controller,
-          maxLines:   maxLines,
-          style:      AppTypography.wantedSansBody
-              .copyWith(color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            filled:      true,
-            fillColor:   AppColors.inputBackground,
-            border:      const OutlineInputBorder(
-              borderRadius: BorderRadius.zero,
-              borderSide:   BorderSide(color: AppColors.borderBlack),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(label,
+                style: AppTypography.dungGeunMoSubtitle
+                    .copyWith(color: AppColors.textPrimary)),
+            if (required) ...[
+              const SizedBox(width: 4),
+              Text('필수',
+                  style: AppTypography.dungGeunMoTag
+                      .copyWith(color: AppColors.primary)),
+            ],
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          color: AppColors.backgroundWhite,
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: AppTypography.wantedSansBody
+                .copyWith(color: AppColors.textPrimary),
+            decoration: InputDecoration(
+              isCollapsed: true,
+              border: InputBorder.none,
+              hintText: hint,
+              hintStyle: AppTypography.wantedSansBody
+                  .copyWith(color: AppColors.textHint),
             ),
-            focusedBorder: const OutlineInputBorder(
-              borderRadius: BorderRadius.zero,
-              borderSide:
-                  BorderSide(color: AppColors.primary, width: 2),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           ),
         ),
       ],

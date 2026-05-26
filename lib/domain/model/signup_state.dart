@@ -15,3 +15,7 @@ class SignupError extends SignupState {
 
   const SignupError(this.message);
 }
+
+class SignupNicknameDuplicate extends SignupState {
+  const SignupNicknameDuplicate();
+}

@@ -26,6 +26,7 @@ class StoreBookItem {
   final String? coverImage;
   final String? description;
   final String? reason;
+  final String? readingStatus;
 
   const StoreBookItem({
     required this.mybookId,
@@ -35,5 +36,6 @@ class StoreBookItem {
     this.coverImage,
     this.description,
     this.reason,
+    this.readingStatus,
   });
 }

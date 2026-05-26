@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../app/router/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../data/datasource/member_datasource.dart';
 import '../../../features/auth/provider/auth_provider.dart';
+import '../../../shared/widgets/pixel_popup.dart';
 import '../../../shared/widgets/pixel_shadow_box.dart';
+import '../../../shared/widgets/title_bar.dart';
 
+const _termsUrl =
+    'https://scientific-ferryboat-eb1.notion.site/3354710961a98025a529d8e3bb765d2a';
+const _privacyUrl =
+    'https://scientific-ferryboat-eb1.notion.site/3354710961a9809caafdf17937d5dc80';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -18,8 +25,9 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _nickname = '';
-  bool _editingNickname = false;
+  bool _editing = false;
   bool _loggingOut = false;
+  String? _nicknameError;
   final _nicknameCtrl = TextEditingController();
 
   @override
@@ -37,22 +45,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _loadNickname() async {
     final storage = ref.read(secureStorageProvider);
     final n = await storage.read(key: 'nickname') ?? '';
-    setState(() { _nickname = n; _nicknameCtrl.text = n; });
+    if (!mounted) return;
+    setState(() {
+      _nickname = n;
+      _nicknameCtrl.text = n;
+    });
+  }
+
+  void _validateNickname(String v) {
+    final t = v.trim();
+    String? err;
+    if (t.isEmpty) {
+      err = '닉네임을 입력해주세요.';
+    } else if (t.length > 10) {
+      err = '닉네임은 10자 이내로 입력해주세요.';
+    }
+    setState(() => _nicknameError = err);
   }
 
   Future<void> _saveNickname() async {
     final newNick = _nicknameCtrl.text.trim();
     if (newNick.isEmpty) return;
+    if (_nicknameError != null) return;
     try {
       final ds = MemberDataSource(ref.read(dioProvider));
       final updated = await ds.updateNickname(newNick);
-      await ref.read(secureStorageProvider).write(key: 'nickname', value: updated);
-      setState(() { _nickname = updated; _editingNickname = false; });
+      await ref
+          .read(secureStorageProvider)
+          .write(key: 'nickname', value: updated);
+      if (!mounted) return;
+      setState(() {
+        _nickname = updated;
+        _editing = false;
+        _nicknameError = null;
+      });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('닉네임 변경 실패: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('닉네임 변경 실패: $e')),
+      );
     }
   }
 
@@ -67,185 +98,261 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) context.go(Routes.login);
   }
 
+  Future<void> _withdraw() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Center(
+        child: SingleChildScrollView(
+          child: PixelPopup(
+            onDismiss: () => Navigator.of(ctx).pop(false),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('회원탈퇴',
+                    style: AppTypography.dungGeunMoPopupTitle
+                        .copyWith(color: AppColors.textPrimary)),
+                const SizedBox(height: 20),
+                Text('탈퇴하면 모든 데이터가 삭제되며\n복구할 수 없어요.\n정말로 탈퇴하시겠어요?',
+                    style: AppTypography.wantedSansBody
+                        .copyWith(color: AppColors.textPrimary)),
+                const SizedBox(height: 24),
+                PixelPopupActions(
+                  cancelLabel: '취소',
+                  confirmLabel: '탈퇴',
+                  confirmColor: AppColors.dangerAccent,
+                  confirmTextColor: AppColors.textWhite,
+                  onCancel: () => Navigator.of(ctx).pop(false),
+                  onConfirm: () => Navigator.of(ctx).pop(true),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    // 실제 withdraw API 호출은 향후 추가. 일단 로그아웃과 동일하게 처리.
+    await _logout();
+  }
+
+  Future<void> _openUrl(String url) async {
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundDefault,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: const Icon(Icons.arrow_back,
-                        color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(width: 12),
-                  Text('설 정',
-                      style: AppTypography.dungGeunMoHeader
-                          .copyWith(color: AppColors.textPrimary)),
-                ],
-              ),
+            TitleBar(
+              title: '설 정',
+              showBackButton: true,
+              onBack: () => context.pop(),
             ),
-
-            // Greeting
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              child: Text('$_nickname님,\n안녕하세요!',
-                  style: AppTypography.dungGeunMoHomeTitle
-                      .copyWith(color: AppColors.textPrimary)),
-            ),
-
-            // Nickname section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('닉네임',
-                      style: AppTypography.dungGeunMoSubtitle
-                          .copyWith(color: AppColors.textPrimary)),
-                  const SizedBox(height: 8),
-                  if (_editingNickname) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _nicknameCtrl,
-                            style: AppTypography.wantedSansBody
-                                .copyWith(color: AppColors.textPrimary),
-                            decoration: const InputDecoration(
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.zero,
-                                  borderSide: BorderSide(
-                                      color: AppColors.borderBlack)),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 8),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16)
+                    .add(const EdgeInsets.only(top: 30)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_nickname.isEmpty ? "OO" : _nickname}님,\n안녕하세요!',
+                      style: AppTypography.dungGeunMoHomeTitle
+                          .copyWith(color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 60),
+                    SizedBox(
+                      height: 32,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 10),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('닉네임',
+                              style: AppTypography.dungGeunMoBody
+                                  .copyWith(color: AppColors.textPrimary)),
+                        ),
+                      ),
+                    ),
+                    if (_editing)
+                      ..._buildEditingNickname()
+                    else
+                      _buildNicknameDisplay(),
+                    const SizedBox(height: 60),
+                    _MenuItem(
+                      text: '서비스 이용약관',
+                      onTap: () => _openUrl(_termsUrl),
+                    ),
+                    const SizedBox(height: 10),
+                    _MenuItem(
+                      text: '개인정보 처리방침',
+                      onTap: () => _openUrl(_privacyUrl),
+                    ),
+                    const SizedBox(height: 24),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _withdraw,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 10, top: 8, bottom: 8),
+                        child: Text(
+                          '회원탈퇴',
+                          style: AppTypography.dungGeunMoTag.copyWith(
+                            color: AppColors.textPrimary.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    SizedBox(
+                      width: double.infinity,
+                      child: PixelShadowButton(
+                        onTap: _loggingOut ? () {} : _logout,
+                        backgroundColor: AppColors.primary,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Center(
+                            child: Text(
+                              _loggingOut ? '로그아웃 중...' : '로그아웃',
+                              style: AppTypography.dungGeunMoBody
+                                  .copyWith(color: AppColors.textWhite),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        PixelShadowButton(
-                          onTap: _saveNickname,
-                          backgroundColor: AppColors.primary,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            child: Text('저장',
-                                style: AppTypography.dungGeunMoBody
-                                    .copyWith(color: AppColors.textWhite)),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        PixelShadowButton(
-                          onTap: () =>
-                              setState(() => _editingNickname = false),
-                          backgroundColor: AppColors.backgroundGray,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            child: Text('취소',
-                                style: AppTypography.dungGeunMoBody
-                                    .copyWith(
-                                        color: AppColors.textPrimary)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else
-                    Row(
-                      children: [
-                        Text(_nickname,
-                            style: AppTypography.wantedSansBody
-                                .copyWith(color: AppColors.textPrimary)),
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () =>
-                              setState(() => _editingNickname = true),
-                          child: Text('수정',
-                              style: AppTypography.dungGeunMoSubtitle
-                                  .copyWith(color: AppColors.textGray)),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-
-            const Spacer(),
-
-            // Terms & Privacy
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  GestureDetector(
-                    onTap: () {}, // URL launch Phase 6에서 추가
-                    child: Text('서비스 이용약관',
-                        style: AppTypography.wantedSansBodySmall
-                            .copyWith(color: AppColors.textGray)),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () {},
-                    child: Text('개인정보 처리방침',
-                        style: AppTypography.wantedSansBodySmall
-                            .copyWith(color: AppColors.textGray)),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () {},
-                    child: Text('회원탈퇴',
-                        style: AppTypography.wantedSansBodySmall
-                            .copyWith(color: AppColors.textGray)),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Logout button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: GestureDetector(
-                onTap: _loggingOut ? null : _logout,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.borderBlack),
-                    color: _loggingOut
-                        ? AppColors.backgroundGray
-                        : AppColors.backgroundDefault,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _loggingOut ? '로그아웃 중...' : '로그아웃',
-                        style: AppTypography.dungGeunMoBody
-                            .copyWith(color: AppColors.textPrimary),
                       ),
-                      if (_loggingOut) ...[
-                        const SizedBox(width: 8),
-                        const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNicknameDisplay() {
+    return PixelShadowButton(
+      onTap: () {
+        setState(() {
+          _editing = true;
+          _nicknameCtrl.text = _nickname;
+          _nicknameError = null;
+        });
+      },
+      backgroundColor: AppColors.backgroundWhite,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _nickname.isEmpty ? '닉네임 없음' : _nickname,
+                style: AppTypography.wantedSansBody
+                    .copyWith(color: AppColors.textPrimary),
+              ),
+            ),
+            Text(
+              '수정',
+              style: AppTypography.dungGeunMoTag.copyWith(
+                color: AppColors.textPrimary.withValues(alpha: 0.5),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildEditingNickname() {
+    return [
+      PixelShadowBox(
+        backgroundColor: AppColors.backgroundWhite,
+        contentAlignment: Alignment.centerLeft,
+        child: TextField(
+          controller: _nicknameCtrl,
+          onChanged: _validateNickname,
+          style: AppTypography.wantedSansBody
+              .copyWith(color: AppColors.textPrimary),
+          decoration: const InputDecoration(
+            isCollapsed: true,
+            border: InputBorder.none,
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+        ),
+      ),
+      if (_nicknameError != null) ...[
+        const SizedBox(height: 6),
+        Text(
+          _nicknameError!,
+          style: AppTypography.dungGeunMoTag
+              .copyWith(color: AppColors.primary),
+        ),
+      ],
+      const SizedBox(height: 12),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          PixelShadowButton(
+            onTap: () {
+              setState(() {
+                _editing = false;
+                _nicknameCtrl.text = _nickname;
+                _nicknameError = null;
+              });
+            },
+            backgroundColor: AppColors.backgroundGray,
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text('취소',
+                  style: AppTypography.dungGeunMoBody
+                      .copyWith(color: AppColors.textPrimary)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          PixelShadowButton(
+            onTap: _saveNickname,
+            backgroundColor: AppColors.primary,
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text('SAVE',
+                  style: AppTypography.dungGeunMoBody
+                      .copyWith(color: AppColors.textWhite)),
+            ),
+          ),
+        ],
+      ),
+    ];
+  }
+}
+
+class _MenuItem extends StatelessWidget {
+  final String text;
+  final VoidCallback onTap;
+  const _MenuItem({required this.text, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 32,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(text,
+                style: AppTypography.dungGeunMoBody
+                    .copyWith(color: AppColors.textPrimary)),
+          ),
         ),
       ),
     );
