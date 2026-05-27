@@ -58,7 +58,7 @@ class LoginScreen extends ConsumerWidget {
               children: [
                 const Spacer(),
                 Image.asset(
-                  'assets/images/ic_app_logo.webp',
+                  'assets/images/book_logo.png',
                   width: 100,
                   height: 100,
                 ),
