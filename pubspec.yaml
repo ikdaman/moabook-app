@@ -46,6 +46,9 @@ dependencies:
   # 외부 링크 열기
   url_launcher: ^6.3.1
 
+  # 홈 스크린 위젯 브리지 (Android Glance, iOS WidgetKit)
+  home_widget: ^0.7.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -47,6 +47,62 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Widget receivers (Glance) -->
+        <receiver
+            android:name="project.side.widget.receiver.SmallWidgetWhiteReceiver"
+            android:label="@string/widget_small_white_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_small_white_info" />
+        </receiver>
+        <receiver
+            android:name="project.side.widget.receiver.SmallWidgetBlueReceiver"
+            android:label="@string/widget_small_blue_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_small_blue_info" />
+        </receiver>
+        <receiver
+            android:name="project.side.widget.receiver.MediumWidgetWhiteReceiver"
+            android:label="@string/widget_medium_white_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_medium_white_info" />
+        </receiver>
+        <receiver
+            android:name="project.side.widget.receiver.MediumWidgetBlueReceiver"
+            android:label="@string/widget_medium_blue_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_medium_blue_info" />
+        </receiver>
+        <receiver
+            android:name="project.side.widget.receiver.LargeWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_large_info" />
+        </receiver>
     </application>
 
     <queries>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_white_bg">#F6F9FF</color>
+    <color name="widget_blue_bg">#010196</color>
+    <color name="widget_text_dark">#333333</color>
+    <color name="widget_text_light">#FFFFFF</color>
+    <color name="widget_accent_blue">#010196</color>
+    <color name="widget_dummy_text">#A7A7A7</color>
+    <color name="widget_indicator_active_dark">#747474</color>
+    <color name="widget_indicator_inactive_dark">#D9D9D9</color>
+    <color name="widget_indicator_active_light">#FFFFFF</color>
+    <color name="widget_indicator_inactive_light">#80FFFFFF</color>
+    <color name="widget_l_header_bar">#D4D4D4</color>
+</resources>

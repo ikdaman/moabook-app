@@ -5,4 +5,10 @@
     <string name="naver_client_id">HHcc6QmC3xAJOcNxFyFt</string>
     <string name="naver_client_secret">zW0NHMQk7g</string>
     <string name="naver_client_name">모아북</string>
+
+    <!-- Widget labels -->
+    <string name="widget_small_white_label">모아북 S (흰색)</string>
+    <string name="widget_small_blue_label">모아북 S (파란색)</string>
+    <string name="widget_medium_white_label">모아북 M (흰색)</string>
+    <string name="widget_medium_blue_label">모아북 M (파란색)</string>
 </resources>

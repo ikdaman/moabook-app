@@ -3,6 +3,7 @@ import '../../../data/datasource/mybook_datasource.dart';
 import '../../../domain/model/store_book.dart';
 import '../../../features/auth/provider/auth_provider.dart';
 import '../../../domain/model/login_state.dart';
+import '../../../widget_bridge/widget_publisher.dart';
 
 // ── DataSource Provider ───────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ class HomeNotifier extends Notifier<HomeState> {
     ref.listen(loginStateProvider, (prev, next) {
       if (next is LoginInitial) {
         state = const HomeState();
+        WidgetPublisher.clear();
       }
     });
     ref.listen(isLoggedInProvider, (prev, next) {
@@ -79,6 +81,7 @@ class HomeNotifier extends Notifier<HomeState> {
       final currLoggedIn = next.valueOrNull;
       if (currLoggedIn == false && prevLoggedIn == true) {
         state = const HomeState();
+        WidgetPublisher.clear();
       } else if (currLoggedIn == true && prevLoggedIn == false) {
         load();
       }
@@ -120,6 +123,8 @@ class HomeNotifier extends Notifier<HomeState> {
         currentPage:      0,
         storeBooksLoaded: true,
       );
+      // 홈 데이터 갱신 시마다 위젯 publish (최대 9권)
+      WidgetPublisher.publish(result.content);
     } catch (e) {
       state = state.copyWith(
         isLoading:        false,

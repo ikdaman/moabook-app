@@ -8,10 +8,16 @@ import 'app/theme/app_theme.dart';
 import 'core/env/env.dart';
 import 'core/network/auth_event.dart';
 import 'features/auth/provider/auth_provider.dart';
+import 'widget_bridge/widget_background_callback.dart';
+import 'widget_bridge/widget_navigator.dart';
+import 'widget_bridge/widget_publisher.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   KakaoSdk.init(nativeAppKey: Env.kakaoAppKey);
+  await WidgetPublisher.init();
+  await registerWidgetBackgroundCallback();
+  WidgetNavigator.listen();
   runApp(const ProviderScope(child: App()));
 }
 
@@ -32,6 +38,7 @@ class _AppState extends ConsumerState<App> {
       ref.invalidate(isLoggedInProvider);
       appRouter.go(Routes.login);
     });
+    WidgetNavigator.handleInitialLaunch();
   }
 
   @override
