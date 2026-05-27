@@ -210,7 +210,7 @@ private struct LargeWidgetView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(red: 0xD4/255, green: 0xD4/255, blue: 0xD4/255).opacity(0.3))
+                .background(Color(red: 0xD4/255, green: 0xD4/255, blue: 0xD4/255))
 
             if books.isEmpty {
                 EmptyStateView(palette: palette)
