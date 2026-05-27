@@ -273,15 +273,13 @@ class _Header extends StatelessWidget {
           // Settings icon (우상단)
           Align(
             alignment: Alignment.centerRight,
-            child: PixelShadowButton(
-              onTap: () => context.push(Routes.setting),
-              backgroundColor: AppColors.backgroundGray,
-              child: const SizedBox(
-                width: 30,
-                height: 30,
-                child: Center(
-                  child: SvgIcon('assets/images/settings.svg', size: 18),
-                ),
+            child: SizedBox(
+              width: 30,
+              height: 30,
+              child: PixelShadowButton(
+                onTap: () => context.push(Routes.setting),
+                backgroundColor: AppColors.backgroundGray,
+                child: const SvgIcon('assets/images/settings.svg', size: 18),
               ),
             ),
           ),
