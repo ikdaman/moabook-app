@@ -18,7 +18,13 @@ abstract interface class MyBookDataSource {
 
   Future<void> deleteMyBook(int mybookId);
 
-  Future<void> updateReadingStatus(int mybookId, String status);
+  /// Android 원본 PATCH `/mybooks/{id}/reading-status` 와 동일하게
+  /// `{startedDate, finishedDate}` 본문을 전송한다.
+  Future<void> updateReadingStatus(
+    int mybookId, {
+    String? startedDate,
+    String? finishedDate,
+  });
 
   Future<void> updateMyBook(int mybookId, Map<String, dynamic> data);
 
@@ -74,10 +80,17 @@ class MyBookDataSourceImpl implements MyBookDataSource {
   }
 
   @override
-  Future<void> updateReadingStatus(int mybookId, String status) async {
+  Future<void> updateReadingStatus(
+    int mybookId, {
+    String? startedDate,
+    String? finishedDate,
+  }) async {
     await _dio.patch<void>(
       '/mybooks/$mybookId/reading-status',
-      data: {'readingStatus': status},
+      data: {
+        'startedDate': startedDate,
+        'finishedDate': finishedDate,
+      },
     );
   }
 

@@ -9,6 +9,7 @@ import '../../../core/util/date_formatter.dart';
 import '../../../domain/model/store_book.dart';
 import '../../../features/auth/provider/auth_provider.dart';
 import '../../../shared/widgets/pixel_shadow_box.dart';
+import '../../../shared/widgets/reading_start_bottom_sheet.dart';
 import '../../../shared/widgets/retro_loading.dart';
 import '../../../shared/widgets/svg_icon.dart';
 import '../provider/home_provider.dart';
@@ -207,9 +208,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     return _BookCard(
                       book:          book,
                       onTap: () => context.push(Routes.bookInfo(book.mybookId)),
-                      onStartReading: () => ref
-                          .read(homeProvider.notifier)
-                          .startReading(book.mybookId),
+                      onStartReading: () =>
+                          _confirmStartReading(context, book),
                       onDelete: () => _confirmDelete(context, book.mybookId),
                     );
                   },
@@ -241,6 +241,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
     if (confirmed == true) {
       await ref.read(homeProvider.notifier).deleteBook(mybookId);
+    }
+  }
+
+  Future<void> _confirmStartReading(
+    BuildContext context,
+    StoreBookItem book,
+  ) async {
+    final confirmed = await showReadingStartSheet(
+      context,
+      bookTitle: book.title,
+    );
+    if (confirmed == true) {
+      await ref.read(homeProvider.notifier).startReading(book.mybookId);
     }
   }
 }
