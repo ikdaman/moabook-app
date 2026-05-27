@@ -60,6 +60,11 @@ class PixelShadowButton extends StatefulWidget {
   final double shadowOffset;
   final bool isSelected;
 
+  /// Android 원본 `PixelShadowButton` 의 Box `contentAlignment` 동등.
+  /// null 이면 child 크기로 shrink-wrap.
+  /// non-null 이면 부모 constraint 채워 expand (배경/그림자가 영역 전체에 칠해진다).
+  final AlignmentGeometry? contentAlignment;
+
   const PixelShadowButton({
     super.key,
     required this.child,
@@ -68,6 +73,7 @@ class PixelShadowButton extends StatefulWidget {
     this.shadowColor = AppColors.borderBlack,
     this.shadowOffset = 1.0,
     this.isSelected = false,
+    this.contentAlignment = Alignment.center,
   });
 
   @override
@@ -109,6 +115,7 @@ class _PixelShadowButtonState extends State<PixelShadowButton> {
               painter: _PixelBorderPainter(pressed: _showPressed),
               child: Container(
                 color: widget.backgroundColor,
+                alignment: widget.contentAlignment,
                 child: widget.child,
               ),
             ),
