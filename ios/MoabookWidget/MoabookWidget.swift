@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -5,16 +6,15 @@ import WidgetKit
 
 struct MoabookProvider: TimelineProvider {
     func placeholder(in context: Context) -> MoabookEntry {
-        MoabookEntry(date: Date(), books: [])
+        MoabookEntry(date: Date(), books: [], mediumIndex: 0)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (MoabookEntry) -> Void) {
-        completion(MoabookEntry(date: Date(), books: WidgetCache.read()))
+        completion(MoabookEntry(date: Date(), books: WidgetCache.read(), mediumIndex: MediumPageStore.read()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<MoabookEntry>) -> Void) {
-        let entry = MoabookEntry(date: Date(), books: WidgetCache.read())
-        // WidgetCenter.reloadAllTimelines() 가 Flutter publish 시 호출되므로 .never 정책 사용
+        let entry = MoabookEntry(date: Date(), books: WidgetCache.read(), mediumIndex: MediumPageStore.read())
         completion(Timeline(entries: [entry], policy: .never))
     }
 }
@@ -22,6 +22,7 @@ struct MoabookProvider: TimelineProvider {
 struct MoabookEntry: TimelineEntry {
     let date: Date
     let books: [WidgetUiBook]
+    let mediumIndex: Int
 }
 
 // MARK: - Widget
@@ -30,7 +31,7 @@ struct MoabookWidget: Widget {
     let kind: String = "MoabookWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: MoabookProvider()) { entry in
+        let config = StaticConfiguration(kind: kind, provider: MoabookProvider()) { entry in
             if #available(iOS 17.0, *) {
                 MoabookWidgetView(entry: entry)
                     .containerBackground(WidgetPalette.white.background, for: .widget)
@@ -43,10 +44,16 @@ struct MoabookWidget: Widget {
         .configurationDisplayName("모아북")
         .description("읽고 싶은 책 모음")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+
+        if #available(iOS 17.0, *) {
+            return config.contentMarginsDisabled()
+        } else {
+            return config
+        }
     }
 }
 
-// MARK: - Root view: switch by family
+// MARK: - Root view
 
 struct MoabookWidgetView: View {
     @Environment(\.widgetFamily) private var family
@@ -56,8 +63,10 @@ struct MoabookWidgetView: View {
         switch family {
         case .systemSmall:
             SmallWidgetView(books: entry.books)
+                .padding(16)
         case .systemMedium:
-            MediumWidgetView(books: entry.books)
+            MediumWidgetView(books: entry.books, current: entry.mediumIndex)
+                .padding(EdgeInsets(top: 14, leading: 16, bottom: 12, trailing: 16))
         case .systemLarge:
             LargeWidgetView(books: entry.books)
         default:
@@ -88,11 +97,16 @@ private struct SmallWidgetView: View {
         Group {
             if let book = books.first {
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Image(systemName: "heart.fill")
-                            .foregroundColor(palette.accent)
-                            .font(.system(size: 18))
+                    HStack(alignment: .top) {
+                        Image("ic_book_heart_navy")
+                            .resizable()
+                            .frame(width: 22, height: 22)
                         Spacer()
+                        Link(destination: URL(string: "moabookwidget://refresh_small")!) {
+                            Image("ic_widget_refresh_dark")
+                                .resizable()
+                                .frame(width: 14, height: 14)
+                        }
                     }
                     Spacer().frame(height: 10)
                     Text(book.title)
@@ -121,39 +135,63 @@ private struct SmallWidgetView: View {
 
 private struct MediumWidgetView: View {
     let books: [WidgetUiBook]
+    let current: Int
     private let palette = WidgetPalette.white
 
     var body: some View {
         Group {
-            if let book = books.first {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "heart.fill")
-                            .foregroundColor(palette.accent)
-                            .font(.system(size: 16))
-                        Text(book.title)
-                            .font(.system(size: 14, weight: .regular))
-                            .foregroundColor(palette.text)
-                            .lineLimit(1)
-                    }
-                    Spacer().frame(height: 12)
-                    Text((book.reason?.isEmpty == false) ? book.reason! : "읽고 싶은 이유를 추가해 주세요.")
-                        .font(.system(size: 12))
-                        .foregroundColor(book.reason?.isEmpty == false ? palette.text : palette.dummyText)
-                        .lineLimit(4)
-                        .multilineTextAlignment(.leading)
-                    Spacer()
-                    HStack {
+            if books.isEmpty {
+                EmptyStateView(palette: palette)
+                    .widgetURL(URL(string: "moabookwidget://home"))
+            } else {
+                let safeIndex = max(0, min(current, books.count - 1))
+                let book = books[safeIndex]
+                ZStack(alignment: .bottomTrailing) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(spacing: 4) {
+                            Image("ic_book_heart_navy")
+                                .resizable()
+                                .frame(width: 22, height: 22)
+                            Text(book.title)
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundColor(palette.text)
+                                .lineLimit(1)
+                        }
+                        Spacer().frame(height: 12)
+                        Text((book.reason?.isEmpty == false) ? book.reason! : "읽고 싶은 이유를 추가해 주세요.")
+                            .font(.system(size: 12))
+                            .foregroundColor(book.reason?.isEmpty == false ? palette.text : palette.dummyText)
+                            .lineLimit(4)
+                            .multilineTextAlignment(.leading)
                         Spacer()
-                        Text(DateLabel.formatDisplay(book.createdDate))
-                            .font(.custom("DungGeunMo", size: 12))
-                            .foregroundColor(palette.accent)
+                        HStack {
+                            Spacer()
+                            Text(DateLabel.formatDisplay(book.createdDate))
+                                .font(.custom("DungGeunMo", size: 12))
+                                .foregroundColor(palette.accent)
+                        }
+                    }
+                    if books.count > 1, #available(iOS 17.0, *) {
+                        HStack(spacing: 6) {
+                            Button(intent: MediumPagePrevIntent()) {
+                                Text("이전")
+                                    .font(.custom("DungGeunMo", size: 12))
+                                    .foregroundColor(palette.accent)
+                            }
+                            .buttonStyle(.plain)
+                            Text("|")
+                                .font(.custom("DungGeunMo", size: 12))
+                                .foregroundColor(palette.accent)
+                            Button(intent: MediumPageNextIntent()) {
+                                Text("다음")
+                                    .font(.custom("DungGeunMo", size: 12))
+                                    .foregroundColor(palette.accent)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
                 .widgetURL(URL(string: "moabookwidget://book?id=\(book.mybookId)"))
-            } else {
-                EmptyStateView(palette: palette)
-                    .widgetURL(URL(string: "moabookwidget://home"))
             }
         }
     }
@@ -167,6 +205,7 @@ private struct LargeWidgetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Edge-to-edge header — 외곽 패딩 없음, BOOK NAME 이 헤더에 박혀있음
             Text("BOOK NAME")
                 .font(.custom("DungGeunMo", size: 20))
                 .foregroundColor(palette.text)
@@ -182,9 +221,9 @@ private struct LargeWidgetView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(books.prefix(9)) { book in
                         HStack(spacing: 8) {
-                            Image(systemName: "heart.fill")
-                                .foregroundColor(palette.accent)
-                                .font(.system(size: 12))
+                            Image("ic_book_heart_navy")
+                                .resizable()
+                                .frame(width: 18, height: 18)
                             Text(book.title)
                                 .font(.system(size: 14))
                                 .foregroundColor(palette.text)
