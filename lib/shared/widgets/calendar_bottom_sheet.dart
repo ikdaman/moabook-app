@@ -52,31 +52,31 @@ class _CalendarBottomSheetState extends State<CalendarBottomSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Android 원본 CalendarPicker: Material KeyboardArrowLeft/Right
+              // IconButton + 타이틀 "YYYY년 M월"
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
-                    onTap: _prevMonth,
-                    behavior: HitTestBehavior.opaque,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('◀', style: TextStyle(fontSize: 16)),
+                  IconButton(
+                    onPressed: _prevMonth,
+                    icon: const Icon(
+                      Icons.keyboard_arrow_left,
+                      color: AppColors.textPrimary,
                     ),
+                    tooltip: '이전 달',
                   ),
-                  Expanded(
-                    child: Text(
-                      '${_viewMonth.year}.${_viewMonth.month.toString().padLeft(2, '0')}',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.dungGeunMoPopupTitle
-                          .copyWith(color: AppColors.textPrimary),
-                    ),
+                  Text(
+                    '${_viewMonth.year}년 ${_viewMonth.month}월',
+                    style: AppTypography.dungGeunMoPopupTitle
+                        .copyWith(color: AppColors.textPrimary),
                   ),
-                  GestureDetector(
-                    onTap: _nextMonth,
-                    behavior: HitTestBehavior.opaque,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('▶', style: TextStyle(fontSize: 16)),
+                  IconButton(
+                    onPressed: _nextMonth,
+                    icon: const Icon(
+                      Icons.keyboard_arrow_right,
+                      color: AppColors.textPrimary,
                     ),
+                    tooltip: '다음 달',
                   ),
                 ],
               ),
