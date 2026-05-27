@@ -355,7 +355,7 @@ class _BookCard extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  '#${book.mybookId.toString().padLeft(3, '0')}  ($dateStr)',
+                  'NO.${book.mybookId.toString().padLeft(3, '0')}  ($dateStr)',
                   style: AppTypography.dungGeunMoSubtitle
                       .copyWith(color: AppColors.textPrimary),
                 ),

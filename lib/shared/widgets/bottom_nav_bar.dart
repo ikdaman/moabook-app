@@ -86,10 +86,13 @@ class _NavItemState extends State<_NavItem> {
       child: Container(
         color: _highlight ? AppColors.primary : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-        child: Text(
-          widget.label,
-          style: AppTypography.dungGeunMoSubtitle.copyWith(
-            color: _highlight ? AppColors.textWhite : AppColors.textPrimary,
+        height: 20,
+        child: Center(
+          child: Text(
+            widget.label,
+            style: AppTypography.dungGeunMoSubtitle.copyWith(
+              color: _highlight ? AppColors.textWhite : AppColors.textPrimary,
+            ),
           ),
         ),
       ),
