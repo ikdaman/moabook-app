@@ -6,10 +6,12 @@ abstract interface class AuthRepository {
   Stream<LoginState> kakaoLogin();
   Stream<LoginState> naverLogin();
   Stream<LoginState> googleLogin();
+  Stream<LoginState> appleLogin();
 
   Stream<LogoutState> kakaoLogout();
   Stream<LogoutState> naverLogout();
   Stream<LogoutState> googleLogout();
+  Stream<LogoutState> appleLogout();
 
   Stream<SignupState> signup({
     required String socialToken,

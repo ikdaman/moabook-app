@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -88,6 +90,14 @@ class LoginScreen extends ConsumerWidget {
                         label: '구글 로그인',
                         onTap: isLoading ? null : auth.googleLogin,
                       ),
+                      if (Platform.isIOS) ...[
+                        const SizedBox(height: 12),
+                        _SocialButton(
+                          iconAsset: 'assets/images/apple_logo.svg',
+                          label: '애플 로그인',
+                          onTap: isLoading ? null : auth.appleLogin,
+                        ),
+                      ],
                     ],
                   ),
                 ),

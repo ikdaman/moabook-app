@@ -25,6 +25,9 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Stream<LoginState> googleLogin() => _login(_social.googleLogin, _social.googleLogout);
 
+  @override
+  Stream<LoginState> appleLogin() => _login(_social.appleLogin, _social.appleLogout);
+
   Stream<LoginState> _login(
     Future<dynamic> Function() socialLoginFn,
     Future<void> Function() socialLogoutFn,
@@ -77,6 +80,9 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Stream<LogoutState> googleLogout() => _logout(_social.googleLogout);
+
+  @override
+  Stream<LogoutState> appleLogout() => _logout(_social.appleLogout);
 
   Stream<LogoutState> _logout(Future<void> Function() socialLogoutFn) async* {
     yield const LogoutLoading();

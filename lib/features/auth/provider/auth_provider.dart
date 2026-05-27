@@ -71,6 +71,12 @@ class AuthNotifier extends Notifier<void> {
     }
   }
 
+  Future<void> appleLogin() async {
+    await for (final state in _repo.appleLogin()) {
+      ref.read(loginStateProvider.notifier).state = state;
+    }
+  }
+
   Future<void> signup({
     required String socialToken,
     required String provider,
@@ -93,6 +99,7 @@ class AuthNotifier extends Notifier<void> {
       'KAKAO'  => _repo.kakaoLogout(),
       'NAVER'  => _repo.naverLogout(),
       'GOOGLE' => _repo.googleLogout(),
+      'APPLE'  => _repo.appleLogout(),
       _        => _repo.kakaoLogout(),
     };
     await for (final state in stream) {

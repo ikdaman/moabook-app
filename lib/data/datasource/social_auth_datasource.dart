@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'package:flutter_naver_login/interface/types/naver_login_status.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../model/social_login_result.dart';
 import '../../core/env/env.dart';
 
@@ -12,9 +13,11 @@ abstract interface class SocialAuthDataSource {
   Future<SocialLoginResult> kakaoLogin();
   Future<SocialLoginResult> naverLogin();
   Future<SocialLoginResult> googleLogin();
+  Future<SocialLoginResult> appleLogin();
   Future<void> kakaoLogout();
   Future<void> naverLogout();
   Future<void> googleLogout();
+  Future<void> appleLogout();
 }
 
 class SocialAuthDataSourceImpl implements SocialAuthDataSource {
@@ -162,6 +165,53 @@ class SocialAuthDataSourceImpl implements SocialAuthDataSource {
     } else {
       try { await _googleSignIn.signOut(); } catch (_) {}
     }
+  }
+
+  // ── Apple (iOS only) ─────────────────────────────────────────────────────
+
+  @override
+  Future<SocialLoginResult> appleLogin() async {
+    if (!Platform.isIOS) {
+      return const SocialLoginResult(
+        isSuccess:    false,
+        errorMessage: '애플 로그인은 iOS 에서만 사용 가능합니다.',
+      );
+    }
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: const [
+          AppleIDAuthorizationScopes.email,
+        ],
+      );
+      final idToken = credential.identityToken;
+      if (idToken == null || idToken.isEmpty) {
+        return const SocialLoginResult(
+          isSuccess:    false,
+          errorMessage: 'Apple ID 토큰을 가져올 수 없습니다.',
+        );
+      }
+      return SocialLoginResult(
+        isSuccess:         true,
+        socialAccessToken: idToken,
+        provider:          'APPLE',
+        providerId:        credential.userIdentifier ?? _extractSub(idToken),
+      );
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        return const SocialLoginResult(
+          isSuccess:    false,
+          errorMessage: '애플 로그인이 취소되었습니다.',
+        );
+      }
+      return SocialLoginResult(isSuccess: false, errorMessage: e.message);
+    } catch (e) {
+      return SocialLoginResult(isSuccess: false, errorMessage: e.toString());
+    }
+  }
+
+  @override
+  Future<void> appleLogout() async {
+    // Apple Sign In 은 명시적 logout API 없음 — 로컬 토큰만 폐기.
   }
 
   String _extractSub(String idToken) {
