@@ -7,6 +7,7 @@ import '../../../app/router/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../domain/model/book_item.dart';
+import '../../../shared/widgets/keyboard_dismisser.dart';
 import '../../../shared/widgets/pixel_shadow_box.dart';
 import '../../../shared/widgets/retro_loading.dart';
 import '../../../shared/widgets/svg_icon.dart';
@@ -76,9 +77,7 @@ class _SearchBookScreenState extends ConsumerState<SearchBookScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDefault,
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      body: KeyboardDismisser(
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -139,14 +138,16 @@ class _SearchBar extends StatelessWidget {
                 child: TextField(
                   controller: controller,
                   focusNode: focusNode,
-                  style: AppTypography.dungGeunMoBody
-                      .copyWith(color: AppColors.textPrimary),
+                  style: AppTypography.dungGeunMoBody.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => onSubmit(),
                   decoration: InputDecoration(
                     hintText: '책 제목을 검색해주세요.',
-                    hintStyle: AppTypography.dungGeunMoBody
-                        .copyWith(color: AppColors.textHint),
+                    hintStyle: AppTypography.dungGeunMoBody.copyWith(
+                      color: AppColors.textHint,
+                    ),
                     border: InputBorder.none,
                     isCollapsed: true,
                     contentPadding: EdgeInsets.zero,
@@ -220,8 +221,9 @@ class _Content extends StatelessWidget {
             child: Center(
               child: Text(
                 '로딩중...',
-                style: AppTypography.dungGeunMoBody
-                    .copyWith(color: AppColors.textPrimary),
+                style: AppTypography.dungGeunMoBody.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
           );
@@ -259,8 +261,9 @@ class _EmptyResult extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text(
                 '직접 입력하기',
-                style: AppTypography.dungGeunMoSubtitle
-                    .copyWith(color: AppColors.textPrimary),
+                style: AppTypography.dungGeunMoSubtitle.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
           ),
@@ -299,12 +302,10 @@ class _BookResultItem extends StatelessWidget {
                         ? CachedNetworkImage(
                             imageUrl: book.cover,
                             fit: BoxFit.cover,
-                            placeholder: (_, _) => const ColoredBox(
-                              color: Colors.grey,
-                            ),
-                            errorWidget: (_, _, _) => const ColoredBox(
-                              color: Colors.red,
-                            ),
+                            placeholder: (_, _) =>
+                                const ColoredBox(color: Colors.grey),
+                            errorWidget: (_, _, _) =>
+                                const ColoredBox(color: Colors.red),
                           )
                         : const ColoredBox(color: Colors.grey),
                   ),
@@ -318,24 +319,27 @@ class _BookResultItem extends StatelessWidget {
                     children: [
                       Text(
                         book.title,
-                        style: AppTypography.wantedSansBookTitle
-                            .copyWith(color: AppColors.textPrimary),
+                        style: AppTypography.wantedSansBookTitle.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         book.author,
-                        style: AppTypography.wantedSansBodySmall
-                            .copyWith(color: AppColors.textPrimary),
+                        style: AppTypography.wantedSansBodySmall.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         book.publisher,
-                        style: AppTypography.wantedSansBodySmall
-                            .copyWith(color: AppColors.textPrimary),
+                        style: AppTypography.wantedSansBodySmall.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

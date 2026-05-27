@@ -7,6 +7,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../data/datasource/member_datasource.dart';
 import '../../../features/auth/provider/auth_provider.dart';
+import '../../../shared/widgets/keyboard_dismisser.dart';
 import '../../../shared/widgets/pixel_popup.dart';
 import '../../../shared/widgets/pixel_shadow_box.dart';
 import '../../../shared/widgets/title_bar.dart';
@@ -81,9 +82,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('닉네임 변경 실패: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('닉네임 변경 실패: $e')));
     }
   }
 
@@ -109,13 +110,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('회원탈퇴',
-                    style: AppTypography.dungGeunMoPopupTitle
-                        .copyWith(color: AppColors.textPrimary)),
+                Text(
+                  '회원탈퇴',
+                  style: AppTypography.dungGeunMoPopupTitle.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 const SizedBox(height: 20),
-                Text('탈퇴하면 모든 데이터가 삭제되며\n복구할 수 없어요.\n정말로 탈퇴하시겠어요?',
-                    style: AppTypography.wantedSansBody
-                        .copyWith(color: AppColors.textPrimary)),
+                Text(
+                  '탈퇴하면 모든 데이터가 삭제되며\n복구할 수 없어요.\n정말로 탈퇴하시겠어요?',
+                  style: AppTypography.wantedSansBody.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 const SizedBox(height: 24),
                 PixelPopupActions(
                   cancelLabel: '취소',
@@ -137,9 +144,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ds.withdraw();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('회원탈퇴 실패: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('회원탈퇴 실패: $e')));
       return;
     }
     // 토큰 폐기 + 로그인 화면 복귀
@@ -154,91 +161,105 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundDefault,
-      body: SafeArea(
-        child: Column(
-          children: [
-            TitleBar(
-              title: '설 정',
-              showBackButton: true,
-              onBack: () => context.pop(),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16)
-                    .add(const EdgeInsets.only(top: 30)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${_nickname.isEmpty ? "OO" : _nickname}님,\n안녕하세요!',
-                      style: AppTypography.dungGeunMoHomeTitle
-                          .copyWith(color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(height: 60),
-                    SizedBox(
-                      height: 32,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 10),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text('닉네임',
-                              style: AppTypography.dungGeunMoBody
-                                  .copyWith(color: AppColors.textPrimary)),
+      body: KeyboardDismisser(
+        child: SafeArea(
+          child: Column(
+            children: [
+              TitleBar(
+                title: '설 정',
+                showBackButton: true,
+                onBack: () => context.pop(),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                  ).add(const EdgeInsets.only(top: 30)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${_nickname.isEmpty ? "OO" : _nickname}님,\n안녕하세요!',
+                        style: AppTypography.dungGeunMoHomeTitle.copyWith(
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                    ),
-                    if (_editing)
-                      ..._buildEditingNickname()
-                    else
-                      _buildNicknameDisplay(),
-                    const SizedBox(height: 60),
-                    _MenuItem(
-                      text: '서비스 이용약관',
-                      onTap: () => _openUrl(_termsUrl),
-                    ),
-                    const SizedBox(height: 10),
-                    _MenuItem(
-                      text: '개인정보 처리방침',
-                      onTap: () => _openUrl(_privacyUrl),
-                    ),
-                    const SizedBox(height: 24),
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _withdraw,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 10, top: 8, bottom: 8),
-                        child: Text(
-                          '회원탈퇴',
-                          style: AppTypography.dungGeunMoTag.copyWith(
-                            color: AppColors.textPrimary.withValues(alpha: 0.5),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    SizedBox(
-                      width: double.infinity,
-                      child: PixelShadowButton(
-                        onTap: _loggingOut ? () {} : _logout,
-                        backgroundColor: AppColors.primary,
+                      const SizedBox(height: 60),
+                      SizedBox(
+                        height: 32,
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Center(
+                          padding: const EdgeInsets.only(left: 10),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
                             child: Text(
-                              _loggingOut ? '로그아웃 중...' : '로그아웃',
-                              style: AppTypography.dungGeunMoBody
-                                  .copyWith(color: AppColors.textWhite),
+                              '닉네임',
+                              style: AppTypography.dungGeunMoBody.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                      if (_editing)
+                        ..._buildEditingNickname()
+                      else
+                        _buildNicknameDisplay(),
+                      const SizedBox(height: 60),
+                      _MenuItem(
+                        text: '서비스 이용약관',
+                        onTap: () => _openUrl(_termsUrl),
+                      ),
+                      const SizedBox(height: 10),
+                      _MenuItem(
+                        text: '개인정보 처리방침',
+                        onTap: () => _openUrl(_privacyUrl),
+                      ),
+                      const SizedBox(height: 24),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _withdraw,
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            left: 10,
+                            top: 8,
+                            bottom: 8,
+                          ),
+                          child: Text(
+                            '회원탈퇴',
+                            style: AppTypography.dungGeunMoTag.copyWith(
+                              color: AppColors.textPrimary.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      SizedBox(
+                        width: double.infinity,
+                        child: PixelShadowButton(
+                          onTap: _loggingOut ? () {} : _logout,
+                          backgroundColor: AppColors.primary,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            child: Center(
+                              child: Text(
+                                _loggingOut ? '로그아웃 중...' : '로그아웃',
+                                style: AppTypography.dungGeunMoBody.copyWith(
+                                  color: AppColors.textWhite,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -261,8 +282,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Expanded(
               child: Text(
                 _nickname.isEmpty ? '닉네임 없음' : _nickname,
-                style: AppTypography.wantedSansBody
-                    .copyWith(color: AppColors.textPrimary),
+                style: AppTypography.wantedSansBody.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
             Text(
@@ -285,13 +307,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: TextField(
           controller: _nicknameCtrl,
           onChanged: _validateNickname,
-          style: AppTypography.wantedSansBody
-              .copyWith(color: AppColors.textPrimary),
+          style: AppTypography.wantedSansBody.copyWith(
+            color: AppColors.textPrimary,
+          ),
           decoration: const InputDecoration(
             isCollapsed: true,
             border: InputBorder.none,
-            contentPadding:
-                EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
         ),
       ),
@@ -299,8 +321,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: 6),
         Text(
           _nicknameError!,
-          style: AppTypography.dungGeunMoTag
-              .copyWith(color: AppColors.primary),
+          style: AppTypography.dungGeunMoTag.copyWith(color: AppColors.primary),
         ),
       ],
       const SizedBox(height: 12),
@@ -317,11 +338,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
             backgroundColor: AppColors.backgroundGray,
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text('취소',
-                  style: AppTypography.dungGeunMoBody
-                      .copyWith(color: AppColors.textPrimary)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text(
+                '취소',
+                style: AppTypography.dungGeunMoBody.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -329,11 +352,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: _saveNickname,
             backgroundColor: AppColors.primary,
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Text('SAVE',
-                  style: AppTypography.dungGeunMoBody
-                      .copyWith(color: AppColors.textWhite)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text(
+                'SAVE',
+                style: AppTypography.dungGeunMoBody.copyWith(
+                  color: AppColors.textWhite,
+                ),
+              ),
             ),
           ),
         ],
@@ -359,9 +384,12 @@ class _MenuItem extends StatelessWidget {
           padding: const EdgeInsets.only(left: 10),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Text(text,
-                style: AppTypography.dungGeunMoBody
-                    .copyWith(color: AppColors.textPrimary)),
+            child: Text(
+              text,
+              style: AppTypography.dungGeunMoBody.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
           ),
         ),
       ),

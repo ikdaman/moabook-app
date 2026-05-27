@@ -8,6 +8,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../domain/model/store_book.dart';
 import '../../../features/home/provider/home_provider.dart';
+import '../../../shared/widgets/keyboard_dismisser.dart';
 import '../../../shared/widgets/pixel_shadow_box.dart';
 import '../../../shared/widgets/retro_loading.dart';
 import '../../../shared/widgets/title_bar.dart';
@@ -16,8 +17,7 @@ class MyBookSearchScreen extends ConsumerStatefulWidget {
   const MyBookSearchScreen({super.key});
 
   @override
-  ConsumerState<MyBookSearchScreen> createState() =>
-      _MyBookSearchScreenState();
+  ConsumerState<MyBookSearchScreen> createState() => _MyBookSearchScreenState();
 }
 
 class _MyBookSearchScreenState extends ConsumerState<MyBookSearchScreen> {
@@ -66,80 +66,87 @@ class _MyBookSearchScreenState extends ConsumerState<MyBookSearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundDefault,
-      body: SafeArea(
-        child: Column(
-          children: [
-            TitleBar(
-              title: '내 책 검색',
-              showBackButton: true,
-              onBack: () => context.pop(),
-            ),
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: SizedBox(
-                height: 48,
-                child: PixelShadowBox(
-                  backgroundColor: AppColors.backgroundWhite,
-                  shadowOffset: 2,
-                  contentAlignment: Alignment.centerLeft,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 10),
-                          child: TextField(
-                            controller: _ctrl,
-                            onSubmitted: (_) => _search(),
-                            textInputAction: TextInputAction.search,
-                            style: AppTypography.dungGeunMoBody
-                                .copyWith(color: AppColors.textPrimary),
-                            decoration: InputDecoration(
-                              isCollapsed: true,
-                              border: InputBorder.none,
-                              hintText: '검색어를 입력하세요',
-                              hintStyle: AppTypography.dungGeunMoBody
-                                  .copyWith(color: AppColors.textHint),
+      body: KeyboardDismisser(
+        child: SafeArea(
+          child: Column(
+            children: [
+              TitleBar(
+                title: '내 책 검색',
+                showBackButton: true,
+                onBack: () => context.pop(),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: SizedBox(
+                  height: 48,
+                  child: PixelShadowBox(
+                    backgroundColor: AppColors.backgroundWhite,
+                    shadowOffset: 2,
+                    contentAlignment: Alignment.centerLeft,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 10),
+                            child: TextField(
+                              controller: _ctrl,
+                              onSubmitted: (_) => _search(),
+                              textInputAction: TextInputAction.search,
+                              style: AppTypography.dungGeunMoBody.copyWith(
+                                color: AppColors.textPrimary,
+                              ),
+                              decoration: InputDecoration(
+                                isCollapsed: true,
+                                border: InputBorder.none,
+                                hintText: '검색어를 입력하세요',
+                                hintStyle: AppTypography.dungGeunMoBody
+                                    .copyWith(color: AppColors.textHint),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      GestureDetector(
-                        onTap: _search,
-                        behavior: HitTestBehavior.opaque,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: SvgPicture.asset(
-                            'assets/images/search.svg',
-                            width: 20,
-                            height: 20,
-                            colorFilter: const ColorFilter.mode(
-                                AppColors.textPrimary, BlendMode.srcIn),
+                        GestureDetector(
+                          onTap: _search,
+                          behavior: HitTestBehavior.opaque,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: SvgPicture.asset(
+                              'assets/images/search.svg',
+                              width: 20,
+                              height: 20,
+                              colorFilter: const ColorFilter.mode(
+                                AppColors.textPrimary,
+                                BlendMode.srcIn,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              child: _isLoading
-                  ? const RetroLoading(fillBackground: false)
-                  : ListView.separated(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _results.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 16),
-                      itemBuilder: (_, i) => _ResultItem(
-                        item: _results[i],
-                        onTap: () => context
-                            .push(Routes.bookInfo(_results[i].mybookId)),
-                        tagFor: _tagFor,
+              Expanded(
+                child: _isLoading
+                    ? const RetroLoading(fillBackground: false)
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _results.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 16),
+                        itemBuilder: (_, i) => _ResultItem(
+                          item: _results[i],
+                          onTap: () => context.push(
+                            Routes.bookInfo(_results[i].mybookId),
+                          ),
+                          tagFor: _tagFor,
+                        ),
                       ),
-                    ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -176,15 +183,17 @@ class _ResultItem extends StatelessWidget {
                       imageUrl: item.coverImage!,
                       fit: BoxFit.cover,
                       placeholder: (_, _) => Container(
-                          color: AppColors.backgroundWhite,
-                          decoration: BoxDecoration(
-                              border: Border.all(
-                                  color: AppColors.borderBlack))),
+                        color: AppColors.backgroundWhite,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.borderBlack),
+                        ),
+                      ),
                       errorWidget: (_, _, _) => Container(
-                          color: AppColors.backgroundWhite,
-                          decoration: BoxDecoration(
-                              border: Border.all(
-                                  color: AppColors.borderBlack))),
+                        color: AppColors.backgroundWhite,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.borderBlack),
+                        ),
+                      ),
                     )
                   : Container(
                       decoration: BoxDecoration(
@@ -201,26 +210,31 @@ class _ResultItem extends StatelessWidget {
                   Container(
                     color: color,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     child: Text(
                       label,
-                      style: AppTypography.dungGeunMoTag
-                          .copyWith(color: AppColors.textWhite),
+                      style: AppTypography.dungGeunMoTag.copyWith(
+                        color: AppColors.textWhite,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     item.title,
-                    style: AppTypography.wantedSansBookTitle
-                        .copyWith(color: AppColors.textPrimary),
+                    style: AppTypography.wantedSansBookTitle.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     item.author.join(', '),
-                    style: AppTypography.wantedSansBodySmall
-                        .copyWith(color: AppColors.textPrimary),
+                    style: AppTypography.wantedSansBodySmall.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

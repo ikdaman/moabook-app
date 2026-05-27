@@ -21,48 +21,55 @@ class PixelPopup extends StatelessWidget {
           backgroundColor: AppColors.backgroundWhite,
           shadowOffset: 3,
           contentAlignment: Alignment.topLeft,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundGray,
-                        border: Border.all(color: AppColors.borderBlack),
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: onDismiss,
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      width: 29,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundGray,
-                        border: Border.all(color: AppColors.borderBlack),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '✕',
-                        style: AppTypography.dungGeunMoBody.copyWith(
-                          color: AppColors.textPrimary,
+          // 팝업 내부 빈 공간 탭 시 키보드 dismiss (TextField 가 있는 시트에서 필요).
+          // X 버튼/내부 GestureDetector 는 자식 detector 가 먼저 hit 잡으므로
+          // 정상 동작.
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundGray,
+                          border: Border.all(color: AppColors.borderBlack),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              Container(
-                width: double.infinity,
-                color: AppColors.backgroundDefault,
-                padding: const EdgeInsets.all(20),
-                child: child,
-              ),
-            ],
+                    GestureDetector(
+                      onTap: onDismiss,
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: 29,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundGray,
+                          border: Border.all(color: AppColors.borderBlack),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '✕',
+                          style: AppTypography.dungGeunMoBody.copyWith(
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  width: double.infinity,
+                  color: AppColors.backgroundDefault,
+                  padding: const EdgeInsets.all(20),
+                  child: child,
+                ),
+              ],
+            ),
           ),
         ),
       ),
