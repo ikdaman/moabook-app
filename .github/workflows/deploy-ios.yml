@@ -1,0 +1,94 @@
+name: Deploy to TestFlight
+
+on:
+  push:
+    tags:
+      - 'ios-v*'
+
+env:
+  FLUTTER_VERSION: "3.44.0"
+
+jobs:
+  deploy:
+    name: Build & Deploy to TestFlight
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG=${GITHUB_REF#refs/tags/ios-v}
+          VERSION_NAME=${TAG}
+          # versionCode: run_number + 14 (기존 수동 업로드가 14이므로)
+          VERSION_CODE=$(( ${{ github.run_number }} + 14 ))
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "📦 Version: $VERSION_NAME ($VERSION_CODE)"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: ios
+
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.ENV_FILE_BASE64 }}" | base64 --decode > .env
+          echo "✅ .env created ($(wc -l < .env) lines, $(wc -c < .env) bytes)"
+
+      - name: Decode App Store Connect API Key
+        run: echo "${{ secrets.APP_STORE_API_KEY_BASE64 }}" | base64 --decode > ios/fastlane/AuthKey_35SHWLN842.p8
+
+      - name: Clean and install dependencies
+        run: flutter clean && flutter pub get
+
+      - name: Run code generation
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Install CocoaPods
+        run: cd ios && pod install
+
+      - name: Build Flutter iOS
+        run: |
+          flutter build ios \
+            --release \
+            --no-codesign \
+            --dart-define-from-file=.env \
+            --build-name=${{ steps.version.outputs.VERSION_NAME }} \
+            --build-number=${{ steps.version.outputs.VERSION_CODE }}
+
+      - name: Deploy to TestFlight
+        run: |
+          cd ios
+          bundle exec fastlane deploy_testflight
+        env:
+          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
+          APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
+          APP_STORE_KEY_PATH: fastlane/AuthKey_35SHWLN842.p8
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs
+          path: |
+            ~/Library/Logs/gym/Runner-Runner.log
+            ios/build/
+          retention-days: 7
+
+      - name: Summary
+        run: echo "✅ Deployed v${{ steps.version.outputs.VERSION_NAME }}+${{ steps.version.outputs.VERSION_CODE }} to TestFlight"

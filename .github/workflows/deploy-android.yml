@@ -1,0 +1,96 @@
+name: Deploy to Play Store (Internal)
+
+on:
+  push:
+    tags:
+      - 'android-v*'
+
+env:
+  JAVA_VERSION: "17"
+  FLUTTER_VERSION: "3.44.0"
+
+jobs:
+  deploy:
+    name: Build & Deploy to Internal Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG=${GITHUB_REF#refs/tags/android-v}
+          VERSION_NAME=${TAG}
+          # versionCode: run_number + 23 (기존 수동 업로드가 23이므로)
+          VERSION_CODE=$(( ${{ github.run_number }} + 23 ))
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "📦 Version: $VERSION_NAME ($VERSION_CODE)"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: android
+
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.ENV_FILE_BASE64 }}" | base64 --decode > .env
+          echo "✅ .env created ($(wc -l < .env) lines, $(wc -c < .env) bytes)"
+
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/release.keystore
+
+      - name: Create key.properties
+        run: |
+          cat > android/key.properties <<EOF
+          KEYSTORE_PASSWORD=${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS=${{ secrets.KEY_ALIAS }}
+          KAKAO_APP_KEY=${{ secrets.KAKAO_APP_KEY || 'f7c657a31a53ae9ea50ae17d61d4345d' }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID || '957982912983-bo0rotsrbrqthl5vfjo0r6pkn2oioeau.apps.googleusercontent.com' }}
+          EOF
+
+      - name: Create Play Store credentials
+        run: echo '${{ secrets.PLAY_STORE_CONFIG_JSON }}' > android/play-store-credentials.json
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run code generation
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build AAB
+        run: |
+          flutter build appbundle \
+            --release \
+            --dart-define-from-file=.env \
+            --build-name=${{ steps.version.outputs.VERSION_NAME }} \
+            --build-number=${{ steps.version.outputs.VERSION_CODE }}
+
+      - name: Deploy to Play Store (Internal)
+        run: |
+          cd android
+          bundle exec fastlane deploy_internal
+        env:
+          PLAY_STORE_CONFIG_JSON_PATH: play-store-credentials.json
+
+      - name: Summary
+        run: echo "✅ Deployed v${{ steps.version.outputs.VERSION_NAME }}+${{ steps.version.outputs.VERSION_CODE }} to Internal Testing"
