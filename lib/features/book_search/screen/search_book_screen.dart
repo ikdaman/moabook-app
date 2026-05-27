@@ -76,21 +76,31 @@ class _SearchBookScreenState extends ConsumerState<SearchBookScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDefault,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            children: [
-              const SizedBox(height: 16),
-              _SearchBar(
-                controller: _queryCtrl,
-                focusNode:  _focusNode,
-                onSubmit:   _runSearch,
-                onBarcode:  () => context.push(Routes.barcode),
-              ),
-              const SizedBox(height: 16),
-              Expanded(child: _Content(state: state, onBookTap: _onBookTap, scrollController: _scrollCtrl)),
-            ],
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                _SearchBar(
+                  controller: _queryCtrl,
+                  focusNode: _focusNode,
+                  onSubmit: _runSearch,
+                  onBarcode: () => context.push(Routes.barcode),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: _Content(
+                    state: state,
+                    onBookTap: _onBookTap,
+                    scrollController: _scrollCtrl,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
