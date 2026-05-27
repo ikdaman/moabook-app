@@ -3,6 +3,7 @@ import '../../../data/datasource/mybook_datasource.dart';
 import '../../../domain/model/store_book.dart';
 import '../../../features/auth/provider/auth_provider.dart';
 import '../../../domain/model/login_state.dart';
+import '../../../widget_bridge/widget_navigator.dart';
 import '../../../widget_bridge/widget_publisher.dart';
 
 // ── DataSource Provider ───────────────────────────────────────────────────
@@ -86,6 +87,14 @@ class HomeNotifier extends Notifier<HomeState> {
         load();
       }
     });
+
+    // 위젯 refresh 버튼 → 강제 reload (iOS Link 경로)
+    final refreshSub = widgetRefreshStream.stream.listen((_) {
+      if (ref.read(isLoggedInProvider).valueOrNull == true) {
+        load();
+      }
+    });
+    ref.onDispose(refreshSub.cancel);
 
     // 앱 시작 시 이미 로그인 상태이면 즉시 로드
     // Future.microtask 사용: build() 완료 후 실행되어 상태 업데이트 안전

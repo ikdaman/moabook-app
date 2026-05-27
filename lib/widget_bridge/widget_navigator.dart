@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:home_widget/home_widget.dart';
 
 import '../app/router/app_router.dart';
 import '../app/router/routes.dart';
+
+/// 위젯에서 refresh 신호가 들어왔을 때 broadcast. home_provider 가 listen.
+final widgetRefreshStream = StreamController<void>.broadcast();
 
 /// 위젯 탭으로 앱 진입 시 라우팅 처리.
 ///
@@ -29,6 +34,13 @@ class WidgetNavigator {
         break;
       case 'home':
         appRouter.go(Routes.home);
+        break;
+      case 'refresh_small':
+        // iOS: Link 로 앱이 깨어남. home 화면 진입 + refresh 트리거.
+        // Android: HomeWidgetBackgroundIntent 로 백그라운드 isolate 호출되므로
+        // 이 case 는 안 옴 (단, 앱이 foreground 일 때 들어와도 안전).
+        appRouter.go(Routes.home);
+        widgetRefreshStream.add(null);
         break;
     }
   }
