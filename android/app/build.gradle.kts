@@ -38,7 +38,7 @@ android {
         applicationId = "project.side.ikdaman"
         minSdk = 29
         targetSdk = 36
-        versionCode = 23
+        versionCode = 24
         versionName = "2.0.0"
         manifestPlaceholders["KAKAO_APP_KEY"] = keyProps.getProperty("KAKAO_APP_KEY", "")
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"${keyProps.getProperty("GOOGLE_CLIENT_ID", "")}\"")
