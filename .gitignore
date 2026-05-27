@@ -49,3 +49,4 @@ release.keystore
 android/key.properties
 /env/*.json
 fastlane/AuthKey_*.p8
+ios/Runner/GoogleService-Info.plist

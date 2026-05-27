@@ -30,7 +30,18 @@
 				<string>naverlogin</string>
 			</array>
 		</dict>
+		<!-- Google OAuth redirect (REVERSED_CLIENT_ID) -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.957982912983-ft1n53ruu3ekbq5hepedt7b9ulga8mgb</string>
+			</array>
+		</dict>
 	</array>
+	<key>GIDClientID</key>
+	<string>957982912983-ft1n53ruu3ekbq5hepedt7b9ulga8mgb.apps.googleusercontent.com</string>
 	<!-- Naver Login SDK v5+ 설정 키 (2.1.0 migration) -->
 	<key>NidUrlScheme</key>
 	<string>naverlogin</string>
