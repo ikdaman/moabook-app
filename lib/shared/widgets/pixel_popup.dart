@@ -13,53 +13,57 @@ class PixelPopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: PixelShadowBox(
-        backgroundColor: AppColors.backgroundWhite,
-        shadowOffset: 3,
-        contentAlignment: Alignment.topLeft,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: AppColors.backgroundGray,
-                      border: Border.all(color: AppColors.borderBlack),
+    return Material(
+      type: MaterialType.transparency,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: PixelShadowBox(
+          backgroundColor: AppColors.backgroundWhite,
+          shadowOffset: 3,
+          contentAlignment: Alignment.topLeft,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundGray,
+                        border: Border.all(color: AppColors.borderBlack),
+                      ),
                     ),
                   ),
-                ),
-                GestureDetector(
-                  onTap: onDismiss,
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    width: 29,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: AppColors.backgroundGray,
-                      border: Border.all(color: AppColors.borderBlack),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '✕',
-                      style: AppTypography.dungGeunMoBody
-                          .copyWith(color: AppColors.textPrimary),
+                  GestureDetector(
+                    onTap: onDismiss,
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      width: 29,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundGray,
+                        border: Border.all(color: AppColors.borderBlack),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '✕',
+                        style: AppTypography.dungGeunMoBody.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            Container(
-              width: double.infinity,
-              color: AppColors.backgroundDefault,
-              padding: const EdgeInsets.all(20),
-              child: child,
-            ),
-          ],
+                ],
+              ),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundDefault,
+                padding: const EdgeInsets.all(20),
+                child: child,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -97,8 +101,9 @@ class PixelPopupActions extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Text(
               cancelLabel,
-              style: AppTypography.dungGeunMoBody
-                  .copyWith(color: AppColors.textPrimary),
+              style: AppTypography.dungGeunMoBody.copyWith(
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
         ),
@@ -110,8 +115,9 @@ class PixelPopupActions extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Text(
               confirmLabel,
-              style: AppTypography.dungGeunMoBody
-                  .copyWith(color: confirmTextColor),
+              style: AppTypography.dungGeunMoBody.copyWith(
+                color: confirmTextColor,
+              ),
             ),
           ),
         ),
