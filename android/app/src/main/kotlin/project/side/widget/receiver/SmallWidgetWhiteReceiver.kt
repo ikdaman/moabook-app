@@ -3,13 +3,11 @@ package project.side.widget.receiver
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.appwidget.updateAll
-import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,14 +55,7 @@ class SmallWidgetWhiteReceiver : GlanceAppWidgetReceiver() {
 }
 
 internal suspend fun handleSmallRefresh(context: Context) {
-    // 1. Flutter Dart background isolate 호출 (home_widget 플러그인 → registerInteractivityCallback)
-    val bgIntent = HomeWidgetBackgroundIntent.getBroadcast(
-        context,
-        Uri.parse("moabookwidget://refresh_small"),
-    )
-    bgIntent.send()
-
-    // 2. 캐시에서 다음 책 1권 랜덤 픽 후 위젯 즉시 업데이트
+    // cache 에서 다음 책 1권 랜덤 픽 후 위젯 즉시 업데이트 (서버 fetch 없음)
     val books = WidgetCache(context).read()
     val manager = GlanceAppWidgetManager(context)
     val widget = SmallWidget()

@@ -6,15 +6,25 @@ import WidgetKit
 
 struct MoabookProvider: TimelineProvider {
     func placeholder(in context: Context) -> MoabookEntry {
-        MoabookEntry(date: Date(), books: [], mediumIndex: 0)
+        MoabookEntry(date: Date(), books: [], mediumIndex: 0, smallCurrentMybookId: 0)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (MoabookEntry) -> Void) {
-        completion(MoabookEntry(date: Date(), books: WidgetCache.read(), mediumIndex: MediumPageStore.read()))
+        completion(MoabookEntry(
+            date: Date(),
+            books: WidgetCache.read(),
+            mediumIndex: MediumPageStore.read(),
+            smallCurrentMybookId: SmallCurrentStore.read()
+        ))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<MoabookEntry>) -> Void) {
-        let entry = MoabookEntry(date: Date(), books: WidgetCache.read(), mediumIndex: MediumPageStore.read())
+        let entry = MoabookEntry(
+            date: Date(),
+            books: WidgetCache.read(),
+            mediumIndex: MediumPageStore.read(),
+            smallCurrentMybookId: SmallCurrentStore.read()
+        )
         completion(Timeline(entries: [entry], policy: .never))
     }
 }
@@ -23,6 +33,7 @@ struct MoabookEntry: TimelineEntry {
     let date: Date
     let books: [WidgetUiBook]
     let mediumIndex: Int
+    let smallCurrentMybookId: Int
 }
 
 // MARK: - Widget
@@ -62,7 +73,7 @@ struct MoabookWidgetView: View {
     var body: some View {
         switch family {
         case .systemSmall:
-            SmallWidgetView(books: entry.books)
+            SmallWidgetView(books: entry.books, currentMybookId: entry.smallCurrentMybookId)
                 .padding(16)
         case .systemMedium:
             MediumWidgetView(books: entry.books, current: entry.mediumIndex)
@@ -91,21 +102,33 @@ private struct EmptyStateView: View {
 
 private struct SmallWidgetView: View {
     let books: [WidgetUiBook]
+    let currentMybookId: Int
     private let palette = WidgetPalette.white
+
+    private var currentBook: WidgetUiBook? {
+        if currentMybookId != 0,
+           let match = books.first(where: { $0.mybookId == currentMybookId }) {
+            return match
+        }
+        return books.first
+    }
 
     var body: some View {
         Group {
-            if let book = books.first {
+            if let book = currentBook {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(alignment: .top) {
                         Image("ic_book_heart_navy")
                             .resizable()
                             .frame(width: 22, height: 22)
                         Spacer()
-                        Link(destination: URL(string: "moabookwidget://refresh_small")!) {
-                            Image("ic_widget_refresh_dark")
-                                .resizable()
-                                .frame(width: 14, height: 14)
+                        if #available(iOS 17.0, *) {
+                            Button(intent: RefreshSmallIntent()) {
+                                Image("ic_widget_refresh_dark")
+                                    .resizable()
+                                    .frame(width: 14, height: 14)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     Spacer().frame(height: 10)
