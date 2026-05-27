@@ -175,86 +175,102 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                   ).add(const EdgeInsets.only(top: 30)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${_nickname.isEmpty ? "OO" : _nickname}님,\n안녕하세요!',
-                        style: AppTypography.dungGeunMoHomeTitle.copyWith(
-                          color: AppColors.textPrimary,
+                  // 키보드 올라올 때 bottom overflow 방지 — viewport 보다 작으면
+                  // Spacer 가 정상 작동해 로그아웃 버튼이 하단 고정, 클 때만 스크롤.
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
                         ),
-                      ),
-                      const SizedBox(height: 60),
-                      SizedBox(
-                        height: 32,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 10),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '닉네임',
-                              style: AppTypography.dungGeunMoBody.copyWith(
-                                color: AppColors.textPrimary,
+                        child: IntrinsicHeight(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${_nickname.isEmpty ? "OO" : _nickname}님,\n안녕하세요!',
+                                style: AppTypography.dungGeunMoHomeTitle
+                                    .copyWith(color: AppColors.textPrimary),
                               ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (_editing)
-                        ..._buildEditingNickname()
-                      else
-                        _buildNicknameDisplay(),
-                      const SizedBox(height: 60),
-                      _MenuItem(
-                        text: '서비스 이용약관',
-                        onTap: () => _openUrl(_termsUrl),
-                      ),
-                      const SizedBox(height: 10),
-                      _MenuItem(
-                        text: '개인정보 처리방침',
-                        onTap: () => _openUrl(_privacyUrl),
-                      ),
-                      const SizedBox(height: 24),
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: _withdraw,
-                        child: Padding(
-                          padding: const EdgeInsets.only(
-                            left: 10,
-                            top: 8,
-                            bottom: 8,
-                          ),
-                          child: Text(
-                            '회원탈퇴',
-                            style: AppTypography.dungGeunMoTag.copyWith(
-                              color: AppColors.textPrimary.withValues(
-                                alpha: 0.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      SizedBox(
-                        width: double.infinity,
-                        child: PixelShadowButton(
-                          onTap: _loggingOut ? () {} : _logout,
-                          backgroundColor: AppColors.primary,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: Center(
-                              child: Text(
-                                _loggingOut ? '로그아웃 중...' : '로그아웃',
-                                style: AppTypography.dungGeunMoBody.copyWith(
-                                  color: AppColors.textWhite,
+                              const SizedBox(height: 60),
+                              SizedBox(
+                                height: 32,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 10),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      '닉네임',
+                                      style: AppTypography.dungGeunMoBody
+                                          .copyWith(
+                                            color: AppColors.textPrimary,
+                                          ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              if (_editing)
+                                ..._buildEditingNickname()
+                              else
+                                _buildNicknameDisplay(),
+                              const SizedBox(height: 60),
+                              _MenuItem(
+                                text: '서비스 이용약관',
+                                onTap: () => _openUrl(_termsUrl),
+                              ),
+                              const SizedBox(height: 10),
+                              _MenuItem(
+                                text: '개인정보 처리방침',
+                                onTap: () => _openUrl(_privacyUrl),
+                              ),
+                              const SizedBox(height: 24),
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: _withdraw,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 10,
+                                    top: 8,
+                                    bottom: 8,
+                                  ),
+                                  child: Text(
+                                    '회원탈퇴',
+                                    style: AppTypography.dungGeunMoTag.copyWith(
+                                      color: AppColors.textPrimary.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              SizedBox(
+                                width: double.infinity,
+                                child: PixelShadowButton(
+                                  onTap: _loggingOut ? () {} : _logout,
+                                  backgroundColor: AppColors.primary,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        _loggingOut ? '로그아웃 중...' : '로그아웃',
+                                        style: AppTypography.dungGeunMoBody
+                                            .copyWith(
+                                              color: AppColors.textWhite,
+                                            ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                    ],
+                    ),
                   ),
                 ),
               ),
