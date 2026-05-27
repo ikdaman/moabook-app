@@ -43,6 +43,15 @@ platform :ios do
       targets: ["Runner"],
     )
 
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: "Runner.xcodeproj",
+      team_id: "T583WJWNAK",
+      code_sign_identity: "Apple Distribution",
+      profile_name: "match AppStore com.Ikdaman.MoabookWidget",
+      targets: ["MoabookWidgetExtension"],
+    )
+
     build_app(
       workspace: "Runner.xcworkspace",
       scheme: "Runner",
@@ -53,6 +62,7 @@ platform :ios do
       export_options: {
         provisioningProfiles: {
           "com.Ikdaman" => "match AppStore com.Ikdaman",
+          "com.Ikdaman.MoabookWidget" => "match AppStore com.Ikdaman.MoabookWidget",
         }
       }
     )
@@ -88,6 +98,15 @@ platform :ios do
       targets: ["Runner"],
     )
 
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: "Runner.xcodeproj",
+      team_id: "T583WJWNAK",
+      code_sign_identity: "Apple Distribution",
+      profile_name: "match AppStore com.Ikdaman.MoabookWidget",
+      targets: ["MoabookWidgetExtension"],
+    )
+
     build_app(
       workspace: "Runner.xcworkspace",
       scheme: "Runner",
@@ -98,6 +117,7 @@ platform :ios do
       export_options: {
         provisioningProfiles: {
           "com.Ikdaman" => "match AppStore com.Ikdaman",
+          "com.Ikdaman.MoabookWidget" => "match AppStore com.Ikdaman.MoabookWidget",
         }
       }
     )
