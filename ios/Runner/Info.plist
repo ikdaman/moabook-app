@@ -39,6 +39,15 @@
 				<string>com.googleusercontent.apps.957982912983-ft1n53ruu3ekbq5hepedt7b9ulga8mgb</string>
 			</array>
 		</dict>
+		<!-- Widget deep link -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>moabookwidget</string>
+			</array>
+		</dict>
 	</array>
 	<key>GIDClientID</key>
 	<string>957982912983-ft1n53ruu3ekbq5hepedt7b9ulga8mgb.apps.googleusercontent.com</string>

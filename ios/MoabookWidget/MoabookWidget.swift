@@ -164,12 +164,10 @@ private struct MediumWidgetView: View {
                             .lineLimit(4)
                             .multilineTextAlignment(.leading)
                         Spacer()
-                        HStack {
-                            Spacer()
-                            Text(DateLabel.formatDisplay(book.createdDate))
-                                .font(.custom("DungGeunMo", size: 12))
-                                .foregroundColor(palette.accent)
-                        }
+                        Text(DateLabel.formatDisplay(book.createdDate))
+                            .font(.custom("DungGeunMo", size: 12))
+                            .foregroundColor(palette.accent)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     if books.count > 1, #available(iOS 17.0, *) {
                         HStack(spacing: 6) {
