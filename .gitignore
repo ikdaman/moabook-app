@@ -50,3 +50,7 @@ android/key.properties
 /env/*.json
 fastlane/AuthKey_*.p8
 ios/Runner/GoogleService-Info.plist
+
+# Local skill / agent tool installs (managed per developer)
+.agents/
+.claude/
