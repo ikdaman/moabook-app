@@ -38,8 +38,12 @@ android {
         applicationId = "project.side.ikdaman"
         minSdk = 29
         targetSdk = 36
-        versionCode = 24
-        versionName = "2.0.0"
+        // Flutter Gradle plugin 이 pubspec.yaml 의 version: X.Y.Z+N 으로부터
+        // 자동 주입한다. (versionName = X.Y.Z, versionCode = N)
+        // hardcode 하면 pubspec bump 가 무시되어 Play Store 업로드 시
+        // versionCode 충돌/다운그레이드 오류를 유발한다.
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
         manifestPlaceholders["KAKAO_APP_KEY"] = keyProps.getProperty("KAKAO_APP_KEY", "")
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"${keyProps.getProperty("GOOGLE_CLIENT_ID", "")}\"")
     }
