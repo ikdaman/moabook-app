@@ -53,29 +53,23 @@ class AuthNotifier extends Notifier<void> {
 
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
-  Future<void> kakaoLogin() async {
-    await for (final state in _repo.kakaoLogin()) {
+  Future<void> _consumeLogin(Stream<LoginState> stream) async {
+    await for (final state in stream) {
+      // LoginSuccess 가 listener 로 전파되어 /main 으로 navigate 되기 직전에
+      // isLoggedInProvider 캐시를 미리 채워둬야 홈/바텀바 첫 build 가
+      // 로그인 상태로 그려진다. (invalidate 후 .future 를 await)
+      if (state is LoginSuccess) {
+        ref.invalidate(isLoggedInProvider);
+        await ref.read(isLoggedInProvider.future);
+      }
       ref.read(loginStateProvider.notifier).state = state;
     }
   }
 
-  Future<void> naverLogin() async {
-    await for (final state in _repo.naverLogin()) {
-      ref.read(loginStateProvider.notifier).state = state;
-    }
-  }
-
-  Future<void> googleLogin() async {
-    await for (final state in _repo.googleLogin()) {
-      ref.read(loginStateProvider.notifier).state = state;
-    }
-  }
-
-  Future<void> appleLogin() async {
-    await for (final state in _repo.appleLogin()) {
-      ref.read(loginStateProvider.notifier).state = state;
-    }
-  }
+  Future<void> kakaoLogin()  => _consumeLogin(_repo.kakaoLogin());
+  Future<void> naverLogin()  => _consumeLogin(_repo.naverLogin());
+  Future<void> googleLogin() => _consumeLogin(_repo.googleLogin());
+  Future<void> appleLogin()  => _consumeLogin(_repo.appleLogin());
 
   Future<void> signup({
     required String socialToken,
@@ -89,6 +83,11 @@ class AuthNotifier extends Notifier<void> {
       providerId: providerId,
       nickname: nickname,
     )) {
+      // 로그인 흐름과 동일하게 SignupSuccess 전파 전에 캐시 갱신.
+      if (state is SignupSuccess) {
+        ref.invalidate(isLoggedInProvider);
+        await ref.read(isLoggedInProvider.future);
+      }
       ref.read(signupStateProvider.notifier).state = state;
     }
   }
