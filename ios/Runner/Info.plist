@@ -63,7 +63,7 @@
 	<string>zW0NHMQk7g</string>
 	<!-- Naver Console 등록된 서비스명과 일치해야 함. 다르면 동의창 무한 루프. -->
 	<key>NidAppName</key>
-	<string>읽다만</string>
+	<string>모아북</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>kakaokompassauth</string>
