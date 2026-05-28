@@ -4,7 +4,9 @@
     <!-- Naver Login SDK -->
     <string name="naver_client_id">HHcc6QmC3xAJOcNxFyFt</string>
     <string name="naver_client_secret">zW0NHMQk7g</string>
-    <string name="naver_client_name">모아북</string>
+    <!-- Naver Console 등록된 서비스명("읽다만")과 정확히 일치해야 함.
+         다르면 동의창 무한 루프 / 인증 거부 유발. -->
+    <string name="naver_client_name">읽다만</string>
 
     <!-- Widget labels -->
     <string name="widget_small_white_label">모아북 S (흰색)</string>
