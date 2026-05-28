@@ -18,13 +18,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract version from tag
+      - name: Extract version from pubspec
         id: version
         run: |
-          TAG=${GITHUB_REF#refs/tags/ios-v}
-          VERSION_NAME=${TAG}
-          # versionCode: run_number + 14 (기존 수동 업로드가 14이므로)
-          VERSION_CODE=$(( ${{ github.run_number }} + 14 ))
+          # pubspec.yaml 의 'version: X.Y.Z+N' 을 단일 source 로 사용한다.
+          # 태그 (ios-vX.Y.Z) 는 워크플로 트리거 전용이며 pubspec 과 매치되어야 한다.
+          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          VERSION_NAME=${PUBSPEC_VERSION%+*}
+          VERSION_CODE=${PUBSPEC_VERSION#*+}
+          TAG_VERSION=${GITHUB_REF#refs/tags/ios-v}
+          if [ "$VERSION_NAME" != "$TAG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) != pubspec version ($VERSION_NAME). pubspec.yaml 을 먼저 bump 하고 동일 버전의 태그를 푸시하세요."
+            exit 1
+          fi
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "📦 Version: $VERSION_NAME ($VERSION_CODE)"

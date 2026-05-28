@@ -19,13 +19,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract version from tag
+      - name: Extract version from pubspec
         id: version
         run: |
-          TAG=${GITHUB_REF#refs/tags/android-v}
-          VERSION_NAME=${TAG}
-          # versionCode: run_number + 23 (기존 수동 업로드가 23이므로)
-          VERSION_CODE=$(( ${{ github.run_number }} + 23 ))
+          # pubspec.yaml 의 'version: X.Y.Z+N' 을 단일 source 로 사용한다.
+          # 태그 (android-vX.Y.Z) 는 워크플로 트리거 전용이며 pubspec 과 매치되어야 한다.
+          # run_number 기반 자동 계산은 production 트랙에 이미 versionCode 35 가 있어
+          # 다운그레이드 차단을 유발했기 때문에 제거됨.
+          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          VERSION_NAME=${PUBSPEC_VERSION%+*}
+          VERSION_CODE=${PUBSPEC_VERSION#*+}
+          TAG_VERSION=${GITHUB_REF#refs/tags/android-v}
+          if [ "$VERSION_NAME" != "$TAG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) != pubspec version ($VERSION_NAME). pubspec.yaml 을 먼저 bump 하고 동일 버전의 태그를 푸시하세요."
+            exit 1
+          fi
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "📦 Version: $VERSION_NAME ($VERSION_CODE)"
