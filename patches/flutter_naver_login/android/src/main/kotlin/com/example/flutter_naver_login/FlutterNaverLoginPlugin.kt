@@ -378,28 +378,28 @@ class FlutterNaverLoginPlugin : FlutterPlugin, MethodCallHandler, ActivityAware 
                 val errorCode = NaverIdLoginSDK.getLastErrorCode().code
                 val errorDesc = NaverIdLoginSDK.getLastErrorDescription()
 
-                // 사용자 취소인지 확인
-                if (errorCode == "user_cancel" || errorDesc?.contains("cancel") == true) {
-                    sendResult(NaverLoginStatus.LOGGED_OUT, null, null, result)
-                } else {
-                    result.success(object : HashMap<String, String>() {
-                        init {
-                            put("status", "error")
-                            put("errorMessage", "errorCode:$errorCode, errorDesc:$errorDesc")
-                        }
-                    })
-                }
-                // Already handled result. We don't need this at the ActivityResult as pending status
+                println("🔥 Naver onFailure | httpStatus=$httpStatus message=$message errorCode=$errorCode errorDesc=$errorDesc")
+
+                // 실패 원인을 항상 Dart 까지 전달 — user_cancel 자동 변환 제거 (진단용)
+                result.success(object : HashMap<String, String>() {
+                    init {
+                        put("status", "error")
+                        put("errorMessage", "errorCode:$errorCode, errorDesc:$errorDesc, httpStatus:$httpStatus, message:$message")
+                    }
+                })
                 pendingResult = null
             }
 
             override fun onError(errorCode: Int, message: String) {
-                // 사용자 취소인지 확인
-                if (message.contains("user_cancel") || message.contains("cancel")) {
-                    sendResult(NaverLoginStatus.LOGGED_OUT, null, null, result)
-                } else {
-                    onFailure(errorCode, message)
-                }
+                println("🔥 Naver onError | errorCode=$errorCode message=$message")
+                val sdkErrorCode = NaverIdLoginSDK.getLastErrorCode().code
+                val sdkErrorDesc = NaverIdLoginSDK.getLastErrorDescription()
+                result.success(object : HashMap<String, String>() {
+                    init {
+                        put("status", "error")
+                        put("errorMessage", "onError errorCode:$errorCode message:$message sdkCode:$sdkErrorCode sdkDesc:$sdkErrorDesc")
+                    }
+                })
                 pendingResult = null
             }
         }
