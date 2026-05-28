@@ -23,13 +23,14 @@
 				<string>kakaof7c657a31a53ae9ea50ae17d61d4345d</string>
 			</array>
 		</dict>
-		<!-- Naver OAuth redirect -->
+		<!-- Naver OAuth redirect: scheme 값은 Naver Developers Console
+		     "iOS URL Scheme" 항목과 동일해야 함 (현재 com.Ikdaman). -->
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>naverlogin</string>
+				<string>com.Ikdaman</string>
 			</array>
 		</dict>
 		<!-- Google OAuth redirect (REVERSED_CLIENT_ID) -->
@@ -55,7 +56,7 @@
 	<string>957982912983-ft1n53ruu3ekbq5hepedt7b9ulga8mgb.apps.googleusercontent.com</string>
 	<!-- Naver Login SDK v5+ 설정 키 (2.1.0 migration) -->
 	<key>NidUrlScheme</key>
-	<string>naverlogin</string>
+	<string>com.Ikdaman</string>
 	<key>NidClientID</key>
 	<string>HHcc6QmC3xAJOcNxFyFt</string>
 	<key>NidClientSecret</key>
