@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,12 +10,16 @@ import 'app/theme/app_theme.dart';
 import 'core/env/env.dart';
 import 'core/network/auth_event.dart';
 import 'features/auth/provider/auth_provider.dart';
+import 'firebase_options.dart';
 import 'widget_bridge/widget_background_callback.dart';
 import 'widget_bridge/widget_navigator.dart';
 import 'widget_bridge/widget_publisher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   KakaoSdk.init(nativeAppKey: Env.kakaoAppKey);
   await WidgetPublisher.init();
   await registerWidgetBackgroundCallback();

@@ -51,6 +51,12 @@ android/key.properties
 fastlane/AuthKey_*.p8
 ios/Runner/GoogleService-Info.plist
 
+# Push notification secrets (APNs / Firebase)
+secrets/
+*.p8
+**/google-services.json
+**/firebase-service-account.json
+
 # Local skill / agent tool installs (managed per developer)
 .agents/
 .claude/
