@@ -57,6 +57,10 @@ jobs:
       - name: Decode App Store Connect API Key
         run: echo "${{ secrets.APP_STORE_API_KEY_BASE64 }}" | base64 --decode > ios/fastlane/AuthKey_35SHWLN842.p8
 
+      - name: Decode GoogleService-Info.plist
+        # Firebase GoogleService-Info.plist 는 .gitignore 로 차단되어 있어 base64 secret 으로 주입.
+        run: echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}" | base64 --decode > ios/Runner/GoogleService-Info.plist
+
       - name: Clean and install dependencies
         run: flutter clean && flutter pub get
 

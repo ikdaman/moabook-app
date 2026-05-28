@@ -66,6 +66,10 @@ jobs:
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/release.keystore
 
+      - name: Decode google-services.json
+        # Firebase google-services.json 은 .gitignore 로 차단되어 있어 base64 secret 으로 주입.
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > android/app/google-services.json
+
       - name: Create key.properties
         run: |
           cat > android/key.properties <<EOF
