@@ -43,8 +43,8 @@
 - [x] `pod install` (Firebase iOS SDK 11.15.0 설치 완료)
 - [x] `main.dart` 에 `Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)`
 - [x] `flutter analyze` 통과 (기존 경고 1개 외 신규 이슈 없음)
-- [ ] iOS 실기기 빌드 + 실행 → Firebase 초기화 로그 확인
-- [ ] Android 디바이스 빌드 + 실행 → Firebase 초기화 로그 확인
+- [x] iOS 실기기 빌드 + 실행 → Firebase 초기화 로그 확인
+- [x] Android 디바이스 빌드 + 실행 → Firebase 초기화 로그 확인
 
 ---
 

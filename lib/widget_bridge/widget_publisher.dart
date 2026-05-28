@@ -18,12 +18,15 @@ class WidgetPublisher {
   static const String _iOSAppGroupId = 'group.shop.moabook';
   static const int _maxEntries = 9;
 
+  // home_widget 의 androidName 은 항상 application id 를 prepend 하므로
+  // 패키지가 다른 receiver(project.side.widget.receiver.*)는 찾지 못함.
+  // qualifiedAndroidName 으로 FQCN 그대로 전달해야 Class.forName 성공.
   static const List<String> _androidProviderNames = [
-    'SmallWidgetWhiteReceiver',
-    'SmallWidgetBlueReceiver',
-    'MediumWidgetWhiteReceiver',
-    'MediumWidgetBlueReceiver',
-    'LargeWidgetReceiver',
+    'project.side.widget.receiver.SmallWidgetWhiteReceiver',
+    'project.side.widget.receiver.SmallWidgetBlueReceiver',
+    'project.side.widget.receiver.MediumWidgetWhiteReceiver',
+    'project.side.widget.receiver.MediumWidgetBlueReceiver',
+    'project.side.widget.receiver.LargeWidgetReceiver',
   ];
 
   /// 앱 시작 시 1회 호출.
@@ -51,7 +54,7 @@ class WidgetPublisher {
     // Android 5개 receiver + iOS 위젯 모두 갱신 시그널 발사.
     for (final name in _androidProviderNames) {
       await HomeWidget.updateWidget(
-        androidName: name,
+        qualifiedAndroidName: name,
         iOSName: 'MoabookWidget',
       );
     }
@@ -62,7 +65,7 @@ class WidgetPublisher {
     await HomeWidget.saveWidgetData<String>(_booksKey, jsonEncode(<dynamic>[]));
     for (final name in _androidProviderNames) {
       await HomeWidget.updateWidget(
-        androidName: name,
+        qualifiedAndroidName: name,
         iOSName: 'MoabookWidget',
       );
     }
