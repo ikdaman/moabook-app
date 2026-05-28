@@ -51,32 +51,32 @@
 ## P1 — FCM 토큰 + 메시지 수신 (백엔드 무관, 단독 가능)
 
 ### 모듈 스캐폴드
-- [ ] `lib/features/notification/` 디렉토리 생성
-- [ ] `service/fcm_service.dart`
-- [ ] `service/local_notification_service.dart`
-- [ ] `service/push_routing_service.dart`
-- [ ] `provider/fcm_provider.dart`
-- [ ] `provider/local_notification_provider.dart`
+- [x] `lib/features/notification/` 디렉토리 생성
+- [x] `service/fcm_service.dart`
+- [x] `service/local_notification_service.dart`
+- [x] `service/push_routing_service.dart`
+- [x] `provider/notification_providers.dart` (fcm + local + routing 단일 파일로 통합)
 
 ### FCM 기능
-- [ ] `FcmService.initialize()` — Firebase 권한 요청 (`requestPermission`)
-- [ ] `FcmService.getToken()` 호출 + 콘솔 출력 (Firebase Console "Send test message" 검증용)
-- [ ] `onTokenRefresh` 스트림 구독 → 토큰 갱신 시 콜백
-- [ ] `FirebaseMessaging.onMessage` (포그라운드) → `flutter_local_notifications` 로 표시
-- [ ] `FirebaseMessaging.onMessageOpenedApp` (백그라운드 → 탭 진입)
-- [ ] `FirebaseMessaging.instance.getInitialMessage()` (종료 → 탭 진입)
-- [ ] 백그라운드 핸들러 — top-level 함수 + `@pragma('vm:entry-point')`
-- [ ] 로그인 직후 트리거 — `auth_provider` 또는 `App` `initState` 에서 `FcmService.initialize()` 호출
+- [x] `FcmService.initialize()` — Firebase 권한 요청 (`requestPermission`)
+- [x] `FcmService.getToken()` 호출 + 콘솔 출력 (Firebase Console "Send test message" 검증용)
+- [x] `onTokenRefresh` 스트림 구독 → 토큰 갱신 시 콜백 (P2 백엔드 등록용 `onTokenIssued` 노출)
+- [x] `FirebaseMessaging.onMessage` (포그라운드) → `flutter_local_notifications` 로 표시
+- [x] `FirebaseMessaging.onMessageOpenedApp` (백그라운드 → 탭 진입)
+- [x] `FirebaseMessaging.instance.getInitialMessage()` (종료 → 탭 진입)
+- [x] 백그라운드 핸들러 — top-level `firebaseMessagingBackgroundHandler` + `@pragma('vm:entry-point')`
+- [x] `App.initState` 에서 `fcmServiceProvider.initialize()` 호출
 
 ### Deep Link 라우팅
-- [ ] `PushRoutingService.routeFromPayload(Map<String, dynamic> data)` 매핑:
+- [x] `PushRoutingService.routeFromPayload(Map<String, dynamic> data)` 매핑:
   - `type=A` → `/barcode`
-  - `type=B` + `mybookId` → `/mybook/{mybookId}`
-  - 로컬 (C) → `/home`
-- [ ] `go_router` 와 통합 (글로벌 navigator key 또는 `appRouter.go(...)`)
-- [ ] 알림 탭 콜백에서 라우팅 호출
+  - `type=B` + `mybookId` → `/main/book-info/{mybookId}` (실제 라우트, 문서 초안 `/mybook` 보정)
+  - `type=C` 또는 unknown → `/main/home`
+- [x] `go_router` 와 통합 — 전역 `appRouter.go(...)` 사용
+- [x] 알림 탭 콜백 3가지(포그라운드/백그라운드/종료) 모두 동일 라우팅 호출
+- [x] 단위 테스트 (`test/features/notification/push_routing_service_test.dart` — 9 케이스 통과)
 
-### 검증
+### 검증 (사용자 직접)
 - [ ] Firebase Console → "Send test message" 로 단말기에 푸시 도달 확인
 - [ ] 포그라운드/백그라운드/종료 3가지 상태에서 알림 표시/라우팅 동작 확인
 
