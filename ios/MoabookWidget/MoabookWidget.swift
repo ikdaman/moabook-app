@@ -36,31 +36,105 @@ struct MoabookEntry: TimelineEntry {
     let smallCurrentMybookId: Int
 }
 
-// MARK: - Widget
+// MARK: - Widget kind 상수
+// home_widget Flutter plugin 이 reloadTimelines(ofKind:) 호출 시 매칭 키.
+// WidgetPublisher.dart 의 _iOSKinds 와 반드시 동일하게 유지.
+enum MoabookWidgetKind {
+    static let smallWhite  = "MoabookSmallWhite"
+    static let smallBlue   = "MoabookSmallBlue"
+    static let mediumWhite = "MoabookMediumWhite"
+    static let mediumBlue  = "MoabookMediumBlue"
+    static let large       = "MoabookLarge"
+}
 
-struct MoabookWidget: Widget {
-    let kind: String = "MoabookWidget"
+// MARK: - Widget configs (5 entries, Android 5개 receiver 와 1:1 매칭)
 
+struct MoabookSmallWhiteWidget: Widget {
     var body: some WidgetConfiguration {
-        let config = StaticConfiguration(kind: kind, provider: MoabookProvider()) { entry in
-            if #available(iOS 17.0, *) {
-                MoabookWidgetView(entry: entry)
-                    .containerBackground(WidgetPalette.white.background, for: .widget)
-            } else {
-                MoabookWidgetView(entry: entry)
-                    .padding()
-                    .background(WidgetPalette.white.background)
-            }
-        }
-        .configurationDisplayName("모아북")
-        .description("읽고 싶은 책 모음")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        moabookWidgetConfig(
+            kind: MoabookWidgetKind.smallWhite,
+            family: .systemSmall,
+            palette: .white,
+            displayName: "모아북 (작은 흰색)",
+            description: "읽고 싶은 책 1권"
+        )
+    }
+}
 
+struct MoabookSmallBlueWidget: Widget {
+    var body: some WidgetConfiguration {
+        moabookWidgetConfig(
+            kind: MoabookWidgetKind.smallBlue,
+            family: .systemSmall,
+            palette: .blue,
+            displayName: "모아북 (작은 파랑)",
+            description: "읽고 싶은 책 1권 — 진한 파랑"
+        )
+    }
+}
+
+struct MoabookMediumWhiteWidget: Widget {
+    var body: some WidgetConfiguration {
+        moabookWidgetConfig(
+            kind: MoabookWidgetKind.mediumWhite,
+            family: .systemMedium,
+            palette: .white,
+            displayName: "모아북 (중간 흰색)",
+            description: "읽고 싶은 이유 표시"
+        )
+    }
+}
+
+struct MoabookMediumBlueWidget: Widget {
+    var body: some WidgetConfiguration {
+        moabookWidgetConfig(
+            kind: MoabookWidgetKind.mediumBlue,
+            family: .systemMedium,
+            palette: .blue,
+            displayName: "모아북 (중간 파랑)",
+            description: "읽고 싶은 이유 표시 — 진한 파랑"
+        )
+    }
+}
+
+struct MoabookLargeWidget: Widget {
+    var body: some WidgetConfiguration {
+        moabookWidgetConfig(
+            kind: MoabookWidgetKind.large,
+            family: .systemLarge,
+            palette: .white,
+            displayName: "모아북 (큰 사이즈)",
+            description: "최대 9권 목록"
+        )
+    }
+}
+
+// 공용 빌더 — kind/family/palette 만 다른 5개 Widget 의 중복 제거.
+private func moabookWidgetConfig(
+    kind: String,
+    family: WidgetFamily,
+    palette: WidgetPalette,
+    displayName: LocalizedStringKey,
+    description: LocalizedStringKey
+) -> some WidgetConfiguration {
+    let config = StaticConfiguration(kind: kind, provider: MoabookProvider()) { entry in
         if #available(iOS 17.0, *) {
-            return config.contentMarginsDisabled()
+            MoabookWidgetView(entry: entry, palette: palette)
+                .containerBackground(palette.background, for: .widget)
         } else {
-            return config
+            MoabookWidgetView(entry: entry, palette: palette)
+                .padding()
+                .background(palette.background)
         }
+    }
+    .configurationDisplayName(displayName)
+    .description(description)
+    .supportedFamilies([family])
+
+    if #available(iOS 17.0, *) {
+        return config.contentMarginsDisabled()
+    } else {
+        return config
     }
 }
 
@@ -69,17 +143,22 @@ struct MoabookWidget: Widget {
 struct MoabookWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: MoabookEntry
+    let palette: WidgetPalette
 
     var body: some View {
         switch family {
         case .systemSmall:
-            SmallWidgetView(books: entry.books, currentMybookId: entry.smallCurrentMybookId)
-                .padding(16)
+            SmallWidgetView(
+                books: entry.books,
+                currentMybookId: entry.smallCurrentMybookId,
+                palette: palette
+            )
+            .padding(16)
         case .systemMedium:
-            MediumWidgetView(books: entry.books, current: entry.mediumIndex)
+            MediumWidgetView(books: entry.books, current: entry.mediumIndex, palette: palette)
                 .padding(EdgeInsets(top: 14, leading: 16, bottom: 12, trailing: 16))
         case .systemLarge:
-            LargeWidgetView(books: entry.books)
+            LargeWidgetView(books: entry.books, palette: palette)
         default:
             EmptyView()
         }
@@ -98,12 +177,22 @@ private struct EmptyStateView: View {
     }
 }
 
+// MARK: - Asset name 분기 (Blue 배경 = pure 흰색 아이콘, White 배경 = navy 아이콘)
+
+private func bookHeartAsset(_ palette: WidgetPalette) -> String {
+    palette.background == WidgetPalette.blue.background ? "ic_book_heart_pure" : "ic_book_heart_navy"
+}
+
+private func refreshAsset(_ palette: WidgetPalette) -> String {
+    palette.background == WidgetPalette.blue.background ? "ic_widget_refresh_light" : "ic_widget_refresh_dark"
+}
+
 // MARK: - Small
 
 private struct SmallWidgetView: View {
     let books: [WidgetUiBook]
     let currentMybookId: Int
-    private let palette = WidgetPalette.white
+    let palette: WidgetPalette
 
     private var currentBook: WidgetUiBook? {
         if currentMybookId != 0,
@@ -118,13 +207,13 @@ private struct SmallWidgetView: View {
             if let book = currentBook {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(alignment: .top) {
-                        Image("ic_book_heart_navy")
+                        Image(bookHeartAsset(palette))
                             .resizable()
                             .frame(width: 22, height: 22)
                         Spacer()
                         if #available(iOS 17.0, *) {
                             Button(intent: RefreshSmallIntent()) {
-                                Image("ic_widget_refresh_dark")
+                                Image(refreshAsset(palette))
                                     .resizable()
                                     .frame(width: 14, height: 14)
                             }
@@ -159,7 +248,7 @@ private struct SmallWidgetView: View {
 private struct MediumWidgetView: View {
     let books: [WidgetUiBook]
     let current: Int
-    private let palette = WidgetPalette.white
+    let palette: WidgetPalette
 
     var body: some View {
         Group {
@@ -172,7 +261,7 @@ private struct MediumWidgetView: View {
                 ZStack(alignment: .bottomTrailing) {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 4) {
-                            Image("ic_book_heart_navy")
+                            Image(bookHeartAsset(palette))
                                 .resizable()
                                 .frame(width: 22, height: 22)
                             Text(book.title)
@@ -222,7 +311,7 @@ private struct MediumWidgetView: View {
 
 private struct LargeWidgetView: View {
     let books: [WidgetUiBook]
-    private let palette = WidgetPalette.white
+    let palette: WidgetPalette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -242,7 +331,7 @@ private struct LargeWidgetView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(books.prefix(9)) { book in
                         HStack(spacing: 8) {
-                            Image("ic_book_heart_navy")
+                            Image(bookHeartAsset(palette))
                                 .resizable()
                                 .frame(width: 18, height: 18)
                             Text(book.title)

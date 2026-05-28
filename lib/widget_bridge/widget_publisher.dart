@@ -29,6 +29,16 @@ class WidgetPublisher {
     'project.side.widget.receiver.LargeWidgetReceiver',
   ];
 
+  // iOS Widget kind 5종 — Android receiver 와 1:1 매칭.
+  // MoabookWidget.swift `MoabookWidgetKind` 와 동일하게 유지.
+  static const List<String> _iOSKinds = [
+    'MoabookSmallWhite',
+    'MoabookSmallBlue',
+    'MoabookMediumWhite',
+    'MoabookMediumBlue',
+    'MoabookLarge',
+  ];
+
   /// 앱 시작 시 1회 호출.
   static Future<void> init() async {
     await HomeWidget.setAppGroupId(_iOSAppGroupId);
@@ -51,23 +61,22 @@ class WidgetPublisher {
       DateTime.now().millisecondsSinceEpoch,
     );
 
-    // Android 5개 receiver + iOS 위젯 모두 갱신 시그널 발사.
-    for (final name in _androidProviderNames) {
-      await HomeWidget.updateWidget(
-        qualifiedAndroidName: name,
-        iOSName: 'MoabookWidget',
-      );
-    }
+    await _reloadAll();
   }
 
   /// 로그아웃 시 호출. 위젯 캐시 비움 + 갱신.
   static Future<void> clear() async {
     await HomeWidget.saveWidgetData<String>(_booksKey, jsonEncode(<dynamic>[]));
+    await _reloadAll();
+  }
+
+  /// Android 5개 receiver + iOS 5개 Widget kind 전부 reload 트리거.
+  static Future<void> _reloadAll() async {
     for (final name in _androidProviderNames) {
-      await HomeWidget.updateWidget(
-        qualifiedAndroidName: name,
-        iOSName: 'MoabookWidget',
-      );
+      await HomeWidget.updateWidget(qualifiedAndroidName: name);
+    }
+    for (final kind in _iOSKinds) {
+      await HomeWidget.updateWidget(iOSName: kind);
     }
   }
 }

@@ -4,6 +4,10 @@ import WidgetKit
 @main
 struct MoabookWidgetBundle: WidgetBundle {
     var body: some Widget {
-        MoabookWidget()
+        MoabookSmallWhiteWidget()
+        MoabookSmallBlueWidget()
+        MoabookMediumWhiteWidget()
+        MoabookMediumBlueWidget()
+        MoabookLargeWidget()
     }
 }
