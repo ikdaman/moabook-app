@@ -13,12 +13,14 @@
 	<key>CFBundleURLTypes</key>
 	<array>
 		<!-- Kakao OAuth redirect -->
+		<!-- KAKAO_APP_KEY 는 Android key.properties / CI workflow 의 디폴트와 동일.
+		     iOS 빌드는 xcconfig 변수 주입 경로가 없어 hardcode. -->
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>kakao$(KAKAO_APP_KEY)</string>
+				<string>kakaof7c657a31a53ae9ea50ae17d61d4345d</string>
 			</array>
 		</dict>
 		<!-- Naver OAuth redirect -->
@@ -67,9 +69,9 @@
 		<string>kakaolink</string>
 		<string>kakaotalk</string>
 		<string>naversearchapp</string>
+		<!-- Naver SDK v5 가 Naver 앱으로 redirect 하기 위한 scheme. 누락 시 네아로 실패. -->
+		<string>naversearchthirdlogin</string>
 	</array>
-	<key>KAKAO_APP_KEY</key>
-	<string>$(KAKAO_APP_KEY)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
