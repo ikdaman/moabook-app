@@ -7,10 +7,6 @@ version: 2.0.7+42
 environment:
   sdk: ^3.12.0
 
-dependency_overrides:
-  flutter_naver_login:
-    path: patches/flutter_naver_login
-
 dependencies:
   flutter:
     sdk: flutter
@@ -33,7 +29,7 @@ dependencies:
 
   # 소셜 로그인
   kakao_flutter_sdk_user: ^1.9.10
-  flutter_naver_login: ^2.0.0
+  flutter_naver_login: ^2.1.1
   google_sign_in: ^6.2.1
   sign_in_with_apple: ^6.1.4
 

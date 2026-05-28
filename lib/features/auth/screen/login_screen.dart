@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/router/routes.dart';
 import '../../../app/theme/app_colors.dart';
@@ -92,14 +93,13 @@ class LoginScreen extends ConsumerWidget {
                       ),
                       if (Platform.isIOS) ...[
                         const SizedBox(height: 12),
-                        _SocialButton(
-                          iconAsset: 'assets/images/apple_logo_white.svg',
-                          label: 'Apple로 로그인',
-                          onTap: isLoading ? null : auth.appleLogin,
-                          // Apple HIG: 검정 배경 + 흰 텍스트 + 흰 Apple logo 권장.
-                          // 순검정 #000000 사용 (앱 토큰 borderBlack 은 #333333 회색).
-                          backgroundColor: const Color(0xFF000000),
-                          textColor: AppColors.textWhite,
+                        SignInWithAppleButton(
+                          onPressed: isLoading ? () {} : auth.appleLogin,
+                          text: 'Apple로 로그인',
+                          height: 48,
+                          style: SignInWithAppleButtonStyle.black,
+                          borderRadius:
+                              const BorderRadius.all(Radius.circular(8)),
                         ),
                       ],
                     ],
@@ -147,15 +147,11 @@ class _SocialButton extends StatelessWidget {
   final String iconAsset;
   final String label;
   final VoidCallback? onTap;
-  final Color backgroundColor;
-  final Color textColor;
 
   const _SocialButton({
     required this.iconAsset,
     required this.label,
     required this.onTap,
-    this.backgroundColor = AppColors.backgroundWhite,
-    this.textColor = AppColors.textPrimary,
   });
 
   @override
@@ -165,7 +161,7 @@ class _SocialButton extends StatelessWidget {
       height: 48,
       child: PixelShadowButton(
         onTap: onTap ?? () {},
-        backgroundColor: backgroundColor,
+        backgroundColor: AppColors.backgroundWhite,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -173,7 +169,7 @@ class _SocialButton extends StatelessWidget {
             const SizedBox(width: 8),
             Text(label,
                 style: AppTypography.dungGeunMoSubtitle
-                    .copyWith(color: textColor)),
+                    .copyWith(color: AppColors.textPrimary)),
           ],
         ),
       ),

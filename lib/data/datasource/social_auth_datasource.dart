@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:flutter_naver_login/flutter_naver_login.dart';
-import 'package:flutter_naver_login/interface/types/naver_login_status.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../model/social_login_result.dart';
 import '../../core/env/env.dart';
@@ -65,25 +64,51 @@ class SocialAuthDataSourceImpl implements SocialAuthDataSource {
 
   // ── Naver ────────────────────────────────────────────────────────────────
 
+  static const _naverChannel = MethodChannel('flutter_naver_login');
+
   @override
   Future<SocialLoginResult> naverLogin() async {
     try {
-      final result = await FlutterNaverLogin.logIn();
-      if (result.status == NaverLoginStatus.loggedIn &&
-          result.accessToken != null &&
-          result.account != null) {
+      final raw = await _naverChannel.invokeMethod('logIn');
+      final res = (raw as Map?)?.cast<Object?, Object?>() ?? const {};
+      final status = ((res['status'] as String?) ?? '')
+          .toLowerCase()
+          .replaceAll('_', '');
+
+      if (status != 'loggedin') {
         return SocialLoginResult(
-          isSuccess:         true,
-          socialAccessToken: result.accessToken!.accessToken,
-          provider:          'NAVER',
-          providerId:        result.account!.id,
+          isSuccess:    false,
+          errorMessage: (res['errorMessage'] as String?)?.isNotEmpty == true
+              ? res['errorMessage'] as String
+              : '네이버 로그인에 실패했습니다.',
         );
       }
+
+      final account = (res['account'] as Map?)?.cast<Object?, Object?>();
+      final providerId = account?['id']?.toString() ?? '';
+
+      final tokenRaw = await _naverChannel.invokeMethod('getCurrentAccessToken');
+      final tokenMap = (tokenRaw as Map?)?.cast<Object?, Object?>() ?? const {};
+      final tokenField = tokenMap['accessToken'];
+      String accessToken = '';
+      if (tokenField is String) {
+        accessToken = tokenField;
+      } else if (tokenField is Map) {
+        accessToken = tokenField['accessToken']?.toString() ?? '';
+      }
+
+      if (accessToken.isEmpty || providerId.isEmpty) {
+        return SocialLoginResult(
+          isSuccess:    false,
+          errorMessage: '네이버 로그인 응답이 비어있습니다.',
+        );
+      }
+
       return SocialLoginResult(
-        isSuccess:    false,
-        errorMessage: (result.errorMessage?.isNotEmpty == true)
-            ? result.errorMessage!
-            : '네이버 로그인에 실패했습니다.',
+        isSuccess:         true,
+        socialAccessToken: accessToken,
+        provider:          'NAVER',
+        providerId:        providerId,
       );
     } catch (e) {
       return SocialLoginResult(isSuccess: false, errorMessage: e.toString());
