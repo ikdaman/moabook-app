@@ -9,7 +9,8 @@ platform :android do
       skip_upload_metadata: true,
       skip_upload_images: true,
       skip_upload_screenshots: true,
-      release_status: "completed"
+      release_status: "completed",
+      ack_bundle_installation_warning: true
     )
   end
 
