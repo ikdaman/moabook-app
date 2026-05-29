@@ -2,7 +2,7 @@ name: moabook
 description: "모아북 — 독서 기록 앱 (Android + iOS 통합 Flutter 재구축)"
 publish_to: 'none'
 
-version: 2.0.8+43
+version: 2.0.9+44
 
 environment:
   sdk: ^3.12.0
@@ -42,6 +42,9 @@ dependencies:
 
   # 외부 링크 열기
   url_launcher: ^6.3.1
+
+  # HTML 엔티티 디코딩 (알라딘 API description 에 &lt; &gt; 등이 포함됨)
+  html_unescape: ^2.0.0
 
   # 홈 스크린 위젯 브리지 (Android Glance, iOS WidgetKit)
   home_widget: ^0.7.0

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../core/util/html_text.dart';
 import '../../domain/model/book_item.dart';
 
 class AladinDataSource {
@@ -47,14 +48,14 @@ class AladinDataSource {
       final subInfo = m['subInfo'] as Map<String, dynamic>?;
       final pageStr = subInfo?['itemPage']?.toString();
       return BookItem(
-        title:       m['title']     as String? ?? '',
-        author:      m['author']    as String? ?? '',
+        title:       decodeHtmlEntities(m['title']       as String?) ?? '',
+        author:      decodeHtmlEntities(m['author']      as String?) ?? '',
         cover:       m['cover']     as String? ?? '',
-        publisher:   m['publisher'] as String? ?? '',
+        publisher:   decodeHtmlEntities(m['publisher']   as String?) ?? '',
         isbn:        m['isbn13']    as String? ?? m['isbn'] as String? ?? '',
         itemId:      (m['itemId'] as num?)?.toInt() ?? 0,
         link:        m['link']      as String? ?? '',
-        description: m['description'] as String? ?? '',
+        description: decodeHtmlEntities(m['description'] as String?) ?? '',
         pubDate:     m['pubDate']   as String? ?? '',
         totalPage:   pageStr != null ? int.tryParse(pageStr) : null,
       );

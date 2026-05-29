@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../core/util/html_text.dart';
 import '../../domain/model/my_book_detail.dart';
 import '../../domain/model/store_book.dart';
 
@@ -112,14 +113,14 @@ class MyBookDataSourceImpl implements MyBookDataSource {
       createdDate:   d['createdDate']   as String? ?? '',
       reason:        d['reason']        as String?,
       bookInfo: MyBookDetailInfo(
-        title:       b['title']       as String? ?? '',
-        author:      b['author']      as String? ?? '',
+        title:       decodeHtmlEntities(b['title']     as String?) ?? '',
+        author:      decodeHtmlEntities(b['author']    as String?) ?? '',
         coverImage:  b['coverImage']  as String?,
-        publisher:   b['publisher']   as String?,
+        publisher:   decodeHtmlEntities(b['publisher'] as String?),
         totalPage:   (b['totalPage']  as num?)?.toInt(),
         publishDate: b['publishDate'] as String?,
         isbn:        b['isbn']        as String?,
-        description: b['description'] as String?,
+        description: decodeHtmlEntities(b['description'] as String?),
         aladinId:    b['aladinId']?.toString(),
         source:      b['source']      as String?,
       ),
@@ -148,10 +149,10 @@ class MyBookDataSourceImpl implements MyBookDataSource {
         mybookId:      m['mybookId']      as int,
         createdDate:   m['createdDate']   as String? ?? '',
         readingStatus: m['readingStatus'] as String?,
-        title:         b['title']         as String? ?? '',
-        author:        authorList,
+        title:         decodeHtmlEntities(b['title'] as String?) ?? '',
+        author:        authorList.map((a) => decodeHtmlEntities(a) ?? '').toList(),
         coverImage:    b['coverImage']    as String?,
-        description:   b['description']   as String?,
+        description:   decodeHtmlEntities(b['description'] as String?),
         reason:        null,
       );
     }).toList();
@@ -177,10 +178,10 @@ class MyBookDataSourceImpl implements MyBookDataSource {
           : authorRaw is String ? [authorRaw] : [];
       return HistoryBookInfo(
         mybookId:     m['mybookId']     as int,
-        title:        b['title']        as String? ?? '',
-        author:       authorList,
+        title:        decodeHtmlEntities(b['title'] as String?) ?? '',
+        author:       authorList.map((a) => decodeHtmlEntities(a) ?? '').toList(),
         coverImage:   b['coverImage']   as String?,
-        description:  b['description']  as String?,
+        description:  decodeHtmlEntities(b['description'] as String?),
         startedDate:  m['startedDate']  as String? ?? '',
         finishedDate: m['finishedDate'] as String?,
       );
@@ -206,10 +207,10 @@ class MyBookDataSourceImpl implements MyBookDataSource {
     return StoreBookItem(
       mybookId:    e['mybookId']    as int,
       createdDate: e['createdDate'] as String? ?? '',
-      title:       bookInfo['title']       as String? ?? '',
-      author:      authorList,
+      title:       decodeHtmlEntities(bookInfo['title'] as String?) ?? '',
+      author:      authorList.map((a) => decodeHtmlEntities(a) ?? '').toList(),
       coverImage:  bookInfo['coverImage']  as String?,
-      description: bookInfo['description'] as String?,
+      description: decodeHtmlEntities(bookInfo['description'] as String?),
       reason:      e['reason']             as String?,
     );
   }
