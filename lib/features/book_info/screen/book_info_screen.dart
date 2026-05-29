@@ -31,6 +31,19 @@ class BookInfoScreen extends ConsumerWidget {
     }
   }
 
+  // MyBookSearch 의 _tagFor 와 동일 매핑. 책 상세 배지/검색 결과 배지 일관성 유지.
+  static Color _statusBgColor(String value) {
+    switch (value.toUpperCase()) {
+      case 'INPROGRESS':
+      case 'DONE':
+      case 'COMPLETED':
+        return AppColors.textPrimary;
+      case 'TODO':
+      default:
+        return AppColors.primary;
+    }
+  }
+
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final deleted = await showDialog<bool>(
       context: context,
@@ -136,7 +149,7 @@ class BookInfoScreen extends ConsumerWidget {
                     child: book.coverImage != null && book.coverImage!.isNotEmpty
                         ? CachedNetworkImage(
                             imageUrl: book.coverImage!,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                             placeholder: (_, _) => Container(
                                 color: Colors.grey.withValues(alpha: 0.5)),
                             errorWidget: (_, _, _) => Container(
@@ -147,7 +160,7 @@ class BookInfoScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
                 Container(
-                  color: AppColors.primary,
+                  color: _statusBgColor(detail.readingStatus),
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 4),
                   child: Text(
@@ -250,7 +263,7 @@ class BookInfoScreen extends ConsumerWidget {
                         height: 46,
                         child: Center(
                           child: Text(
-                            '책 정보 더보기',
+                            '알라딘에서 더보기',
                             style: AppTypography.wantedSansBody
                                 .copyWith(color: AppColors.textPrimary),
                           ),

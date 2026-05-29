@@ -49,16 +49,18 @@ class _MyBookSearchScreenState extends ConsumerState<MyBookSearchScreen> {
     }
   }
 
+  // 이전 Android (c59f9c5 기준) 매핑. 사용자가 보는 운영 빌드와 일치시키기 위해
+  // 연한 tint(StatusWish/Reading/Done) 대신 Primary 남색 + TextPrimary 진회색을 사용.
   static (String label, Color color) _tagFor(String status) {
     switch (status.toUpperCase()) {
       case 'INPROGRESS':
-        return ('읽는 중', AppColors.statusReading);
+        return ('읽는 중', AppColors.textPrimary);
       case 'DONE':
       case 'COMPLETED':
-        return ('완독', AppColors.statusDone);
+        return ('완독', AppColors.textPrimary);
       case 'TODO':
       default:
-        return ('읽고 싶은 책', AppColors.statusWish);
+        return ('읽고 싶은 책', AppColors.primary);
     }
   }
 
@@ -183,14 +185,14 @@ class _ResultItem extends StatelessWidget {
                       imageUrl: item.coverImage!,
                       fit: BoxFit.cover,
                       placeholder: (_, _) => Container(
-                        color: AppColors.backgroundWhite,
                         decoration: BoxDecoration(
+                          color: AppColors.backgroundWhite,
                           border: Border.all(color: AppColors.borderBlack),
                         ),
                       ),
                       errorWidget: (_, _, _) => Container(
-                        color: AppColors.backgroundWhite,
                         decoration: BoxDecoration(
+                          color: AppColors.backgroundWhite,
                           border: Border.all(color: AppColors.borderBlack),
                         ),
                       ),
