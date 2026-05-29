@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
 
@@ -70,13 +72,21 @@ class WidgetPublisher {
     await _reloadAll();
   }
 
-  /// Android 5개 receiver + iOS 5개 Widget kind 전부 reload 트리거.
+  /// 현재 플랫폼에 해당하는 위젯만 reload. home_widget 플러그인은
+  /// `qualifiedAndroidName` 만 전달하면 iOS 분기에서 `name` 누락 에러를 던지고,
+  /// `iOSName` 만 전달하면 Android 분기에서 같은 에러를 던진다.
+  /// 따라서 `Platform.isAndroid`/`isIOS` 로 분기해서 적절한 인자만 보낸다.
+  /// (테스트 환경 등 모바일이 아닌 경우 no-op)
   static Future<void> _reloadAll() async {
-    for (final name in _androidProviderNames) {
-      await HomeWidget.updateWidget(qualifiedAndroidName: name);
-    }
-    for (final kind in _iOSKinds) {
-      await HomeWidget.updateWidget(iOSName: kind);
+    if (kIsWeb) return;
+    if (Platform.isAndroid) {
+      for (final name in _androidProviderNames) {
+        await HomeWidget.updateWidget(qualifiedAndroidName: name);
+      }
+    } else if (Platform.isIOS) {
+      for (final kind in _iOSKinds) {
+        await HomeWidget.updateWidget(iOSName: kind);
+      }
     }
   }
 }
