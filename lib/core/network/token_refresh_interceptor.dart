@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'auth_event.dart';
 
-/// 401 응답 → /members/reissue 로 토큰 갱신 → 원 요청 재시도.
+/// 401 응답 → /auth/reissue 로 토큰 갱신 → 원 요청 재시도.
 ///
 /// 동시 401 race condition 차단:
 ///   1) 처음 401 들어온 인터셉터 instance 가 `_ongoing` Completer 를 세팅하고
@@ -107,7 +107,7 @@ class TokenRefreshInterceptor extends Interceptor {
 
     try {
       final response = await _refreshDio.post<dynamic>(
-        '/members/reissue',
+        '/auth/reissue',
         options: Options(
           headers: {
             'Authorization': 'Bearer $accessToken',
