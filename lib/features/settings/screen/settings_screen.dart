@@ -10,7 +10,9 @@ import '../../../features/auth/provider/auth_provider.dart';
 import '../../../shared/widgets/keyboard_dismisser.dart';
 import '../../../shared/widgets/pixel_popup.dart';
 import '../../../shared/widgets/pixel_shadow_box.dart';
+import '../../../shared/widgets/pixel_toggle.dart';
 import '../../../shared/widgets/title_bar.dart';
+import '../../notification/provider/push_settings_provider.dart';
 
 const _termsUrl =
     'https://scientific-ferryboat-eb1.notion.site/3354710961a98025a529d8e3bb765d2a';
@@ -214,6 +216,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               else
                                 _buildNicknameDisplay(),
                               const SizedBox(height: 60),
+                              _buildPushToggle(),
+                              const SizedBox(height: 36),
                               _MenuItem(
                                 text: '서비스 이용약관',
                                 onTap: () => _openUrl(_termsUrl),
@@ -278,6 +282,68 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPushToggle() {
+    final asyncEnabled = ref.watch(pushSettingsProvider);
+    // 로딩/에러 중에도 토글은 보여야 하므로 마지막 값(없으면 ON)으로 표시.
+    final enabled = asyncEnabled.valueOrNull ?? true;
+    final busy = asyncEnabled.isLoading;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 32,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '알림',
+                style: AppTypography.dungGeunMoBody.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+          ),
+        ),
+        PixelShadowBox(
+          backgroundColor: AppColors.backgroundWhite,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '푸시 알림 받기',
+                    style: AppTypography.wantedSansBody.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                PixelToggle(
+                  value: enabled,
+                  enabled: !busy,
+                  onChanged: (v) =>
+                      ref.read(pushSettingsProvider.notifier).toggle(v),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.only(left: 10),
+          child: Text(
+            '책을 잊지 않도록 모아북이 가끔 알려드려요.',
+            style: AppTypography.dungGeunMoTag.copyWith(
+              color: AppColors.textPrimary.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

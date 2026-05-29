@@ -1,5 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/datasource/notification_remote_datasource.dart';
+import '../../../data/repository/notification_repository_impl.dart';
+import '../../../domain/repository/notification_repository.dart';
+import '../../auth/provider/auth_provider.dart';
 import '../service/fcm_service.dart';
 import '../service/local_notification_service.dart';
 import '../service/push_routing_service.dart';
@@ -14,6 +19,10 @@ import '../service/push_routing_service.dart';
 ///
 /// 호출 측은 `ref.read(fcmServiceProvider).initialize()` 한 번이면 전체 파이프라인 가동.
 
+/// 현재 플랫폼 문자열 — 백엔드 계약(`platform: "ANDROID"|"IOS"`).
+String currentPlatform() =>
+    defaultTargetPlatform == TargetPlatform.iOS ? 'IOS' : 'ANDROID';
+
 final pushRoutingServiceProvider = Provider<PushRoutingService>(
   (_) => PushRoutingService(),
 );
@@ -24,9 +33,29 @@ final localNotificationServiceProvider = Provider<LocalNotificationService>((
   return LocalNotificationService(ref.watch(pushRoutingServiceProvider));
 });
 
+// ── 백엔드 알림 API ─────────────────────────────────────────────────────────
+
+final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+  final dio = ref.watch(dioProvider);
+  return NotificationRepositoryImpl(NotificationRemoteDataSource(dio));
+});
+
 final fcmServiceProvider = Provider<FcmService>((ref) {
-  return FcmService(
+  final svc = FcmService(
     ref.watch(localNotificationServiceProvider),
     ref.watch(pushRoutingServiceProvider),
   );
+  // 토큰 발급/회전 시 백엔드에 device-token 등록. 백엔드 미배포 또는 비로그인
+  // 상태(401)면 흡수 — 로그인 성공 후 resendToken() 으로 재시도된다.
+  svc.onTokenIssued = (token) async {
+    try {
+      await ref
+          .read(notificationRepositoryProvider)
+          .registerDeviceToken(token, currentPlatform());
+      debugPrint('device-token 등록 성공');
+    } catch (e) {
+      debugPrint('device-token 등록 실패(흡수): $e');
+    }
+  };
+  return svc;
 });

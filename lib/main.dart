@@ -4,6 +4,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 import 'app/router/app_router.dart';
 import 'app/router/routes.dart';
 import 'app/theme/app_theme.dart';
@@ -11,6 +13,7 @@ import 'core/env/env.dart';
 import 'core/network/auth_event.dart';
 import 'features/auth/provider/auth_provider.dart';
 import 'features/notification/provider/notification_providers.dart';
+import 'features/notification/provider/push_settings_provider.dart';
 import 'features/notification/service/fcm_service.dart';
 import 'firebase_options.dart';
 import 'widget_bridge/widget_background_callback.dart';
@@ -19,6 +22,11 @@ import 'widget_bridge/widget_publisher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 로컬 알림 zonedSchedule 용 timezone 초기화. C 알림은 KST 기준 (설계 가정).
+  tzdata.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -40,12 +48,13 @@ class App extends ConsumerStatefulWidget {
   ConsumerState<App> createState() => _AppState();
 }
 
-class _AppState extends ConsumerState<App> {
+class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   StreamSubscription<void>? _authSub;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _authSub = authExpiredStream.listen((_) {
       ref.invalidate(isLoggedInProvider);
       appRouter.go(Routes.login);
@@ -58,8 +67,24 @@ class _AppState extends ConsumerState<App> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _authSub?.cancel();
     super.dispose();
+  }
+
+  /// 앱이 foreground 로 돌아올 때마다 C 알림을 7일 뒤로 재예약 →
+  /// "마지막 진입 후 7일" 트리거 구현. 푸시 설정 OFF 면 예약하지 않는다.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _rescheduleCIfEnabled();
+    }
+  }
+
+  Future<void> _rescheduleCIfEnabled() async {
+    if (await readLocalPushEnabled()) {
+      await ref.read(localNotificationServiceProvider).rescheduleC();
+    }
   }
 
   @override

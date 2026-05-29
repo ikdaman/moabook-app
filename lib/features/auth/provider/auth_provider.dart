@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/network/dio_client.dart';
@@ -8,6 +9,8 @@ import '../../../domain/model/login_state.dart';
 import '../../../domain/model/logout_state.dart';
 import '../../../domain/model/signup_state.dart';
 import '../../../domain/repository/auth_repository.dart';
+import '../../notification/provider/notification_providers.dart';
+import '../../notification/provider/push_settings_provider.dart';
 
 // ── Infrastructure providers ─────────────────────────────────────────────
 
@@ -61,6 +64,7 @@ class AuthNotifier extends Notifier<void> {
       if (state is LoginSuccess) {
         ref.invalidate(isLoggedInProvider);
         await ref.read(isLoggedInProvider.future);
+        await _syncPushOnLogin();
       }
       ref.read(loginStateProvider.notifier).state = state;
     }
@@ -87,12 +91,47 @@ class AuthNotifier extends Notifier<void> {
       if (state is SignupSuccess) {
         ref.invalidate(isLoggedInProvider);
         await ref.read(isLoggedInProvider.future);
+        await _syncPushOnLogin();
       }
       ref.read(signupStateProvider.notifier).state = state;
     }
   }
 
+  /// 로그인/회원가입 성공 직후 — 인증된 상태로 device-token 재등록 + (설정 ON 시) C 예약.
+  Future<void> _syncPushOnLogin() async {
+    try {
+      await ref.read(fcmServiceProvider).resendToken();
+      if (await readLocalPushEnabled()) {
+        await ref.read(localNotificationServiceProvider).rescheduleC();
+      }
+    } catch (e) {
+      debugPrint('push 로그인 동기화 실패(흡수): $e');
+    }
+  }
+
+  /// 로그아웃 직전 — 백엔드 device-token 해제 + FCM 토큰 폐기 + 로컬 알림 전부 취소.
+  Future<void> _cleanupPushOnLogout() async {
+    try {
+      final fcm = ref.read(fcmServiceProvider);
+      final token = fcm.currentToken;
+      if (token != null) {
+        try {
+          await ref
+              .read(notificationRepositoryProvider)
+              .unregisterDeviceToken(token);
+        } catch (e) {
+          debugPrint('device-token 해제 실패(흡수): $e');
+        }
+      }
+      await fcm.deleteToken();
+      await ref.read(localNotificationServiceProvider).cancelAll();
+    } catch (e) {
+      debugPrint('push 로그아웃 정리 실패(흡수): $e');
+    }
+  }
+
   Future<void> logout() async {
+    await _cleanupPushOnLogout();
     final provider = await _repo.getProvider();
     final stream = switch (provider?.toUpperCase()) {
       'KAKAO'  => _repo.kakaoLogout(),

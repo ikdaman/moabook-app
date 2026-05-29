@@ -77,53 +77,61 @@
 - [x] 단위 테스트 (`test/features/notification/push_routing_service_test.dart` — 9 케이스 통과)
 
 ### 검증 (사용자 직접)
-- [ ] Firebase Console → "Send test message" 로 단말기에 푸시 도달 확인
-- [ ] 포그라운드/백그라운드/종료 3가지 상태에서 알림 표시/라우팅 동작 확인
+- [x] Firebase Console → "Send test message" 로 단말기에 푸시 도달 확인 (iOS 실기기, 2026-05-30)
+- [~] 포그라운드/백그라운드/종료 3가지 상태에서 알림 표시/라우팅 동작 확인 (도달 확인 완료, 3상태 매트릭스 검증 진행 예정)
 
 ---
 
 ## P2 — 백엔드 API 연동 + 설정 UI
 
-**의존성: 백엔드 P0 (`POST/DELETE /notifications/device-token`, `GET/PATCH /notifications/settings`) 완료 필요.**
+**앱 선작업 완료 (2026-05-30).** 백엔드 계약(`damda-server` 설계 문서) 기준으로 앱 코드 구현.
+백엔드 미배포 상태라 호출은 graceful 흡수(401/404 → 로컬 fallback). 실서버 통합 검증만 잔여.
 
 ### 데이터 레이어
-- [!] `lib/data/datasource/notification_remote_datasource.dart`
-- [!] `lib/data/model/push_settings_model.dart`
-- [!] `lib/data/repository/notification_repository_impl.dart`
-- [!] `lib/domain/model/push_settings.dart`
-- [!] `lib/domain/repository/notification_repository.dart`
+- [x] `lib/data/datasource/notification_remote_datasource.dart` (4 API)
+- [x] `lib/data/model/push_settings_model.dart`
+- [x] `lib/data/repository/notification_repository_impl.dart`
+- [x] `lib/domain/model/push_settings.dart`
+- [x] `lib/domain/repository/notification_repository.dart`
+- [x] 단위 테스트 — datasource(페이로드 계약) + repository
 
 ### 토큰 등록/해제 흐름
-- [!] 로그인 성공 후 `POST /notifications/device-token { fcmToken, platform }`
-- [!] `onTokenRefresh` 시 동일 API 재호출
-- [!] 로그아웃 시 `DELETE /notifications/device-token` + `FirebaseMessaging.deleteToken()`
+- [x] 로그인 성공 후 `POST /notifications/device-token { fcmToken, platform }` (`AuthNotifier._syncPushOnLogin`)
+- [x] `onTokenRefresh` / 토큰 발급 시 동일 API 재호출 (`fcmServiceProvider.onTokenIssued`)
+- [x] 로그아웃 시 `DELETE /notifications/device-token` + `FirebaseMessaging.deleteToken()` (`_cleanupPushOnLogout`)
 
 ### 설정 화면 토글
-- [!] `lib/features/settings/screen/settings_screen.dart` 에 "푸시 알림 받기" 항목 추가
-- [!] `lib/features/notification/provider/push_settings_provider.dart`
-- [!] 진입 시 `GET /notifications/settings`
-- [!] 토글 변경 시 `PATCH /notifications/settings`
-- [!] OFF 전환 → `deleteToken()` + `DELETE /notifications/device-token` + 로컬 알림 전부 취소
-- [!] ON 전환 → OS 권한 확인 → FCM 토큰 재발급 → 서버 등록 + 로컬 알림 재예약
+- [x] `lib/features/settings/screen/settings_screen.dart` 에 "푸시 알림 받기" 항목 + `PixelToggle`
+- [x] `lib/features/notification/provider/push_settings_provider.dart`
+- [x] 진입 시 `GET /notifications/settings` (실패 시 로컬 fallback)
+- [x] 토글 변경 시 `PATCH /notifications/settings` (낙관적 + 흡수)
+- [x] OFF 전환 → `deleteToken()` + `DELETE /notifications/device-token` + 로컬 알림 전부 취소
+- [x] ON 전환 → OS 권한 확인 → FCM 토큰 재발급 → 서버 등록 + 로컬 알림 재예약
 
 ### 권한 UX
 - [ ] OS 알림 권한 거부 시 안내 문구 + `app_settings` 패키지 도입 검토
-- [ ] Android 13+ `POST_NOTIFICATIONS` 권한 명시적 요청
+- [ ] Android 13+ `POST_NOTIFICATIONS` 권한 명시적 요청 (현재 `requestPermission` 으로 노출)
+
+### 잔여 (백엔드 배포 후)
+- [ ] 실서버 device-token 등록/해제 통합 검증
+- [ ] 실서버 `GET/PATCH settings` 동작 검증
+- [ ] 서버발 A/B 푸시 + `/notifications/test` 검증
 
 ---
 
-## P3 — C 로컬 알림 (백엔드 무관, 단독 가능)
+## P3 — C 로컬 알림 (백엔드 무관, 단독 가능) — 완료 (2026-05-30)
 
-- [ ] `LocalNotificationService.rescheduleC()`
-  - 기존 C 알림 예약 취소
-  - 7일 뒤 시각으로 `zonedSchedule` 등록
+- [x] `LocalNotificationService.rescheduleC()`
+  - 기존 C 알림 예약 취소 (`cancel(cNotificationId)`)
+  - `_cDelay`(7일) 뒤 시각으로 `zonedSchedule` 등록
   - 문구 랜덤 선택 (3종)
-- [ ] `App` 위젯에 `WidgetsBindingObserver` 믹스인 + `didChangeAppLifecycleState`
-  - `AppLifecycleState.resumed` 시 `rescheduleC()` 호출
-- [ ] `flutter_local_notifications` `onDidReceiveNotificationResponse` 콜백 → `/home` 라우팅
-- [ ] 로그아웃 / 푸시 OFF 시 모든 C 예약 취소
-- [ ] 시간대 처리 (`timezone` 패키지 초기화 — KST 가정)
-- [ ] 검증: 시각 단축(7일 → 1분) 변수로 테스트 가능하게 설계
+- [x] `App` 위젯에 `WidgetsBindingObserver` 믹스인 + `didChangeAppLifecycleState`
+  - `AppLifecycleState.resumed` 시 `rescheduleC()` (푸시 설정 ON 일 때만)
+- [x] `flutter_local_notifications` `onDidReceiveNotificationResponse` → payload `type=C` → `/home`
+- [x] 로그아웃 / 푸시 OFF 시 모든 로컬 알림 취소 (`cancelAll`)
+- [x] 시간대 처리 (`timezone` 패키지 + `Asia/Seoul` 초기화)
+- [x] 검증용: `_cDelay` 상수만 줄이면(7일→1분) 단축 테스트 가능
+- [ ] 실기기 E2E (1분 단축으로 C 알림 발동/탭 라우팅 확인) — 사용자 직접
 
 ---
 
@@ -153,3 +161,15 @@
 - 2026-05-28
   - P0 셋업 진행 (이 시점까지 완료된 내용은 위 체크박스 참고)
   - 다음 행동: APNs 키 Firebase Console 업로드 → 실기기 빌드 검증 → P1 진입
+
+- 2026-05-30 — iOS 실기기 푸시 도달 성공. 막혔던 원인 4종 해결:
+  1. `aps-environment` entitlement 누락 → APNS 토큰 미발급. Runner.entitlements 에 `development` 추가.
+  2. 신형 엔진 델리게이트(`FlutterImplicitEngineDelegate`)에서 firebase swizzling 이 APNS
+     등록 콜백을 안 잡음 → AppDelegate 에 `registerForRemoteNotifications` + `didRegister...`
+     명시 구현, `Messaging.apnsToken` 직접 전달.
+  3. **APNs 환경 불일치 (핵심)**: `#if DEBUG` 가 이 프로젝트에서 false 로 평가돼 토큰 type 을
+     prod 로 등록 → 개발서명(sandbox) 기기에 FCM 이 prod APNs 로 전송 → 무성 드랍.
+     embedded.mobileprovision 의 aps-environment 를 런타임에 읽어 sandbox/prod 자동 판정.
+     (주의: 프로비저닝 파일은 CMS 바이너리 → `.ascii` 디코딩은 nil → `.isoLatin1` 필수.)
+  4. 토큰 재발급 엔드포인트 오타: `/members/reissue` → `/auth/reissue` (Android 원본 일치).
+  - 남은 행동: 포그라운드/백그라운드/종료 3상태 + 딥링크(type A/B/C) 매트릭스 검증, 이후 P2 진입.

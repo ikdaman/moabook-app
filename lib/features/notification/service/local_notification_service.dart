@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 import 'push_routing_service.dart';
 
@@ -26,6 +28,19 @@ class LocalNotificationService {
     description: '읽고 싶은 책 / 신규 기능 / 일반 푸시',
     importance: Importance.high,
   );
+
+  /// C(재방문 유도) 로컬 알림 고정 ID — 재예약 시 항상 이 ID 로 덮어쓴다.
+  static const cNotificationId = 7001;
+
+  /// 마지막 앱 진입 후 이 기간이 지나면 C 알림 발동. (검증 시 짧게 바꿔 테스트)
+  static const _cDelay = Duration(days: 7);
+
+  /// C 알림 문구 (설계 문서 7.3) — 예약 시 랜덤 1개 선택.
+  static const _cMessages = [
+    '요즘 읽고 싶은 책은 없으세요? 새로운 책을 담아보세요',
+    '오랜만에 내 서점 구경 어때요',
+    '내 서점에 먼지가 쌓이고 있어요…',
+  ];
 
   bool _initialized = false;
 
@@ -81,6 +96,55 @@ class LocalNotificationService {
       const NotificationDetails(android: androidDetails, iOS: iosDetails),
       payload: jsonEncode(data),
     );
+  }
+
+  /// C(재방문 유도) 알림 재예약. 앱 foreground 진입(`resumed`) 시마다 호출.
+  /// 기존 예약을 취소하고 [_cDelay] 뒤로 새로 잡는다 → 진입할 때마다 7일 뒤로 밀림.
+  Future<void> rescheduleC() async {
+    await initialize();
+    await _plugin.cancel(cNotificationId);
+
+    final when = tz.TZDateTime.now(tz.local).add(_cDelay);
+    final body = _cMessages[Random().nextInt(_cMessages.length)];
+
+    const androidDetails = AndroidNotificationDetails(
+      'moabook_default',
+      '모아북 알림',
+      channelDescription: '읽고 싶은 책 / 신규 기능 / 일반 푸시',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    await _plugin.zonedSchedule(
+      cNotificationId,
+      '모아북',
+      body,
+      when,
+      const NotificationDetails(android: androidDetails, iOS: iosDetails),
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      // 재방문 유도라 정확한 시각 불필요 → 정확 알람 권한(SCHEDULE_EXACT_ALARM) 회피.
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      payload: jsonEncode(const {'type': 'C'}),
+    );
+    debugPrint('LocalNotification C 예약: $when / "$body"');
+  }
+
+  /// C 예약만 취소.
+  Future<void> cancelC() async {
+    await initialize();
+    await _plugin.cancel(cNotificationId);
+  }
+
+  /// 모든 로컬 알림 취소 (로그아웃 / 푸시 OFF).
+  Future<void> cancelAll() async {
+    await initialize();
+    await _plugin.cancelAll();
   }
 
   void _onTap(NotificationResponse response) {

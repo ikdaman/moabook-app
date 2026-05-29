@@ -55,6 +55,7 @@ dependencies:
   flutter_local_notifications: ^17.2.3
   permission_handler: ^11.3.1
   shared_preferences: ^2.3.2
+  timezone: ^0.9.4 # zonedSchedule (C 로컬 알림 7일 예약)
 
 dev_dependencies:
   flutter_test:
