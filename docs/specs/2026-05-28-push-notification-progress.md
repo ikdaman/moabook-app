@@ -18,7 +18,7 @@
 - [x] iOS 앱 등록 + `GoogleService-Info.plist` 다운로드
 - [x] Android 앱 등록 + `google-services.json` 다운로드
 - [x] APNs 인증키(.p8) 발급 (`AuthKey_P7533549BD.p8`, Key ID `P7533549BD`, Team ID `T583WJWNAK`)
-- [ ] Firebase Console → Cloud Messaging → APNs Authentication Key 업로드
+- [x] Firebase Console → Cloud Messaging → APNs Authentication Key 업로드
 - [x] iOS plist 병합 (Firebase + Google Sign-In CLIENT_ID/REVERSED_CLIENT_ID) → `ios/Runner/GoogleService-Info.plist`
 - [x] `secrets/` 디렉토리 + `.gitignore` 등록 (`secrets/`, `*.p8`, `**/google-services.json` 등)
 - [x] `google-services.json` 을 `android/app/` 로 이동 (Gradle 자동 인식 위치)
@@ -144,7 +144,7 @@
 
 - [ ] Android 알림 채널: 단일 vs A/B/C 분리
 - [ ] 로컬 알림 권한 요청 시점: 로그인 직후 vs 첫 사용 vs 설정 화면 진입
-- [ ] iOS APNs 키 Firebase Console 업로드 → 운영 환경(TestFlight/App Store) 검증 필요
+- [x] iOS APNs 키 Firebase Console 업로드 완료 → 운영 환경(TestFlight/App Store) 검증은 별도
 
 ---
 
