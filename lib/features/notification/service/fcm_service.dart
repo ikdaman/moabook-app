@@ -24,6 +24,10 @@ class FcmService {
   /// 토큰 변경 시 외부에서 백엔드로 업로드하도록 콜백 노출. P2 작업 와이어업 지점.
   void Function(String token)? onTokenIssued;
 
+  /// 마지막으로 발급된 FCM 토큰. 로그아웃 시 백엔드 해제(unregister)용.
+  String? _currentToken;
+  String? get currentToken => _currentToken;
+
   bool _initialized = false;
 
   /// 앱 시작 또는 로그인 직후 호출. 권한 요청 + 토큰 발급 + 4 핸들러 등록.
@@ -46,10 +50,19 @@ class FcmService {
     //    iOS 시뮬레이터는 APNS 미지원 → getToken() 이 apns-token-not-set 예외를 던진다.
     //    실기기 미연결 또는 권한 거부 등 다른 일시 오류도 동일하게 흘러올 수 있어
     //    catch 로 흡수하고 다음 단계로 진행 (onTokenRefresh 가 나중에 토큰 보내줌).
+    //
+    //    iOS: APNS 토큰은 권한 승인 후 APNs 서버에서 비동기로 도착한다. requestPermission
+    //    직후 getToken() 을 바로 부르면 apns-token-not-set 이 나므로, getAPNSToken() 이
+    //    값을 줄 때까지 짧게 폴링하고 넘어간다.
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await _waitForApnsToken();
+    }
+
     try {
       final token = await _messaging.getToken();
       if (token != null) {
         debugPrint('FCM token: $token');
+        _currentToken = token;
         onTokenIssued?.call(token);
       }
     } catch (e) {
@@ -59,6 +72,7 @@ class FcmService {
     // 3) onTokenRefresh — 토큰 회전 시 동일 콜백 재호출.
     _onTokenRefreshSub = _messaging.onTokenRefresh.listen((t) {
       debugPrint('FCM token refreshed: $t');
+      _currentToken = t;
       onTokenIssued?.call(t);
     });
 
@@ -85,6 +99,66 @@ class FcmService {
       debugPrint('FCM getInitialMessage: ${initial.data}');
       // 라우터가 준비된 다음 프레임에 라우팅.
       scheduleMicrotask(() => _routing.routeFromPayload(initial.data));
+    }
+  }
+
+  /// iOS APNS 토큰이 도착할 때까지 최대 ~3초 폴링. 시뮬레이터(영영 nil)에서는
+  /// 그냥 타임아웃되고, 실기기에서는 보통 수백 ms 안에 도착한다.
+  Future<void> _waitForApnsToken() async {
+    const maxAttempts = 10;
+    const interval = Duration(milliseconds: 300);
+    for (var i = 0; i < maxAttempts; i++) {
+      try {
+        final apns = await _messaging.getAPNSToken();
+        if (apns != null) {
+          debugPrint('APNS token ready (attempt ${i + 1})');
+          return;
+        }
+      } catch (e) {
+        debugPrint('getAPNSToken 실패(무시): $e');
+      }
+      await Future<void>.delayed(interval);
+    }
+    debugPrint('APNS token 미도착 — getToken 은 이후 onTokenRefresh 에 의존');
+  }
+
+  /// OS 알림 권한 (재)요청. 푸시 OFF→ON 전환 시 사용.
+  Future<bool> ensurePermission() async {
+    final s = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    debugPrint('FCM permission(재요청): ${s.authorizationStatus}');
+    return s.authorizationStatus == AuthorizationStatus.authorized ||
+        s.authorizationStatus == AuthorizationStatus.provisional;
+  }
+
+  /// 현재 토큰을 다시 발급받아 `onTokenIssued` 재호출 — 백엔드에 (재)등록.
+  /// 앱 시작 시점엔 비로그인이라 등록이 401 로 흡수되므로, 로그인 성공 직후
+  /// 이걸 불러 인증된 상태로 device-token 을 등록한다. 푸시 OFF→ON 전환에도 사용.
+  Future<void> resendToken() async {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await _waitForApnsToken();
+    }
+    try {
+      final token = await _messaging.getToken();
+      if (token != null) {
+        _currentToken = token;
+        onTokenIssued?.call(token);
+      }
+    } catch (e) {
+      debugPrint('FCM resendToken 실패(무시): $e');
+    }
+  }
+
+  /// FCM 토큰 폐기 (푸시 OFF / 로그아웃). 핸들러는 유지.
+  Future<void> deleteToken() async {
+    try {
+      await _messaging.deleteToken();
+      _currentToken = null;
+    } catch (e) {
+      debugPrint('FCM deleteToken 실패(무시): $e');
     }
   }
 
