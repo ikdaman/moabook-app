@@ -43,10 +43,17 @@ class FcmService {
     debugPrint('FCM permission status: ${settings.authorizationStatus}');
 
     // 2) 토큰 발급 — 콘솔에 출력해서 Firebase Console "Send test message" 검증용.
-    final token = await _messaging.getToken();
-    if (token != null) {
-      debugPrint('FCM token: $token');
-      onTokenIssued?.call(token);
+    //    iOS 시뮬레이터는 APNS 미지원 → getToken() 이 apns-token-not-set 예외를 던진다.
+    //    실기기 미연결 또는 권한 거부 등 다른 일시 오류도 동일하게 흘러올 수 있어
+    //    catch 로 흡수하고 다음 단계로 진행 (onTokenRefresh 가 나중에 토큰 보내줌).
+    try {
+      final token = await _messaging.getToken();
+      if (token != null) {
+        debugPrint('FCM token: $token');
+        onTokenIssued?.call(token);
+      }
+    } catch (e) {
+      debugPrint('FCM getToken 실패(무시): $e');
     }
 
     // 3) onTokenRefresh — 토큰 회전 시 동일 콜백 재호출.
