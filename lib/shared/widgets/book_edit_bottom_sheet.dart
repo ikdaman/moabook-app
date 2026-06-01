@@ -119,6 +119,10 @@ class _BookEditBottomSheetState extends State<BookEditBottomSheet> {
   static String _isoDate(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  /// Android 원본과 동일한 포맷: `yyyy-MM-dd'T'HH:mm:ss'Z'` (UTC 자정).
+  /// 서버가 날짜만(`YYYY-MM-DD`) 받으면 거부하므로 instant 형태로 보낸다.
+  static String _instant(DateTime d) => '${_isoDate(d)}T00:00:00Z';
+
   Future<void> _openCalendar({
     required DateTime initial,
     required bool allowDeselect,
@@ -152,8 +156,9 @@ class _BookEditBottomSheetState extends State<BookEditBottomSheet> {
     final result = BookEditResult(
       shelfType: shelf,
       reason: reasonValue,
-      startedDate: _tab == 1 ? _isoDate(_start) : null,
-      finishedDate: _tab == 1 && _end != null ? _isoDate(_end!) : null,
+      startedDate: _tab == 1 ? _instant(_start) : null,
+      // 원본: 읽는 중이면 빈 문자열 "" 전송 (null 아님).
+      finishedDate: _tab == 1 ? (_end != null ? _instant(_end!) : '') : null,
       bookInfoTitle: _isCustom ? _title.text.trim() : null,
       bookInfoAuthor: _isCustom ? _author.text.trim() : null,
       bookInfoPublisher: _isCustom

@@ -53,6 +53,7 @@ class BookInfoScreen extends ConsumerWidget {
           child: PixelPopup(
             onDismiss: () => Navigator.of(ctx).pop(false),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('책 삭제',

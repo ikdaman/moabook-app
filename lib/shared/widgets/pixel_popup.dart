@@ -20,7 +20,9 @@ class PixelPopup extends StatelessWidget {
         child: PixelShadowBox(
           backgroundColor: AppColors.backgroundWhite,
           shadowOffset: 3,
-          contentAlignment: Alignment.topLeft,
+          // null = 부모 높이로 expand 안 하고 내용 크기로 shrink-wrap.
+          // topLeft 였을 때 팝업이 화면 전체 높이로 늘어나던 문제 수정.
+          contentAlignment: null,
           // 팝업 내부 빈 공간 탭 시 키보드 dismiss (TextField 가 있는 시트에서 필요).
           // X 버튼/내부 GestureDetector 는 자식 detector 가 먼저 hit 잡으므로
           // 정상 동작.

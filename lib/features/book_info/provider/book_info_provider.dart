@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/model/my_book_detail.dart';
 import '../../../features/home/provider/home_provider.dart';
+import '../../../features/history/provider/history_provider.dart';
 import '../../../shared/widgets/book_edit_bottom_sheet.dart';
 
 class BookInfoState {
@@ -39,6 +40,7 @@ class BookInfoNotifier extends FamilyNotifier<BookInfoState, int> {
     try {
       await ref.read(myBookDataSourceProvider).deleteMyBook(mybookId);
       ref.read(homeProvider.notifier).load();
+      ref.read(historyProvider.notifier).load();
       return true;
     } catch (_) {
       return false;
@@ -74,7 +76,8 @@ class BookInfoNotifier extends FamilyNotifier<BookInfoState, int> {
     if (edit.bookInfoPublishDate != null) {
       bookInfo['publishDate'] = edit.bookInfoPublishDate;
     }
-    if (edit.bookInfoIsbn != null) bookInfo['isbn'] = edit.bookInfoIsbn;
+    // Android 원본 키는 대문자 `ISBN`.
+    if (edit.bookInfoIsbn != null) bookInfo['ISBN'] = edit.bookInfoIsbn;
     if (edit.bookInfoTotalPage != null) {
       bookInfo['totalPage'] = edit.bookInfoTotalPage;
     }
@@ -85,6 +88,7 @@ class BookInfoNotifier extends FamilyNotifier<BookInfoState, int> {
       // 서버 상태가 진짜 정답이므로 다시 fetch.
       await _load(mybookId);
       ref.read(homeProvider.notifier).load();
+      ref.read(historyProvider.notifier).load();
       return true;
     } catch (_) {
       return false;

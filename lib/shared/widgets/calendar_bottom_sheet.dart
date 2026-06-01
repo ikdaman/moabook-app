@@ -103,15 +103,7 @@ class _CalendarBottomSheetState extends State<CalendarBottomSheet> {
                 cancelLabel: '취소',
                 confirmLabel: '확인',
                 onCancel: widget.onDismiss,
-                onConfirm: () {
-                  if (widget.allowDeselect &&
-                      _selected != null &&
-                      _isSameDay(_selected!, widget.initial)) {
-                    widget.onConfirm(null);
-                  } else {
-                    widget.onConfirm(_selected);
-                  }
-                },
+                onConfirm: () => widget.onConfirm(_selected),
               ),
             ],
           ),
@@ -143,7 +135,16 @@ class _CalendarBottomSheetState extends State<CalendarBottomSheet> {
           cells.add(Expanded(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => _selected = date),
+              // 원본: 이미 선택된 날 다시 탭하면 해제(null), FINISH 날짜용.
+              onTap: () => setState(() {
+                if (widget.allowDeselect &&
+                    _selected != null &&
+                    _isSameDay(_selected!, date)) {
+                  _selected = null;
+                } else {
+                  _selected = date;
+                }
+              }),
               child: Container(
                 height: 34,
                 margin: const EdgeInsets.all(2),

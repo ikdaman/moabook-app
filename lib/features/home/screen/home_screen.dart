@@ -62,6 +62,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: SafeArea(
         child: CustomScrollView(
           controller: _scrollController,
+          physics: const ClampingScrollPhysics(),
           slivers: [
             // ── Header (설정 아이콘 + 제목 + [+] 책 추가) ───────────────
             const SliverToBoxAdapter(child: _Header()),
@@ -482,7 +483,8 @@ class _DeleteDialog extends StatelessWidget {
       child: PixelShadowBox(
         backgroundColor: AppColors.backgroundWhite,
         shadowOffset: 3,
-        contentAlignment: Alignment.topLeft,
+        // null = 내용 크기로 shrink-wrap. topLeft 면 Dialog 높이만큼 세로로 늘어남.
+        contentAlignment: null,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
