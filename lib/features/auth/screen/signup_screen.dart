@@ -29,15 +29,45 @@ class SignupScreen extends ConsumerStatefulWidget {
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _controller = TextEditingController();
 
+  /// 중복 안내가 떠 있는 동안 마지막으로 제출했던 닉네임.
+  /// 닉네임을 그대로 둔 채 완료를 다시 누르면 재요청을 막는다.
+  String? _rejectedNickname;
+
+  @override
+  void initState() {
+    super.initState();
+    // 같은 닉네임으로 다시 완료를 누를 수 있도록 입력 변경을 감지한다.
+    _controller.addListener(_onTextChanged);
+  }
+
   @override
   void dispose() {
+    _controller.removeListener(_onTextChanged);
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onTextChanged() {
+    // 닉네임을 수정하면 중복 차단을 해제한다.
+    if (_rejectedNickname != null &&
+        _controller.text.trim() != _rejectedNickname) {
+      _rejectedNickname = null;
+    }
   }
 
   void _onComplete() {
     final nickname = _controller.text.trim();
     if (nickname.isEmpty) return;
+
+    final signupState = ref.read(signupStateProvider);
+    // 제출 진행 중이거나, 이미 중복으로 거절된 동일 닉네임이면 재요청 차단.
+    if (signupState is SignupLoading) return;
+    if (signupState is SignupNicknameDuplicate &&
+        nickname == _rejectedNickname) {
+      return;
+    }
+
+    _rejectedNickname = null;
     ref
         .read(authNotifierProvider.notifier)
         .signup(
@@ -53,6 +83,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     ref.listen(signupStateProvider, (_, state) {
       if (state is SignupSuccess) {
         context.go(Routes.home);
+      } else if (state is SignupNicknameDuplicate) {
+        // 이 닉네임으로는 완료 재요청을 막는다(수정 전까지).
+        _rejectedNickname = _controller.text.trim();
       } else if (state is SignupError && state.message.isNotEmpty) {
         ScaffoldMessenger.of(
           context,
