@@ -59,4 +59,8 @@ secrets/
 
 # Local skill / agent tool installs (managed per developer)
 .agents/
-.claude/
+.claude/*
+# 단, 공유 프로젝트 스킬은 추적한다.
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/release-app/
