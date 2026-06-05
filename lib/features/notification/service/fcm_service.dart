@@ -36,6 +36,17 @@ class FcmService {
     if (_initialized) return;
     _initialized = true;
 
+    // FCM/푸시 초기화는 전부 best-effort. Firebase Installations(FIS) 미가용,
+    // Play Services 구버전, 권한 다이얼로그 예외 등 어떤 실패도 로그인/앱 흐름을
+    // 막지 않도록 전체를 흡수한다. (개별 단계 try/catch 밖의 예외 대비)
+    try {
+      await _initializeInternal();
+    } catch (e) {
+      debugPrint('FCM initialize 실패(무시): $e');
+    }
+  }
+
+  Future<void> _initializeInternal() async {
     await _local.initialize();
 
     // 1) 권한 요청 — iOS 는 실제 다이얼로그, Android 13+ 도 POST_NOTIFICATIONS 노출.

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -64,7 +66,9 @@ class AuthNotifier extends Notifier<void> {
       if (state is LoginSuccess) {
         ref.invalidate(isLoggedInProvider);
         await ref.read(isLoggedInProvider.future);
-        await _syncPushOnLogin();
+        // 푸시 동기화는 화면 전환을 막지 않도록 비동기로 분리.
+        // FCM/FIS 미가용으로 getToken 이 느리거나 실패해도 로그인은 진행된다.
+        unawaited(_syncPushOnLogin());
       }
       ref.read(loginStateProvider.notifier).state = state;
     }
@@ -91,7 +95,9 @@ class AuthNotifier extends Notifier<void> {
       if (state is SignupSuccess) {
         ref.invalidate(isLoggedInProvider);
         await ref.read(isLoggedInProvider.future);
-        await _syncPushOnLogin();
+        // 푸시 동기화(device-token 등록 등)는 화면 전환을 막지 않도록 비동기로 분리.
+        // FCM/FIS 미가용으로 getToken 이 느리거나 실패해도 로그인 흐름은 진행된다.
+        unawaited(_syncPushOnLogin());
       }
       ref.read(signupStateProvider.notifier).state = state;
     }
