@@ -122,7 +122,12 @@ class AuthRepositoryImpl implements AuthRepository {
         yield const SignupError('회원가입 실패');
       }
     } on DioException catch (e) {
-      yield SignupError('회원가입 실패: ${e.message}');
+      // 409 Conflict → 닉네임 중복. 화면에서 안내 문구 노출용 전용 상태.
+      if (e.response?.statusCode == 409) {
+        yield const SignupNicknameDuplicate();
+      } else {
+        yield SignupError('회원가입 실패: ${e.message}');
+      }
     }
   }
 

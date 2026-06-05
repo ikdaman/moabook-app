@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,6 +32,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _editing = false;
   bool _loggingOut = false;
   String? _nicknameError;
+  bool _nicknameDuplicate = false;
   final _nicknameCtrl = TextEditingController();
 
   @override
@@ -63,7 +65,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } else if (t.length > 10) {
       err = '닉네임은 10자 이내로 입력해주세요.';
     }
-    setState(() => _nicknameError = err);
+    // 입력이 바뀌면 직전 중복 안내를 해제(다시 저장 시도 가능).
+    setState(() {
+      _nicknameError = err;
+      _nicknameDuplicate = false;
+    });
   }
 
   Future<void> _saveNickname() async {
@@ -81,7 +87,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _nickname = updated;
         _editing = false;
         _nicknameError = null;
+        _nicknameDuplicate = false;
       });
+    } on DioException catch (e) {
+      if (!mounted) return;
+      // 409 Conflict → 닉네임 중복. 입력창 아래 안내 문구 2줄 노출(가입 화면과 동일).
+      if (e.response?.statusCode == 409) {
+        setState(() {
+          _nicknameDuplicate = true;
+          _nicknameError = null;
+        });
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('닉네임 변경 실패: ${e.message}')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -354,6 +374,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _editing = true;
           _nicknameCtrl.text = _nickname;
           _nicknameError = null;
+          _nicknameDuplicate = false;
         });
       },
       backgroundColor: AppColors.backgroundWhite,
@@ -406,6 +427,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           style: AppTypography.dungGeunMoTag.copyWith(color: AppColors.primary),
         ),
       ],
+      // 409 중복 시 가입 화면과 동일한 2줄 안내.
+      if (_nicknameDuplicate) ...[
+        const SizedBox(height: 6),
+        Text(
+          '중복된 닉네임이에요.',
+          style: AppTypography.dungGeunMoTag.copyWith(color: AppColors.primary),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '닉네임을 다시 확인해주세요.',
+          style: AppTypography.dungGeunMoTag.copyWith(color: AppColors.primary),
+        ),
+      ],
       const SizedBox(height: 12),
       Row(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -416,6 +450,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _editing = false;
                 _nicknameCtrl.text = _nickname;
                 _nicknameError = null;
+                _nicknameDuplicate = false;
               });
             },
             backgroundColor: AppColors.backgroundGray,
