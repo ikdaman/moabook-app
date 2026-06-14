@@ -64,3 +64,6 @@ secrets/
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/release-app/
+
+# Patched plugin example build artifacts
+patches/**/build/
