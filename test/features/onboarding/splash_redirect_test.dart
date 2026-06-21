@@ -21,13 +21,13 @@ void main() {
     final router = GoRouter(
       initialLocation: Routes.splash,
       routes: [
-        GoRoute(path: Routes.splash, builder: (_, __) => const SplashScreen()),
+        GoRoute(path: Routes.splash, builder: (_, _) => const SplashScreen()),
         GoRoute(
             path: Routes.onboarding,
-            builder: (_, __) => const Scaffold(body: Text('ONBOARDING'))),
+            builder: (_, _) => const Scaffold(body: Text('ONBOARDING'))),
         GoRoute(
             path: Routes.home,
-            builder: (_, __) => const Scaffold(body: Text('HOME'))),
+            builder: (_, _) => const Scaffold(body: Text('HOME'))),
       ],
     );
     await tester.pumpWidget(ProviderScope(

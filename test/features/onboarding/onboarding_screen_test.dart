@@ -11,10 +11,10 @@ GoRouter _router() => GoRouter(
       routes: [
         GoRoute(
             path: Routes.onboarding,
-            builder: (_, __) => const OnboardingScreen()),
+            builder: (_, _) => const OnboardingScreen()),
         GoRoute(
             path: Routes.login,
-            builder: (_, __) =>
+            builder: (_, _) =>
                 const Scaffold(body: Text('LOGIN_SCREEN'))),
       ],
     );

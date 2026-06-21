@@ -31,8 +31,9 @@ void main() {
       ),
     );
 
-    // SplashScreen의 1초 딜레이 완료
-    await tester.pump(const Duration(seconds: 2));
+    // SplashScreen의 1초 딜레이 완료 후 라우팅 처리
+    // pumpAndSettle 로 pending timer 를 모두 소진하고 최대 5초 대기
+    await tester.pumpAndSettle(const Duration(seconds: 5));
 
     expect(find.byType(App), findsOneWidget);
   });
