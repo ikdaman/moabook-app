@@ -47,8 +47,14 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
-  void _goLogin() {
+  // Skip: 보류책 버리고 로그인
+  void _skipToLogin() {
     ref.read(pendingBookProvider.notifier).state = null;
+    context.go(Routes.login);
+  }
+
+  // 시작하기: 보류책 유지하고 로그인 (Home에서 소비)
+  void _startToLogin() {
     context.go(Routes.login);
   }
 
@@ -95,7 +101,7 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               right: 16,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: _goLogin,
+                onTap: _skipToLogin,
                 child: Padding(
                   padding: const EdgeInsets.all(8),
                   child: Text('건너뛰기',
@@ -142,7 +148,7 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         return _DoneStep(
           promptStyle: _promptStyleBody,
           prompt: _donePrompt,
-          onStart: _goLogin,
+          onStart: _startToLogin,
         );
     }
   }
