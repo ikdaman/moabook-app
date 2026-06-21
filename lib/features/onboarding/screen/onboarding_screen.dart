@@ -73,10 +73,11 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
     if (!mounted) return;
     final result = await showOnboardingSavePopup(context, selected);
+    if (!mounted) return;
     if (result != null && result.saved) {
       ref.read(pendingBookProvider.notifier).state =
           PendingBook(book: selected, reason: result.reason);
-      if (mounted) setState(() => _step = _Step.done);
+      setState(() => _step = _Step.done);
     }
   }
 
