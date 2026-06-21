@@ -45,8 +45,7 @@ GoRouter _router() => GoRouter(
 class _FakePendingSaver implements PendingSaver {
   BookItem? savedBook;
   String? savedReason;
-  bool result;
-  _FakePendingSaver({this.result = true});
+  bool result = true;
 
   @override
   Future<bool> saveBook({
