@@ -11,8 +11,11 @@ import '../../../domain/model/login_state.dart';
 import '../../../domain/model/logout_state.dart';
 import '../../../domain/model/signup_state.dart';
 import '../../../domain/repository/auth_repository.dart';
+import '../../book_search/provider/book_search_provider.dart';
+import '../../home/screen/pending_book_consumer.dart';
 import '../../notification/provider/notification_providers.dart';
 import '../../notification/provider/push_settings_provider.dart';
+import '../../onboarding/provider/pending_book_provider.dart';
 
 // ── Infrastructure providers ─────────────────────────────────────────────
 
@@ -66,6 +69,8 @@ class AuthNotifier extends Notifier<void> {
       if (state is LoginSuccess) {
         ref.invalidate(isLoggedInProvider);
         await ref.read(isLoggedInProvider.future);
+        // 온보딩 보류책을 홈 이동 '전'에 저장 → 홈 도착 시 이미 목록에 보인다.
+        await _consumePendingBook();
         // 푸시 동기화는 화면 전환을 막지 않도록 비동기로 분리.
         // FCM/FIS 미가용으로 getToken 이 느리거나 실패해도 로그인은 진행된다.
         unawaited(_syncPushOnLogin());
@@ -95,11 +100,30 @@ class AuthNotifier extends Notifier<void> {
       if (state is SignupSuccess) {
         ref.invalidate(isLoggedInProvider);
         await ref.read(isLoggedInProvider.future);
+        // 온보딩 보류책을 홈 이동 '전'에 저장 → 홈 도착 시 이미 목록에 보인다.
+        await _consumePendingBook();
         // 푸시 동기화(device-token 등록 등)는 화면 전환을 막지 않도록 비동기로 분리.
         // FCM/FIS 미가용으로 getToken 이 느리거나 실패해도 로그인 흐름은 진행된다.
         unawaited(_syncPushOnLogin());
       }
       ref.read(signupStateProvider.notifier).state = state;
+    }
+  }
+
+  /// 온보딩에서 보류한 책을 저장. 로그인/회원가입 성공 직후(홈 이동 전)에
+  /// 호출해 홈 첫 진입에서 바로 보이게 한다. 실패해도 로그인 흐름은 막지 않고,
+  /// 보류책은 유지되어 Home 첫 진입의 fallback 에서 재시도된다.
+  Future<void> _consumePendingBook() async {
+    final pending = ref.read(pendingBookProvider);
+    if (pending == null) return;
+    try {
+      final ok = await consumePendingBook(
+        pending: pending,
+        saver: ref.read(bookSearchProvider.notifier),
+      );
+      if (ok) ref.read(pendingBookProvider.notifier).state = null;
+    } catch (e) {
+      debugPrint('보류책 저장 실패(흡수): $e');
     }
   }
 

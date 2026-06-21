@@ -1,5 +1,7 @@
 // lib/features/onboarding/screen/onboarding_screen.dart
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/router/routes.dart';
@@ -12,7 +14,7 @@ import '../widget/onboarding_save_popup.dart';
 import '../widget/pixel_fireworks.dart';
 import '../widget/typing_text.dart';
 
-enum _Step { intro1, intro2, search, done }
+enum _Step { intro, search, done }
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -22,7 +24,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  _Step _step = _Step.intro1;
+  _Step _step = _Step.intro;
   final _queryCtrl = TextEditingController();
 
   static const _promptStyleTitle = TextStyle(
@@ -66,16 +68,12 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _onBookTap(BookItem book) async {
     final notifier = ref.read(bookSearchProvider.notifier);
+    // 상세(쪽수 등)만 가져오고 검색 목록은 유지한다. searchByIsbn 은 results 를
+    // 덮어써서 팝업을 닫으면 목록이 사라지므로 lookupDetail 을 쓴다.
     BookItem selected = book;
     if (book.isbn.isNotEmpty) {
-      final ok = await notifier.searchByIsbn(book.isbn);
-      if (ok) {
-        selected = ref.read(bookSearchProvider).selectedBook ?? book;
-      } else {
-        notifier.selectBook(book);
-      }
-    } else {
-      notifier.selectBook(book);
+      final detail = await notifier.lookupDetail(book.isbn);
+      if (detail != null) selected = detail;
     }
     if (!mounted) return;
     final result = await showOnboardingSavePopup(context, selected);
@@ -89,7 +87,14 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // 네이비 배경 → 상태바 아이콘/텍스트 밝게(흰색).
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light, // Android
+        statusBarBrightness: Brightness.dark, // iOS
+      ),
+      child: Scaffold(
       backgroundColor: AppColors.primary,
       body: SafeArea(
         child: Stack(
@@ -113,28 +118,17 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ],
         ),
       ),
+      ),
     );
   }
 
   Widget _buildStep() {
     switch (_step) {
-      case _Step.intro1:
-        return Center(
-          child: TypingText(
-            phrases: const ['모아북'],
-            style: _promptStyleTitle,
-            eraseAtEnd: true,
-            onComplete: () => setState(() => _step = _Step.intro2),
-          ),
-        );
-      case _Step.intro2:
-        return Center(
-          child: TypingText(
-            phrases: const ['읽고 싶은 책을 모아두는\n나만의 공간 !'],
-            style: _promptStyleBody,
-            eraseAtEnd: true,
-            onComplete: () => setState(() => _step = _Step.search),
-          ),
+      case _Step.intro:
+        return _IntroStep(
+          titleStyle: _promptStyleTitle,
+          bodyStyle: _promptStyleBody,
+          onDone: () => setState(() => _step = _Step.search),
         );
       case _Step.search:
         return _SearchStep(
@@ -154,7 +148,88 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-class _SearchStep extends ConsumerWidget {
+// 모든 온보딩 step 에서 아이콘 위치를 고정하기 위한 공통 좌표(Figma 기준).
+// 아이콘·프롬프트는 좌측 40 들여쓰기, 상단 120 에 정렬 → 화면 전환 시 아이콘이
+// 움직이지 않는다. 검색창/리스트만 16 들여쓰기로 더 넓게 쓴다.
+const double _kIconIndent = 40;
+const double _kIconTop = 120;
+const double _kSearchIndent = 16;
+
+/// 온보딩 공통 앱 아이콘 (50x50, 픽셀 책). intro/검색 화면 상단에 노출.
+class _OnboardingIcon extends StatelessWidget {
+  const _OnboardingIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/images/book_icon.png',
+      width: 50,
+      height: 50,
+      filterQuality: FilterQuality.none, // 픽셀 느낌 유지
+    );
+  }
+}
+
+/// intro 화면(Figma frame 2): 앱 아이콘 + "모 아 북"(28) + 부제(18).
+/// 한 화면에서 제목을 먼저 타이핑하고, 끝나면 그 밑 부제까지 이어서 타이핑한다
+/// (2단계로 화면을 나누지 않음). 부제까지 끝나면 [onDone] 으로 검색 step 진입.
+class _IntroStep extends StatefulWidget {
+  const _IntroStep({
+    required this.titleStyle,
+    required this.bodyStyle,
+    required this.onDone,
+  });
+  final TextStyle titleStyle;
+  final TextStyle bodyStyle;
+  final VoidCallback onDone;
+
+  @override
+  State<_IntroStep> createState() => _IntroStepState();
+}
+
+class _IntroStepState extends State<_IntroStep> {
+  // 제목 타이핑이 끝나야 부제 타이핑을 시작한다.
+  bool _titleDone = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _kIconIndent),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: _kIconTop),
+          const _OnboardingIcon(),
+          const SizedBox(height: 12),
+          // 제목 "모 아 북" (28) — 띄어쓰기 그대로 타이핑, 끝나도 유지.
+          TypingText(
+            key: const ValueKey('intro-title'),
+            phrases: const ['모 아 북'],
+            style: widget.titleStyle,
+            textAlign: TextAlign.left,
+            startDelay: const Duration(milliseconds: 600),
+            onComplete: () {
+              if (mounted) setState(() => _titleDone = true);
+            },
+          ),
+          // 부제(18) — 제목 완료 후 그 밑에 이어서 타이핑.
+          if (_titleDone) ...[
+            const SizedBox(height: 12),
+            TypingText(
+              key: const ValueKey('intro-body'),
+              phrases: const ['읽고 싶은 책을 모아두는\n나만의 공간 !'],
+              style: widget.bodyStyle,
+              textAlign: TextAlign.left,
+              onComplete: widget.onDone,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchStep extends ConsumerStatefulWidget {
   const _SearchStep({
     required this.promptStyle,
     required this.prompt,
@@ -169,93 +244,180 @@ class _SearchStep extends ConsumerWidget {
   final Future<void> Function(BookItem) onBookTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SearchStep> createState() => _SearchStepState();
+}
+
+class _SearchStepState extends ConsumerState<_SearchStep> {
+  // 프롬프트 타이핑이 끝나기 전엔 검색창/리스트를 숨긴다.
+  bool _promptDone = false;
+  final _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  // 프롬프트 완료 → 검색창 노출 + 키보드 포커스.
+  void _onPromptDone() {
+    if (_promptDone) return;
+    setState(() => _promptDone = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(bookSearchProvider);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: _kSearchIndent),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 48),
-          // 프롬프트는 1회 타이핑 후 유지(검색 step 동안 재타이핑 방지 위해
-          // key 고정).
-          TypingText(
-            key: const ValueKey('search-prompt'),
-            phrases: [prompt],
-            style: promptStyle,
-            textAlign: TextAlign.left,
-          ),
-          const SizedBox(height: 24),
-          Container(
-            height: 48,
-            color: AppColors.backgroundWhite,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
+          const SizedBox(height: _kIconTop),
+          // 아이콘·프롬프트는 intro 와 같은 좌측 40 위치에 맞춘다(아이콘 고정).
+          // 바깥 Padding 이 16 이므로 추가로 (_kIconIndent - _kSearchIndent) 만큼 민다.
+          Padding(
+            padding: const EdgeInsets.only(
+                left: _kIconIndent - _kSearchIndent),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: queryCtrl,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (_) => onSubmit(),
-                    style: AppTypography.dungGeunMoBody
-                        .copyWith(color: AppColors.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: '책 제목을 검색해주세요.',
-                      hintStyle: AppTypography.dungGeunMoBody
-                          .copyWith(color: AppColors.textHint),
-                      border: InputBorder.none,
-                      isCollapsed: true,
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: onSubmit,
-                  child: const Icon(Icons.search, color: AppColors.textPrimary),
+                const _OnboardingIcon(),
+                const SizedBox(height: 12),
+                // 프롬프트는 1회 타이핑 후 유지(검색 step 동안 재타이핑 방지
+                // 위해 key 고정). 완료되면 검색창을 노출한다.
+                TypingText(
+                  key: const ValueKey('search-prompt'),
+                  phrases: [widget.prompt],
+                  style: widget.promptStyle,
+                  textAlign: TextAlign.left,
+                  onComplete: _onPromptDone,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    itemCount: state.results.length,
-                    itemBuilder: (_, i) {
-                      final b = state.results[i];
-                      return GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => onBookTap(b),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(b.title,
-                                  style: AppTypography.wantedSansBookTitle
-                                      .copyWith(color: AppColors.textWhite),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 4),
-                              Text('${b.author}  ${b.publisher}',
-                                  style: AppTypography.wantedSansBodySmall
-                                      .copyWith(color: AppColors.textWhite),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+          const SizedBox(height: 40),
+          // 검색창·결과는 프롬프트 타이핑이 끝난 뒤에만 노출.
+          if (_promptDone) ...[
+            Container(
+              height: 48,
+              color: AppColors.backgroundWhite,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: widget.queryCtrl,
+                      focusNode: _focusNode,
+                      autofocus: true,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => widget.onSubmit(),
+                      style: AppTypography.dungGeunMoBody
+                          .copyWith(color: AppColors.textPrimary),
+                      decoration: InputDecoration(
+                        hintText: '책 제목을 검색해주세요.',
+                        hintStyle: AppTypography.dungGeunMoBody
+                            .copyWith(color: AppColors.textHint),
+                        border: InputBorder.none,
+                        isCollapsed: true,
+                      ),
+                    ),
                   ),
-          ),
+                  GestureDetector(
+                    onTap: widget.onSubmit,
+                    child: const Icon(Icons.search,
+                        color: AppColors.textPrimary),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: state.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      itemCount: state.results.length,
+                      itemBuilder: (_, i) => _ResultItem(
+                          book: state.results[i], onTap: widget.onBookTap),
+                    ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _DoneStep extends StatelessWidget {
+/// 온보딩 검색 결과 아이템 (Figma frame 4).
+/// 썸네일(84x120, 흰 배경) + 제목/작가/출판사. 텍스트 흰색.
+class _ResultItem extends StatelessWidget {
+  const _ResultItem({required this.book, required this.onTap});
+  final BookItem book;
+  final Future<void> Function(BookItem) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onTap(book),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 썸네일: 흰 배경 박스 위 커버 이미지.
+            SizedBox(
+              width: 86,
+              height: 120,
+              child: ColoredBox(
+                color: AppColors.backgroundWhite,
+                child: book.cover.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: book.cover,
+                        fit: BoxFit.cover,
+                        placeholder: (_, _) =>
+                            const ColoredBox(color: AppColors.backgroundGray),
+                        errorWidget: (_, _, _) =>
+                            const ColoredBox(color: AppColors.backgroundGray),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(book.title,
+                      style: AppTypography.wantedSansBookTitle
+                          .copyWith(color: AppColors.textWhite),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 8),
+                  Text(book.author,
+                      style: AppTypography.wantedSansBodySmall
+                          .copyWith(color: AppColors.textWhite),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text(book.publisher,
+                      style: AppTypography.wantedSansBodySmall
+                          .copyWith(color: AppColors.textWhite),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DoneStep extends StatefulWidget {
   const _DoneStep({
     required this.promptStyle,
     required this.prompt,
@@ -266,37 +428,56 @@ class _DoneStep extends StatelessWidget {
   final VoidCallback onStart;
 
   @override
+  State<_DoneStep> createState() => _DoneStepState();
+}
+
+class _DoneStepState extends State<_DoneStep> {
+  // 텍스트 타이핑이 끝나기 전엔 시작하기 버튼을 숨긴다.
+  bool _textDone = false;
+
+  void _onTextDone() {
+    if (!_textDone && mounted) setState(() => _textDone = true);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          const SizedBox(height: 60),
-          const SizedBox(width: 268, height: 150, child: PixelFireworks()),
-          const SizedBox(height: 24),
-          TypingText(
-            phrases: [prompt],
-            style: promptStyle,
-          ),
-          const Spacer(),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 40),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onStart,
-              child: Container(
-                width: double.infinity,
-                height: 48,
-                color: AppColors.backgroundGray,
-                alignment: Alignment.center,
-                child: Text('시작하기',
-                    style: AppTypography.dungGeunMoSubtitle
-                        .copyWith(color: AppColors.textPrimary)),
-              ),
+    // Figma frame 6: 상단 앵커. 폭죽 → gap40 → 텍스트(좌측정렬) → gap40 →
+    // 작은 가운데 버튼. 버튼은 전체폭/바닥 고정 아님.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const SizedBox(height: 90),
+        const SizedBox(width: 268, height: 150, child: PixelFireworks()),
+        const SizedBox(height: 40),
+        // 텍스트 블록: 좌우 30 패딩, 좌측정렬.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 30),
+          child: SizedBox(
+            width: double.infinity,
+            child: TypingText(
+              phrases: [widget.prompt],
+              style: widget.promptStyle,
+              textAlign: TextAlign.left,
+              onComplete: _onTextDone,
             ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 40),
+        // 시작하기: 텍스트 타이핑 완료 후 노출. 작은 pill, 가운데정렬.
+        if (_textDone)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onStart,
+            child: Container(
+              color: AppColors.backgroundGray,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Text('시작하기',
+                  style: AppTypography.dungGeunMoSubtitle
+                      .copyWith(color: AppColors.textPrimary, fontSize: 16)),
+            ),
+          ),
+      ],
     );
   }
 }

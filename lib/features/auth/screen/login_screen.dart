@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -50,7 +51,14 @@ class LoginScreen extends ConsumerWidget {
     final isLoading = loginState is LoginLoading;
     final auth = ref.read(authNotifierProvider.notifier);
 
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // 밝은 배경 → 상태바 아이콘/텍스트 어둡게(검정).
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark, // Android
+        statusBarBrightness: Brightness.light, // iOS
+      ),
+      child: Scaffold(
       backgroundColor: AppColors.backgroundDefault,
       body: SafeArea(
         child: Stack(
@@ -138,6 +146,7 @@ class LoginScreen extends ConsumerWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }

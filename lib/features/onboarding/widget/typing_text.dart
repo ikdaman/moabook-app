@@ -11,6 +11,7 @@ class TypingText extends StatefulWidget {
     this.charInterval = const Duration(milliseconds: 60),
     this.eraseInterval = const Duration(milliseconds: 30),
     this.holdDuration = const Duration(milliseconds: 1000),
+    this.startDelay = Duration.zero,
     this.eraseAtEnd = false,
     this.onComplete,
   });
@@ -21,6 +22,7 @@ class TypingText extends StatefulWidget {
   final Duration charInterval;
   final Duration eraseInterval;
   final Duration holdDuration;
+  final Duration startDelay;
   final bool eraseAtEnd;
   final VoidCallback? onComplete;
 
@@ -47,6 +49,11 @@ class _TypingTextState extends State<TypingText> {
   }
 
   Future<void> _run() async {
+    // 타이핑 시작 전 딜레이(첫 글자가 너무 바로 뜨는 느낌 방지).
+    if (widget.startDelay > Duration.zero) {
+      await Future.delayed(widget.startDelay);
+      if (!mounted || _cancelled) return;
+    }
     for (var p = 0; p < widget.phrases.length; p++) {
       final phrase = widget.phrases[p];
       // 전진 타이핑
@@ -56,9 +63,12 @@ class _TypingTextState extends State<TypingText> {
         await Future.delayed(widget.charInterval);
       }
       if (!mounted || _cancelled) return;
-      await Future.delayed(widget.holdDuration);
       final isLast = p == widget.phrases.length - 1;
+      // 마지막 phrase 이고 지우지 않으면 hold 를 건너뛴다 — 타이핑 직후 바로
+      // onComplete 가 호출되도록(검색창/버튼 노출 딜레이 제거).
       if (!isLast || widget.eraseAtEnd) {
+        await Future.delayed(widget.holdDuration);
+        if (!mounted || _cancelled) return;
         // 백스페이스 삭제
         for (var i = phrase.length - 1; i >= 0; i--) {
           if (!mounted || _cancelled) return;

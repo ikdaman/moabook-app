@@ -33,7 +33,7 @@ class BottomNavBar extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               _NavItem(
-                label: '내 서점',
+                label: '읽고 싶은 책',
                 isSelected: location == Routes.home,
                 onTap: () => context.go(Routes.home),
               ),
@@ -84,15 +84,14 @@ class _NavItemState extends State<_NavItem> {
       onTapUp:     (_) { setState(() => _pressed = false); widget.onTap(); },
       onTapCancel: ()  => setState(() => _pressed = false),
       child: Container(
+        // 고정 height 제거: 텍스트 + padding 이 박스 크기를 정하게 한다.
+        // (height:20 이면 픽셀 폰트 하단이 잘렸음)
         color: _highlight ? AppColors.primary : Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-        height: 20,
-        child: Center(
-          child: Text(
-            widget.label,
-            style: AppTypography.dungGeunMoSubtitle.copyWith(
-              color: _highlight ? AppColors.textWhite : AppColors.textPrimary,
-            ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: Text(
+          widget.label,
+          style: AppTypography.dungGeunMoSubtitle.copyWith(
+            color: _highlight ? AppColors.textWhite : AppColors.textPrimary,
           ),
         ),
       ),

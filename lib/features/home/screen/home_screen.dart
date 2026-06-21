@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/router/routes.dart';
@@ -82,7 +83,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // 밝은 배경 → 상태바 아이콘/텍스트 어둡게(검정).
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark, // Android
+        statusBarBrightness: Brightness.light, // iOS
+      ),
+      child: Scaffold(
       backgroundColor: AppColors.backgroundDefault,
       body: SafeArea(
         child: CustomScrollView(
@@ -256,6 +264,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ],
           ],
         ),
+      ),
       ),
     );
   }

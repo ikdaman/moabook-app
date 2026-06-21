@@ -104,6 +104,19 @@ class BookSearchNotifier extends Notifier<BookSearchState>
     }
   }
 
+  /// ISBN 상세 조회만 수행하고 [results]/[state] 는 건드리지 않는다.
+  /// 온보딩에서 검색 목록을 유지한 채 선택 책의 상세(쪽수 등)를 가져올 때 사용.
+  /// [searchByIsbn] 과 달리 결과 목록을 덮어쓰지 않는다.
+  Future<BookItem?> lookupDetail(String isbn) async {
+    if (isbn.isEmpty) return null;
+    try {
+      final results = await _aladin.searchByIsbn(isbn);
+      return results.isEmpty ? null : results.first;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> loadMore() async {
     if (!state.hasMore || state.isLoadingMore) return;
     state = state.copyWith(isLoadingMore: true);
