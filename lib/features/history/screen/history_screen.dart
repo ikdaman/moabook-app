@@ -336,23 +336,16 @@ class _ListViewState extends ConsumerState<_ListView> {
 class _EmptyListRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 36,
-      child: Row(
-        children: [
-          const Spacer(flex: 2),
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: Text(
-                '아직 읽기 시작한 책이 없어요.',
-                style: AppTypography.wantedSansBodySmall
-                    .copyWith(color: AppColors.textPrimary),
-              ),
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(top: 40),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Text(
+          '아직 읽기 시작한 책이 없어요.',
+          textAlign: TextAlign.center,
+          style: AppTypography.wantedSansBodySmall
+              .copyWith(color: AppColors.textPrimary),
+        ),
       ),
     );
   }

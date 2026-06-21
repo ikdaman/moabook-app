@@ -45,9 +45,16 @@ final fcmServiceProvider = Provider<FcmService>((ref) {
     ref.watch(localNotificationServiceProvider),
     ref.watch(pushRoutingServiceProvider),
   );
-  // 토큰 발급/회전 시 백엔드에 device-token 등록. 백엔드 미배포 또는 비로그인
-  // 상태(401)면 흡수 — 로그인 성공 후 resendToken() 으로 재시도된다.
+  // 토큰 발급/회전 시 백엔드에 device-token 등록.
+  // 비로그인 상태에서는 등록을 건너뛴다 — 401 이 TokenRefreshInterceptor 에서
+  // notifyAuthExpired() → /login 강제 이동으로 격상되어 온보딩/스플래시 흐름을
+  // 끊기 때문. 로그인 성공 직후 AuthNotifier 가 resendToken() 으로 재등록한다.
   svc.onTokenIssued = (token) async {
+    final loggedIn = await ref.read(authRepositoryProvider).isLoggedIn();
+    if (!loggedIn) {
+      debugPrint('device-token 등록 생략(비로그인)');
+      return;
+    }
     try {
       await ref
           .read(notificationRepositoryProvider)

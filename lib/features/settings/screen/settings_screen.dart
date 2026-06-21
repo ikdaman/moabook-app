@@ -235,37 +235,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 ..._buildEditingNickname()
                               else
                                 _buildNicknameDisplay(),
-                              const SizedBox(height: 60),
+                              const SizedBox(height: 30),
                               _buildPushToggle(),
                               const SizedBox(height: 36),
                               _MenuItem(
                                 text: '서비스 이용약관',
                                 onTap: () => _openUrl(_termsUrl),
                               ),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 4),
                               _MenuItem(
                                 text: '개인정보 처리방침',
                                 onTap: () => _openUrl(_privacyUrl),
                               ),
-                              const SizedBox(height: 24),
-                              GestureDetector(
-                                behavior: HitTestBehavior.opaque,
+                              const SizedBox(height: 4),
+                              // 회원탈퇴: 메뉴 항목과 동일 크기, 개인정보 처리방침 바로 밑.
+                              _MenuItem(
+                                text: '회원탈퇴',
+                                muted: true,
                                 onTap: _withdraw,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 10,
-                                    top: 8,
-                                    bottom: 8,
-                                  ),
-                                  child: Text(
-                                    '회원탈퇴',
-                                    style: AppTypography.dungGeunMoTag.copyWith(
-                                      color: AppColors.textPrimary.withValues(
-                                        alpha: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
                               ),
                               const Spacer(),
                               SizedBox(
@@ -487,13 +474,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 class _MenuItem extends StatelessWidget {
   final String text;
   final VoidCallback onTap;
-  const _MenuItem({required this.text, required this.onTap});
+  final bool muted;
+  const _MenuItem({required this.text, required this.onTap, this.muted = false});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 32,
+      height: 24,
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
@@ -503,8 +491,10 @@ class _MenuItem extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               text,
-              style: AppTypography.dungGeunMoBody.copyWith(
-                color: AppColors.textPrimary,
+              style: AppTypography.dungGeunMoTag.copyWith(
+                color: muted
+                    ? AppColors.textPrimary.withValues(alpha: 0.5)
+                    : AppColors.textPrimary,
               ),
             ),
           ),

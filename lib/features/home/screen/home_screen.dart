@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/router/routes.dart';
@@ -12,7 +13,10 @@ import '../../../shared/widgets/pixel_shadow_box.dart';
 import '../../../shared/widgets/reading_start_bottom_sheet.dart';
 import '../../../shared/widgets/retro_loading.dart';
 import '../../../shared/widgets/svg_icon.dart';
+import '../../book_search/provider/book_search_provider.dart';
+import '../../onboarding/provider/pending_book_provider.dart';
 import '../provider/home_provider.dart';
+import 'pending_book_consumer.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -23,11 +27,33 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _scrollController = ScrollController();
+  bool _pendingConsumed = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _consumePending());
+  }
+
+  Future<void> _consumePending() async {
+    if (_pendingConsumed) return;
+    final pending = ref.read(pendingBookProvider);
+    if (pending == null) return;
+    _pendingConsumed = true;
+    final ok = await consumePendingBook(
+      pending: pending,
+      saver: ref.read(bookSearchProvider.notifier),
+    );
+    if (!mounted) return;
+    if (ok) {
+      ref.read(pendingBookProvider.notifier).state = null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('책을 저장했어요')),
+      );
+    } else {
+      _pendingConsumed = false; // 실패 시 다음 진입 재시도
+    }
   }
 
   @override
@@ -57,7 +83,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // 밝은 배경 → 상태바 아이콘/텍스트 어둡게(검정).
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark, // Android
+        statusBarBrightness: Brightness.light, // iOS
+      ),
+      child: Scaffold(
       backgroundColor: AppColors.backgroundDefault,
       body: SafeArea(
         child: CustomScrollView(
@@ -231,6 +264,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ],
           ],
         ),
+      ),
       ),
     );
   }

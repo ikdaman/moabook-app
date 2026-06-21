@@ -1,6 +1,7 @@
 abstract final class Routes {
   static const splash          = '/';
   static const login           = '/login';
+  static const onboarding      = '/onboarding';
   static const signup          = '/signup';
   static const home            = '/main/home';
   static const searchBook      = '/main/search-book';

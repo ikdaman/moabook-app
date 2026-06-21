@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/router/routes.dart';
@@ -96,7 +97,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final signupState = ref.watch(signupStateProvider);
     final isDuplicate = signupState is SignupNicknameDuplicate;
 
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // 밝은 배경 → 상태바 아이콘/텍스트 어둡게(검정).
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark, // Android
+        statusBarBrightness: Brightness.light, // iOS
+      ),
+      child: Scaffold(
       backgroundColor: AppColors.backgroundDefault,
       body: KeyboardDismisser(
         child: SafeArea(
@@ -164,6 +172,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

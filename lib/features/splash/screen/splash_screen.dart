@@ -22,7 +22,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _navigate() async {
     final isLoggedIn = await ref.read(authRepositoryProvider).isLoggedIn();
     if (!mounted) return;
-    context.go(isLoggedIn ? Routes.home : Routes.login);
+    context.go(isLoggedIn ? Routes.home : Routes.onboarding);
   }
 
   @override

@@ -3,6 +3,7 @@ import '../../../data/datasource/aladin_datasource.dart';
 import '../../../data/datasource/mybook_datasource.dart';
 import '../../../domain/model/book_item.dart';
 import '../../../features/home/provider/home_provider.dart';
+import '../../home/screen/pending_book_consumer.dart';
 
 final aladinDataSourceProvider = Provider((_) => AladinDataSource());
 
@@ -57,7 +58,8 @@ class BookSearchState {
 
 // ── Notifier ──────────────────────────────────────────────────────────────
 
-class BookSearchNotifier extends Notifier<BookSearchState> {
+class BookSearchNotifier extends Notifier<BookSearchState>
+    implements PendingSaver {
   @override
   BookSearchState build() => const BookSearchState();
 
@@ -102,6 +104,19 @@ class BookSearchNotifier extends Notifier<BookSearchState> {
     }
   }
 
+  /// ISBN 상세 조회만 수행하고 [results]/[state] 는 건드리지 않는다.
+  /// 온보딩에서 검색 목록을 유지한 채 선택 책의 상세(쪽수 등)를 가져올 때 사용.
+  /// [searchByIsbn] 과 달리 결과 목록을 덮어쓰지 않는다.
+  Future<BookItem?> lookupDetail(String isbn) async {
+    if (isbn.isEmpty) return null;
+    try {
+      final results = await _aladin.searchByIsbn(isbn);
+      return results.isEmpty ? null : results.first;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> loadMore() async {
     if (!state.hasMore || state.isLoadingMore) return;
     state = state.copyWith(isLoadingMore: true);
@@ -127,6 +142,7 @@ class BookSearchNotifier extends Notifier<BookSearchState> {
     state = state.copyWith(clearSelectedBook: true);
   }
 
+  @override
   Future<bool> saveBook({
     required BookItem book,
     String? reason,
