@@ -190,6 +190,8 @@ class _IntroStep extends StatefulWidget {
 class _IntroStepState extends State<_IntroStep> {
   // 제목 타이핑이 끝나야 부제 타이핑을 시작한다.
   bool _titleDone = false;
+  // 부제 역삭제까지 끝나면 제목도 한 글자씩 지운 뒤 다음 step 으로 넘어간다.
+  bool _eraseTitle = false;
 
   @override
   Widget build(BuildContext context) {
@@ -201,26 +203,43 @@ class _IntroStepState extends State<_IntroStep> {
           const SizedBox(height: _kIconTop),
           const _OnboardingIcon(),
           const SizedBox(height: 12),
-          // 제목 "모 아 북" (28) — 띄어쓰기 그대로 타이핑, 끝나도 유지.
-          TypingText(
-            key: const ValueKey('intro-title'),
-            phrases: const ['모 아 북'],
-            style: widget.titleStyle,
-            textAlign: TextAlign.left,
-            startDelay: const Duration(milliseconds: 600),
-            onComplete: () {
-              if (mounted) setState(() => _titleDone = true);
-            },
-          ),
-          // 부제(18) — 제목 완료 후 그 밑에 이어서 타이핑.
-          if (_titleDone) ...[
+          // 제목 "모 아 북" (28) — 타이핑 후 유지. 부제 삭제가 끝나면(_eraseTitle)
+          // startFull 로 떠 있는 상태에서 한 글자씩 지우고 onDone 으로 전환.
+          if (!_eraseTitle)
+            TypingText(
+              key: const ValueKey('intro-title'),
+              phrases: const ['모 아 북'],
+              style: widget.titleStyle,
+              textAlign: TextAlign.left,
+              startDelay: const Duration(milliseconds: 600),
+              onComplete: () {
+                if (mounted) setState(() => _titleDone = true);
+              },
+            )
+          else
+            TypingText(
+              key: const ValueKey('intro-title-erase'),
+              phrases: const ['모 아 북'],
+              style: widget.titleStyle,
+              textAlign: TextAlign.left,
+              startFull: true,
+              eraseAtEnd: true,
+              holdDuration: Duration.zero,
+              onComplete: widget.onDone,
+            ),
+          // 부제(18) — 제목 완료 후 그 밑에 이어서 타이핑. 다 읽을 시간(hold) 뒤
+          // 한 글자씩 역삭제하고 끝나면 제목 삭제를 시작한다.
+          if (_titleDone && !_eraseTitle) ...[
             const SizedBox(height: 12),
             TypingText(
               key: const ValueKey('intro-body'),
               phrases: const ['읽고 싶은 책을 모아두는\n나만의 공간 !'],
               style: widget.bodyStyle,
               textAlign: TextAlign.left,
-              onComplete: widget.onDone,
+              eraseAtEnd: true,
+              onComplete: () {
+                if (mounted) setState(() => _eraseTitle = true);
+              },
             ),
           ],
         ],

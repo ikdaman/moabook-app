@@ -13,6 +13,7 @@ class TypingText extends StatefulWidget {
     this.holdDuration = const Duration(milliseconds: 1000),
     this.startDelay = Duration.zero,
     this.eraseAtEnd = false,
+    this.startFull = false,
     this.onComplete,
   });
 
@@ -24,6 +25,9 @@ class TypingText extends StatefulWidget {
   final Duration holdDuration;
   final Duration startDelay;
   final bool eraseAtEnd;
+  // true 면 전진 타이핑을 건너뛰고 전체 텍스트가 떠 있는 상태에서 시작한다.
+  // 이미 타이핑이 끝난 텍스트를 hold→백스페이스 삭제만 시킬 때 사용.
+  final bool startFull;
   final VoidCallback? onComplete;
 
   @override
@@ -39,6 +43,10 @@ class _TypingTextState extends State<TypingText> {
   @override
   void initState() {
     super.initState();
+    // startFull: 첫 글자 깜빡임 없이 전체 텍스트로 시작.
+    if (widget.startFull && widget.phrases.isNotEmpty) {
+      _text = widget.phrases.first;
+    }
     _cursorTimer = Timer.periodic(
       const Duration(milliseconds: 500),
       (_) {
@@ -56,11 +64,15 @@ class _TypingTextState extends State<TypingText> {
     }
     for (var p = 0; p < widget.phrases.length; p++) {
       final phrase = widget.phrases[p];
-      // 전진 타이핑
-      for (var i = 1; i <= phrase.length; i++) {
-        if (!mounted || _cancelled) return;
-        setState(() => _text = phrase.substring(0, i));
-        await Future.delayed(widget.charInterval);
+      // 전진 타이핑 (startFull 이면 건너뛰고 전체 텍스트 상태로 둔다).
+      if (!widget.startFull) {
+        for (var i = 1; i <= phrase.length; i++) {
+          if (!mounted || _cancelled) return;
+          setState(() => _text = phrase.substring(0, i));
+          await Future.delayed(widget.charInterval);
+        }
+      } else {
+        setState(() => _text = phrase);
       }
       if (!mounted || _cancelled) return;
       final isLast = p == widget.phrases.length - 1;
@@ -78,6 +90,9 @@ class _TypingTextState extends State<TypingText> {
       }
     }
     if (!mounted || _cancelled) return;
+    // 모든 타이핑/삭제 종료 → 커서 깜빡임 정지(완료된 텍스트에 커서가 남지 않게).
+    _cursorTimer?.cancel();
+    setState(() => _cursorOn = false);
     widget.onComplete?.call();
   }
 
