@@ -3,6 +3,7 @@ import '../../../data/datasource/aladin_datasource.dart';
 import '../../../data/datasource/mybook_datasource.dart';
 import '../../../domain/model/book_item.dart';
 import '../../../features/home/provider/home_provider.dart';
+import '../../home/screen/pending_book_consumer.dart';
 
 final aladinDataSourceProvider = Provider((_) => AladinDataSource());
 
@@ -57,7 +58,8 @@ class BookSearchState {
 
 // ── Notifier ──────────────────────────────────────────────────────────────
 
-class BookSearchNotifier extends Notifier<BookSearchState> {
+class BookSearchNotifier extends Notifier<BookSearchState>
+    implements PendingSaver {
   @override
   BookSearchState build() => const BookSearchState();
 
@@ -127,6 +129,7 @@ class BookSearchNotifier extends Notifier<BookSearchState> {
     state = state.copyWith(clearSelectedBook: true);
   }
 
+  @override
   Future<bool> saveBook({
     required BookItem book,
     String? reason,
