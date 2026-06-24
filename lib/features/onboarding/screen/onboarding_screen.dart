@@ -9,6 +9,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../domain/model/book_item.dart';
 import '../../../features/book_search/provider/book_search_provider.dart';
+import '../onboarding_prefs.dart';
 import '../provider/pending_book_provider.dart';
 import '../widget/onboarding_save_popup.dart';
 import '../widget/pixel_fireworks.dart';
@@ -52,11 +53,13 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // Skip: 보류책 버리고 로그인
   void _skipToLogin() {
     ref.read(pendingBookProvider.notifier).state = null;
+    markOnboardingSeen();
     context.go(Routes.login);
   }
 
   // 시작하기: 보류책 유지하고 로그인 (Home에서 소비)
   void _startToLogin() {
+    markOnboardingSeen();
     context.go(Routes.login);
   }
 
