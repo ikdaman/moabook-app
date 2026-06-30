@@ -190,7 +190,7 @@ class BookSearchNotifier extends Notifier<BookSearchState>
     try {
       await _myBook.saveMyBook({
         'bookInfo': {
-          'source': 'MANUAL',
+          'source': 'CUSTOM',
           'title':  title,
           'author': author,
         },

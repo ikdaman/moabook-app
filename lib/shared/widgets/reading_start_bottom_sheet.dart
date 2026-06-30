@@ -6,12 +6,11 @@ import 'pixel_popup.dart';
 import 'pixel_shadow_box.dart';
 
 /// 내 서점에서 "독서 시작" 클릭 시 표시되는 팝업.
-/// Android 원본 `ReadingStartBottomSheet` 동등.
-/// START 날짜 선택 + FINISH 는 "읽는 중" (선택 불가).
+/// START + FINISH 날짜 선택. FINISH 미선택(또는 재선택 해제) 시 "읽는 중".
 class ReadingStartBottomSheet extends StatefulWidget {
   final String bookTitle;
   final VoidCallback onDismiss;
-  final VoidCallback onConfirm;
+  final void Function(DateTime start, DateTime? finish) onConfirm;
 
   const ReadingStartBottomSheet({
     super.key,
@@ -27,11 +26,12 @@ class ReadingStartBottomSheet extends StatefulWidget {
 
 class _ReadingStartBottomSheetState extends State<ReadingStartBottomSheet> {
   DateTime _startDate = DateTime.now();
+  DateTime? _finishDate; // null = "읽는 중"
 
   String _formatDate(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')} - ${d.month.toString().padLeft(2, '0')} - ${d.day.toString().padLeft(2, '0')}';
 
-  Future<void> _openCalendar() {
+  Future<void> _openStartCalendar() {
     return showDialog<void>(
       context: context,
       barrierColor: Colors.black54,
@@ -41,6 +41,22 @@ class _ReadingStartBottomSheetState extends State<ReadingStartBottomSheet> {
         onConfirm: (date) {
           Navigator.of(ctx).pop();
           if (date != null) setState(() => _startDate = date);
+        },
+      ),
+    );
+  }
+
+  Future<void> _openFinishCalendar() {
+    return showDialog<void>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => CalendarBottomSheet(
+        initial: _finishDate ?? _startDate,
+        allowDeselect: true, // 같은 날 재선택 → null ("읽는 중")
+        onDismiss: () => Navigator.of(ctx).pop(),
+        onConfirm: (date) {
+          Navigator.of(ctx).pop();
+          setState(() => _finishDate = date);
         },
       ),
     );
@@ -70,7 +86,7 @@ class _ReadingStartBottomSheetState extends State<ReadingStartBottomSheet> {
               _row(
                 label: 'START',
                 child: PixelShadowButton(
-                  onTap: _openCalendar,
+                  onTap: _openStartCalendar,
                   backgroundColor: AppColors.backgroundWhite,
                   child: _dateValueRow(_formatDate(_startDate),
                       color: AppColors.textPrimary),
@@ -79,10 +95,15 @@ class _ReadingStartBottomSheetState extends State<ReadingStartBottomSheet> {
               const SizedBox(height: 16),
               _row(
                 label: 'FINISH',
-                child: PixelShadowBox(
+                child: PixelShadowButton(
+                  onTap: _openFinishCalendar,
                   backgroundColor: AppColors.backgroundWhite,
-                  child: _dateValueRow('읽는 중',
-                      color: AppColors.textHint),
+                  child: _dateValueRow(
+                    _finishDate == null ? '읽는 중' : _formatDate(_finishDate!),
+                    color: _finishDate == null
+                        ? AppColors.textHint
+                        : AppColors.textPrimary,
+                  ),
                 ),
               ),
               const SizedBox(height: 43),
@@ -90,7 +111,7 @@ class _ReadingStartBottomSheetState extends State<ReadingStartBottomSheet> {
                 cancelLabel: '취소',
                 confirmLabel: '확인',
                 onCancel: widget.onDismiss,
-                onConfirm: widget.onConfirm,
+                onConfirm: () => widget.onConfirm(_startDate, _finishDate),
               ),
             ],
           ),
@@ -150,19 +171,26 @@ class _ReadingStartBottomSheetState extends State<ReadingStartBottomSheet> {
   }
 }
 
-/// `BookRegisterBottomSheet` 와 유사한 헬퍼.
-/// 확인을 누르면 `true`, 취소/dismiss 는 `null` 반환.
-Future<bool?> showReadingStartSheet(
+/// 독서 시작 팝업 결과. [finish] 가 null 이면 "읽는 중".
+class ReadingStartResult {
+  final DateTime start;
+  final DateTime? finish;
+  const ReadingStartResult(this.start, this.finish);
+}
+
+/// 확인 시 선택한 START/FINISH 날짜 반환, 취소/dismiss 는 null.
+Future<ReadingStartResult?> showReadingStartSheet(
   BuildContext context, {
   required String bookTitle,
 }) {
-  return showDialog<bool>(
+  return showDialog<ReadingStartResult>(
     context: context,
     barrierColor: Colors.black54,
     builder: (ctx) => ReadingStartBottomSheet(
       bookTitle: bookTitle,
       onDismiss: () => Navigator.of(ctx).pop(),
-      onConfirm: () => Navigator.of(ctx).pop(true),
+      onConfirm: (start, finish) =>
+          Navigator.of(ctx).pop(ReadingStartResult(start, finish)),
     ),
   );
 }

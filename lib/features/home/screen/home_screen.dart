@@ -283,12 +283,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     BuildContext context,
     StoreBookItem book,
   ) async {
-    final confirmed = await showReadingStartSheet(
+    final result = await showReadingStartSheet(
       context,
       bookTitle: book.title,
     );
-    if (confirmed == true) {
-      await ref.read(homeProvider.notifier).startReading(book.mybookId);
+    if (result != null) {
+      await ref.read(homeProvider.notifier).startReading(
+            book.mybookId,
+            start: result.start,
+            finish: result.finish,
+          );
     }
   }
 }

@@ -14,12 +14,13 @@ class BottomNavBar extends ConsumerWidget {
     final location = GoRouterState.of(context).matchedLocation;
     final isLoggedIn = ref.watch(isLoggedInProvider).valueOrNull ?? false;
 
+    void go(String route) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      context.go(route);
+    }
+
     void navigateIfLoggedIn(String route) {
-      if (isLoggedIn) {
-        context.go(route);
-      } else {
-        context.go(Routes.login);
-      }
+      go(isLoggedIn ? route : Routes.login);
     }
 
     return Container(
@@ -35,7 +36,7 @@ class BottomNavBar extends ConsumerWidget {
               _NavItem(
                 label: '읽고 싶은 책',
                 isSelected: location == Routes.home,
-                onTap: () => context.go(Routes.home),
+                onTap: () => go(Routes.home),
               ),
               _Divider(),
               _NavItem(

@@ -181,14 +181,25 @@ class HomeNotifier extends Notifier<HomeState> {
     }
   }
 
-  Future<void> startReading(int mybookId) async {
+  Future<void> startReading(
+    int mybookId, {
+    DateTime? start,
+    DateTime? finish,
+  }) async {
     try {
-      // Android 원본 MainViewModel.startReading: 오늘 00:00 UTC ISO 포맷으로 startedDate 전송
-      final now = DateTime.now().toUtc();
-      final today = DateTime.utc(now.year, now.month, now.day);
-      final startedDate =
-          '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}T00:00:00Z';
-      await _ds.updateReadingStatus(mybookId, startedDate: startedDate);
+      // 00:00 UTC ISO 포맷으로 전송. start 미지정 시 오늘.
+      String instant(DateTime d) {
+        final u = DateTime.utc(d.year, d.month, d.day);
+        return '${u.year.toString().padLeft(4, '0')}-${u.month.toString().padLeft(2, '0')}-${u.day.toString().padLeft(2, '0')}T00:00:00Z';
+      }
+
+      final startedDate = instant(start ?? DateTime.now());
+      final finishedDate = finish != null ? instant(finish) : null;
+      await _ds.updateReadingStatus(
+        mybookId,
+        startedDate: startedDate,
+        finishedDate: finishedDate,
+      );
       // Android 원본은 mainViewModel.startReading 이후 위젯 새로고침 + 홈 storeBooks 재조회.
       await load();
       state = state.copyWith(snackbarMessage: '시작한 책은 히스토리에서 볼 수 있어요.');
