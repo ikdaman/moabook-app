@@ -5,6 +5,7 @@ import '../../app/router/routes.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_typography.dart';
 import '../../features/auth/provider/auth_provider.dart';
+import '../../features/history/provider/history_provider.dart';
 
 class BottomNavBar extends ConsumerWidget {
   const BottomNavBar({super.key});
@@ -48,7 +49,11 @@ class BottomNavBar extends ConsumerWidget {
               _NavItem(
                 label: '히스토리',
                 isSelected: location == Routes.history,
-                onTap: () => navigateIfLoggedIn(Routes.history),
+                onTap: () {
+                  navigateIfLoggedIn(Routes.history);
+                  // 히스토리 탭 진입/재선택 시 항상 최신 데이터로 재조회
+                  if (isLoggedIn) ref.read(historyProvider.notifier).load();
+                },
               ),
             ],
           ),

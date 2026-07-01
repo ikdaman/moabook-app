@@ -14,8 +14,10 @@ import '../provider/book_search_provider.dart';
 class AddBookScreen extends ConsumerWidget {
   const AddBookScreen({super.key});
 
-  String _isoDate(DateTime d) =>
-      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  /// 서버 historyInfo 는 날짜만(`YYYY-MM-DD`) 받으면 거부하므로
+  /// Android 원본과 동일하게 instant 형태(`yyyy-MM-dd'T'HH:mm:ss'Z'`)로 보낸다.
+  String _instant(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}T00:00:00Z';
 
   Future<void> _onSave(BuildContext context, WidgetRef ref) async {
     final book = ref.read(bookSearchProvider).selectedBook;
@@ -26,9 +28,9 @@ class AddBookScreen extends ConsumerWidget {
           book: book,
           reason: result.reason,
           startedDate:
-              result.startDate != null ? _isoDate(result.startDate!) : null,
+              result.startDate != null ? _instant(result.startDate!) : null,
           finishedDate:
-              result.endDate != null ? _isoDate(result.endDate!) : null,
+              result.endDate != null ? _instant(result.endDate!) : null,
         );
     if (ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -68,7 +70,7 @@ class AddBookScreen extends ConsumerWidget {
                     Center(
                       child: SizedBox(
                         width: 210,
-                        height: 158,
+                        height: 272,
                         child: book.cover.isNotEmpty
                             ? CachedNetworkImage(
                                 imageUrl: book.cover,
