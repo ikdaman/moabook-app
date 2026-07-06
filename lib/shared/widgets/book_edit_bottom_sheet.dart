@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../app/theme/app_colors.dart';
+import '../../core/util/date_formatter.dart';
 import '../../app/theme/app_typography.dart';
 import '../../domain/model/my_book_detail.dart';
 import 'calendar_bottom_sheet.dart';
@@ -100,14 +101,8 @@ class _BookEditBottomSheetState extends State<BookEditBottomSheet> {
     super.dispose();
   }
 
-  static DateTime? _parseDate(String? raw) {
-    if (raw == null || raw.isEmpty) return null;
-    try {
-      return DateTime.parse(raw.length >= 10 ? raw.substring(0, 10) : raw);
-    } catch (_) {
-      return null;
-    }
-  }
+  // 서버 datetime(UTC)을 로컬 날짜로 변환해 피커 초기값이 하루 밀리지 않게 한다.
+  static DateTime? _parseDate(String? raw) => DateFormatter.parseToLocal(raw);
 
   static String _yyMMdd(DateTime d) {
     final y = (d.year % 100).toString().padLeft(2, '0');

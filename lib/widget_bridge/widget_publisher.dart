@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
 
+import '../core/util/date_formatter.dart';
 import '../domain/model/store_book.dart';
 
 /// Native 위젯(Android Glance, iOS WidgetKit) 에 표시할 데이터 publish.
@@ -53,7 +54,9 @@ class WidgetPublisher {
         'mybookId': b.mybookId,
         'title': b.title,
         'reason': b.reason,
-        'createdDate': b.createdDate,
+        // 네이티브 위젯은 타임존 변환 없이 날짜를 그대로 그리므로
+        // UTC datetime 을 로컬 날짜(`YYYY-MM-DD`)로 바꿔서 넘긴다.
+        'createdDate': DateFormatter.toIsoLocalDate(b.createdDate),
       };
     }).toList();
 
