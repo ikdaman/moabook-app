@@ -77,6 +77,10 @@ flutter {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
+    // google_mlkit_text_recognition은 기본으로 Latin 모델만 포함.
+    // 한국어 인식기(TextRecognitionScript.korean)는 스크립트별 모델을 직접 추가해야 함.
+    implementation("com.google.mlkit:text-recognition-korean:16.0.1")
+
     implementation("androidx.credentials:credentials:1.5.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.5.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")

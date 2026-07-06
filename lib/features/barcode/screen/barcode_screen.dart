@@ -141,6 +141,13 @@ class _BarcodeScreenState extends ConsumerState<BarcodeScreen>
                             .copyWith(color: Colors.white),
                       ),
                       const Spacer(),
+                      // 표지 OCR 실험 화면 진입 (실험용 임시 버튼)
+                      GestureDetector(
+                        onTap: () => context.push(Routes.coverOcrLab),
+                        child: const Icon(Icons.document_scanner_outlined,
+                            color: Colors.white, size: 26),
+                      ),
+                      const SizedBox(width: 16),
                       ValueListenableBuilder<MobileScannerState>(
                         valueListenable: _controller,
                         builder: (_, state, _) {
