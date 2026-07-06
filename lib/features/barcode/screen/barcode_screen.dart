@@ -141,27 +141,27 @@ class _BarcodeScreenState extends ConsumerState<BarcodeScreen>
                             .copyWith(color: Colors.white),
                       ),
                       const Spacer(),
-                      // 표지 OCR 실험 화면 진입 (실험용 임시 버튼)
-                      GestureDetector(
-                        onTap: () => context.push(Routes.coverOcrLab),
-                        child: const Icon(Icons.document_scanner_outlined,
-                            color: Colors.white, size: 26),
-                      ),
-                      const SizedBox(width: 16),
-                      ValueListenableBuilder<MobileScannerState>(
-                        valueListenable: _controller,
-                        builder: (_, state, _) {
-                          final torchOn = state.torchState == TorchState.on;
-                          return GestureDetector(
-                            onTap: () => _controller.toggleTorch(),
-                            child: Icon(
-                              torchOn ? Icons.flash_on : Icons.flash_off,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          );
-                        },
-                      ),
+                      // 표지 OCR 진입/플래시 버튼 — 표지검색 정식 개편 전까지 임시 숨김
+                      // GestureDetector(
+                      //   onTap: () => context.push(Routes.coverOcrLab),
+                      //   child: const Icon(Icons.document_scanner_outlined,
+                      //       color: Colors.white, size: 26),
+                      // ),
+                      // const SizedBox(width: 16),
+                      // ValueListenableBuilder<MobileScannerState>(
+                      //   valueListenable: _controller,
+                      //   builder: (_, state, _) {
+                      //     final torchOn = state.torchState == TorchState.on;
+                      //     return GestureDetector(
+                      //       onTap: () => _controller.toggleTorch(),
+                      //       child: Icon(
+                      //         torchOn ? Icons.flash_on : Icons.flash_off,
+                      //         color: Colors.white,
+                      //         size: 28,
+                      //       ),
+                      //     );
+                      //   },
+                      // ),
                     ],
                   ),
                 ),

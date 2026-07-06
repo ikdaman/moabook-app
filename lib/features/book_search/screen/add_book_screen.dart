@@ -74,7 +74,7 @@ class AddBookScreen extends ConsumerWidget {
                         child: book.cover.isNotEmpty
                             ? CachedNetworkImage(
                                 imageUrl: book.cover,
-                                fit: BoxFit.cover,
+                                fit: BoxFit.contain,
                                 placeholder: (_, _) => Container(
                                     color: Colors.grey.withValues(alpha: 0.5)),
                                 errorWidget: (_, _, _) => Container(
