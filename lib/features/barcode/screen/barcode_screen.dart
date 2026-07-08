@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../app/router/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../book_search/provider/book_search_provider.dart';
+import '../../cover_ocr/service/cover_ocr_search.dart';
 
 class BarcodeScreen extends ConsumerStatefulWidget {
   const BarcodeScreen({super.key});
@@ -19,7 +21,9 @@ class BarcodeScreen extends ConsumerStatefulWidget {
 class _BarcodeScreenState extends ConsumerState<BarcodeScreen>
     with WidgetsBindingObserver {
   late final MobileScannerController _controller;
+  final _picker = ImagePicker();
   bool _handled = false;
+  bool _ocrRunning = false;
 
   @override
   void initState() {
@@ -37,7 +41,9 @@ class _BarcodeScreenState extends ConsumerState<BarcodeScreen>
     if (!_controller.value.isInitialized) return;
     switch (state) {
       case AppLifecycleState.resumed:
-        if (!_handled) _controller.start();
+        // OCR 촬영(image_picker)으로 잠시 벗어난 경우엔 재시작하지 않음 —
+        // 촬영 핸들러가 흐름을 직접 제어한다.
+        if (!_handled && !_ocrRunning) _controller.start();
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
@@ -84,6 +90,39 @@ class _BarcodeScreenState extends ConsumerState<BarcodeScreen>
       // 사용자가 다시 시도할 수 있도록 스캐너 재가동
       _handled = false;
       await _controller.start();
+    }
+  }
+
+  /// 표지 촬영 → OCR → 알라딘 검색 → 결과 화면으로 이동. (1회성, 실시간 아님)
+  Future<void> _onCaptureCover() async {
+    if (_ocrRunning || _handled) return;
+    _ocrRunning = true;
+    await _controller.stop();
+
+    try {
+      final file =
+          await _picker.pickImage(source: ImageSource.camera, imageQuality: 90);
+      if (file == null) return; // 촬영 취소 — finally에서 스캐너 재시작
+
+      if (mounted) setState(() {}); // 로딩 오버레이 표시
+      final aladin = ref.read(aladinDataSourceProvider);
+      final results = await searchBooksByCover(file.path, aladin);
+
+      if (!mounted) return;
+      HapticFeedback.mediumImpact();
+      await context.push(Routes.coverOcrResult, extra: results);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('표지 인식에 실패했어요.')),
+        );
+      }
+    } finally {
+      _ocrRunning = false;
+      if (mounted) {
+        setState(() {});
+        if (!_handled) await _controller.start();
+      }
     }
   }
 
@@ -141,12 +180,12 @@ class _BarcodeScreenState extends ConsumerState<BarcodeScreen>
                             .copyWith(color: Colors.white),
                       ),
                       const Spacer(),
-                      // 표지 OCR 진입/플래시 버튼 — 표지검색 정식 개편 전까지 임시 숨김
-                      // GestureDetector(
-                      //   onTap: () => context.push(Routes.coverOcrLab),
-                      //   child: const Icon(Icons.document_scanner_outlined,
-                      //       color: Colors.white, size: 26),
-                      // ),
+                      // 표지 촬영 → OCR 검색 (1회성)
+                      GestureDetector(
+                        onTap: _ocrRunning ? null : _onCaptureCover,
+                        child: const Icon(Icons.document_scanner_outlined,
+                            color: Colors.white, size: 26),
+                      ),
                       // const SizedBox(width: 16),
                       // ValueListenableBuilder<MobileScannerState>(
                       //   valueListenable: _controller,
@@ -165,7 +204,7 @@ class _BarcodeScreenState extends ConsumerState<BarcodeScreen>
                     ],
                   ),
                 ),
-                if (isLoading)
+                if (isLoading || _ocrRunning)
                   const ColoredBox(
                     color: Color(0x88000000),
                     child: SizedBox.expand(

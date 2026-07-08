@@ -6,6 +6,8 @@ import '../../features/auth/screen/signup_screen.dart';
 import '../../features/barcode/screen/barcode_screen.dart';
 import '../../features/book_info/screen/book_info_screen.dart';
 import '../../features/cover_ocr/screen/cover_ocr_lab_screen.dart';
+import '../../features/cover_ocr/screen/cover_ocr_result_screen.dart';
+import '../../domain/model/book_item.dart';
 import '../../features/book_search/screen/add_book_screen.dart';
 import '../../features/book_search/screen/manual_book_input_screen.dart';
 import '../../features/book_search/screen/search_book_screen.dart';
@@ -58,6 +60,12 @@ final appRouter = GoRouter(
     GoRoute(
       path: Routes.coverOcrLab,
       builder: (context, _) => const CoverOcrLabScreen(),
+    ),
+    GoRoute(
+      path: Routes.coverOcrResult,
+      builder: (context, state) => CoverOcrResultScreen(
+        results: state.extra as List<BookItem>? ?? const [],
+      ),
     ),
     // ── Main shell with BottomNavBar ──────────────────────────────────
     ShellRoute(

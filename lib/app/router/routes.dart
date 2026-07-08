@@ -9,6 +9,7 @@ abstract final class Routes {
   static const manualBookInput = '/manual-book-input';
   static const barcode         = '/barcode';
   static const coverOcrLab     = '/cover-ocr-lab';
+  static const coverOcrResult  = '/cover-ocr-result';
   static const history         = '/main/history';
   static const setting         = '/main/setting';
   static const searchMyBook    = '/main/search-my-book';
