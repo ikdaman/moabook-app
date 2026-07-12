@@ -143,15 +143,25 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
 
     // 크롭본을 임시 파일로 저장 → OCR 입력으로만 사용하고 finally에서 삭제.
     // 미리보기/재크롭은 삭제되는 파일이 아니라 크롭 bytes를 쓴다.
-    final dir = await getTemporaryDirectory();
-    final tmp = File(
-      '${dir.path}/cover_crop_${DateTime.now().millisecondsSinceEpoch}.jpg',
-    );
+    // getTemporaryDirectory/writeAsBytes 실패 시에도 _running을 원복해야
+    // 버튼이 영구 비활성으로 남지 않는다.
+    File? tmp;
     try {
+      final dir = await getTemporaryDirectory();
+      tmp = File(
+        '${dir.path}/cover_crop_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
       await tmp.writeAsBytes(cropped);
       await _runOcrPipeline(tmp.path, previewBytes: cropped);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = '크롭 검색에 실패했어요: $e';
+          _running = false;
+        });
+      }
     } finally {
-      if (await tmp.exists()) {
+      if (tmp != null && await tmp.exists()) {
         await tmp.delete();
       }
     }
