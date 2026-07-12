@@ -4,12 +4,14 @@
 //      → 상위 후보로 알라딘 검색 → 중복 제거 → 결과 카드 리스트
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../app/router/routes.dart';
 import '../../../app/theme/app_colors.dart';
@@ -18,6 +20,7 @@ import '../../../domain/model/book_item.dart';
 import '../../book_search/provider/book_search_provider.dart';
 import '../service/book_cover_ocr.dart';
 import '../service/cover_ocr_search.dart';
+import 'cover_crop_screen.dart';
 
 class CoverOcrLabScreen extends ConsumerStatefulWidget {
   const CoverOcrLabScreen({super.key});
@@ -94,6 +97,36 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
     }
   }
 
+  /// 현재 선택된 이미지를 크롭 화면으로 넘겨 영역을 고르게 하고,
+  /// 크롭본을 임시 파일로 저장해 재-OCR + 재검색한다.
+  Future<void> _cropAndReSearch() async {
+    final path = _imagePath;
+    if (path == null) return;
+
+    final bytes = await File(path).readAsBytes();
+    if (!mounted) return;
+
+    final cropped = await Navigator.of(context).push<Uint8List>(
+      MaterialPageRoute(
+        builder: (_) => CoverCropScreen(imageBytes: bytes),
+      ),
+    );
+    if (cropped == null || !mounted) return;
+
+    final dir = await getTemporaryDirectory();
+    final tmp = File(
+      '${dir.path}/cover_crop_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+    try {
+      await tmp.writeAsBytes(cropped);
+      await _runOcrPipeline(tmp.path);
+    } finally {
+      if (await tmp.exists()) {
+        await tmp.delete();
+      }
+    }
+  }
+
   /// 상위 후보 → 쿼리 변형 생성 → 각 쿼리 알라딘 검색 → 중복 제거 후 병합.
   /// 쿼리 생성/병합은 프로덕션 검색과 동일한 [buildOcrQueries] 로직을 공유.
   Future<List<BookItem>> _searchTopCandidates(
@@ -155,6 +188,14 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
                 fit: BoxFit.contain,
               ),
             ),
+          if (_imagePath != null) ...[
+            const SizedBox(height: 8),
+            FilledButton.tonalIcon(
+              onPressed: _running ? null : _cropAndReSearch,
+              icon: const Icon(Icons.crop),
+              label: const Text('영역 직접 선택'),
+            ),
+          ],
           if (_running) ...[
             const SizedBox(height: 24),
             const Center(child: CircularProgressIndicator()),
