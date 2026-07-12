@@ -33,9 +33,12 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
   final _picker = ImagePicker();
 
   String? _imagePath;
-  // 크롭본 등 파일 경로로 표현할 수 없는 미리보기/재크롭 소스.
-  // 크롭 결과의 임시 파일은 OCR 후 삭제되므로, 미리보기와 재크롭은
-  // 파일이 아니라 이 bytes를 사용한다(삭제된 경로 참조 방지).
+  // 크롭 소스로 쓸 "원본" 이미지 bytes. 촬영/갤러리로 고른 원본으로,
+  // 크롭을 여러 번 해도 항상 원본에서 다시 영역을 고르도록 유지한다.
+  // (크롭본이 아니라 원본을 잡아야 사용자가 원하는 영역을 다시 선택 가능)
+  Uint8List? _originalBytes;
+  // 크롭 결과 미리보기용 bytes. 크롭 임시 파일은 OCR 후 삭제되므로
+  // 미리보기는 파일이 아니라 이 bytes로 표시한다(삭제된 경로 참조 방지).
   Uint8List? _previewBytes;
   List<TitleCandidate> _candidates = [];
   List<BookItem> _results = [];
@@ -47,6 +50,12 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
   Future<void> _pick(ImageSource source) async {
     final file = await _picker.pickImage(source: source, imageQuality: 90);
     if (file == null) return;
+    // 새 원본 선택 — 크롭 소스를 이 원본으로 교체(직전 크롭본 폐기).
+    try {
+      _originalBytes = await File(file.path).readAsBytes();
+    } catch (_) {
+      _originalBytes = null;
+    }
     await _runOcrPipeline(file.path);
   }
 
@@ -109,30 +118,17 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
   /// 크롭본을 임시 파일로 저장해 재-OCR + 재검색한다.
   Future<void> _cropAndReSearch() async {
     if (_running) return;
-    final path = _imagePath;
-    final existing = _previewBytes;
-    if (path == null && existing == null) return;
+    // 크롭은 항상 "원본"에서 한다. 직전 크롭본이 아니라 원본을 넘겨야
+    // 재크롭 시에도 원하는 영역을 자유롭게 다시 고를 수 있다.
+    final source = _originalBytes;
+    if (source == null) return;
 
     // 크롭 화면이 열리는 동안 재진입(중복 push) 방지.
     setState(() => _running = true);
 
-    // 크롭 소스: 크롭본이 있으면 그 bytes, 없으면 파일에서 읽는다.
-    final Uint8List sourceBytes;
-    try {
-      sourceBytes = existing ?? await File(path!).readAsBytes();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = '이미지를 불러오지 못했어요: $e';
-        _running = false;
-      });
-      return;
-    }
-    if (!mounted) return;
-
     final cropped = await Navigator.of(context).push<Uint8List>(
       MaterialPageRoute(
-        builder: (_) => CoverCropScreen(imageBytes: sourceBytes),
+        builder: (_) => CoverCropScreen(imageBytes: source),
       ),
     );
     if (!mounted) return;
@@ -237,7 +233,7 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
                 fit: BoxFit.contain,
               ),
             ),
-          if (_imagePath != null || _previewBytes != null) ...[
+          if (_originalBytes != null) ...[
             const SizedBox(height: 8),
             FilledButton.tonalIcon(
               onPressed: _running ? null : _cropAndReSearch,
