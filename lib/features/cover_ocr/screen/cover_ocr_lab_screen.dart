@@ -33,6 +33,10 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
   final _picker = ImagePicker();
 
   String? _imagePath;
+  // 크롭본 등 파일 경로로 표현할 수 없는 미리보기/재크롭 소스.
+  // 크롭 결과의 임시 파일은 OCR 후 삭제되므로, 미리보기와 재크롭은
+  // 파일이 아니라 이 bytes를 사용한다(삭제된 경로 참조 방지).
+  Uint8List? _previewBytes;
   List<TitleCandidate> _candidates = [];
   List<BookItem> _results = [];
   bool _running = false;
@@ -48,9 +52,13 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
 
   /// 주어진 이미지 경로로 OCR + 알라딘 검색을 돌리고 화면 상태를 갱신한다.
   /// 촬영/갤러리 픽과 크롭본(임시파일)이 공유한다.
-  Future<void> _runOcrPipeline(String path) async {
+  ///
+  /// [previewBytes]가 주어지면(크롭본) 미리보기/재크롭을 파일 대신 이 bytes로
+  /// 표시한다. 촬영/갤러리 픽은 null(파일 경로로 미리보기).
+  Future<void> _runOcrPipeline(String path, {Uint8List? previewBytes}) async {
     setState(() {
       _imagePath = path;
+      _previewBytes = previewBytes;
       _candidates = [];
       _results = [];
       _error = null;
@@ -100,26 +108,48 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
   /// 현재 선택된 이미지를 크롭 화면으로 넘겨 영역을 고르게 하고,
   /// 크롭본을 임시 파일로 저장해 재-OCR + 재검색한다.
   Future<void> _cropAndReSearch() async {
+    if (_running) return;
     final path = _imagePath;
-    if (path == null) return;
+    final existing = _previewBytes;
+    if (path == null && existing == null) return;
 
-    final bytes = await File(path).readAsBytes();
+    // 크롭 화면이 열리는 동안 재진입(중복 push) 방지.
+    setState(() => _running = true);
+
+    // 크롭 소스: 크롭본이 있으면 그 bytes, 없으면 파일에서 읽는다.
+    final Uint8List sourceBytes;
+    try {
+      sourceBytes = existing ?? await File(path!).readAsBytes();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = '이미지를 불러오지 못했어요: $e';
+        _running = false;
+      });
+      return;
+    }
     if (!mounted) return;
 
     final cropped = await Navigator.of(context).push<Uint8List>(
       MaterialPageRoute(
-        builder: (_) => CoverCropScreen(imageBytes: bytes),
+        builder: (_) => CoverCropScreen(imageBytes: sourceBytes),
       ),
     );
-    if (cropped == null || !mounted) return;
+    if (!mounted) return;
+    if (cropped == null) {
+      setState(() => _running = false); // 크롭 취소 — 상태 원복
+      return;
+    }
 
+    // 크롭본을 임시 파일로 저장 → OCR 입력으로만 사용하고 finally에서 삭제.
+    // 미리보기/재크롭은 삭제되는 파일이 아니라 크롭 bytes를 쓴다.
     final dir = await getTemporaryDirectory();
     final tmp = File(
       '${dir.path}/cover_crop_${DateTime.now().millisecondsSinceEpoch}.jpg',
     );
     try {
       await tmp.writeAsBytes(cropped);
-      await _runOcrPipeline(tmp.path);
+      await _runOcrPipeline(tmp.path, previewBytes: cropped);
     } finally {
       if (await tmp.exists()) {
         await tmp.delete();
@@ -179,7 +209,16 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          if (_imagePath != null)
+          if (_previewBytes != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(
+                _previewBytes!,
+                height: 200,
+                fit: BoxFit.contain,
+              ),
+            )
+          else if (_imagePath != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.file(
@@ -188,7 +227,7 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
                 fit: BoxFit.contain,
               ),
             ),
-          if (_imagePath != null) ...[
+          if (_imagePath != null || _previewBytes != null) ...[
             const SizedBox(height: 8),
             FilledButton.tonalIcon(
               onPressed: _running ? null : _cropAndReSearch,
