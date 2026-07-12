@@ -59,6 +59,10 @@ dependencies:
   google_mlkit_text_recognition: ^0.15.1
   image_picker: ^1.2.3
 
+  # 표지 영역 직접 크롭 (인식 실패 시 재-OCR)
+  crop_your_image: ^2.0.0
+  path_provider: ^2.1.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
