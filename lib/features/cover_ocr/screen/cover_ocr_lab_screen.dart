@@ -17,9 +17,7 @@ import '../../../app/theme/app_typography.dart';
 import '../../../domain/model/book_item.dart';
 import '../../book_search/provider/book_search_provider.dart';
 import '../service/book_cover_ocr.dart';
-
-/// 검색에 사용할 상위 후보 개수
-const _searchCandidateCount = 3;
+import '../service/cover_ocr_search.dart';
 
 class CoverOcrLabScreen extends ConsumerStatefulWidget {
   const CoverOcrLabScreen({super.key});
@@ -91,28 +89,21 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
     }
   }
 
-  /// 상위 후보들을 각각 알라딘 검색 → itemId 기준 중복 제거 후 병합.
+  /// 상위 후보 → 쿼리 변형 생성 → 각 쿼리 알라딘 검색 → 중복 제거 후 병합.
+  /// 쿼리 생성/병합은 프로덕션 검색과 동일한 [buildOcrQueries] 로직을 공유.
   Future<List<BookItem>> _searchTopCandidates(
     List<TitleCandidate> candidates,
   ) async {
     final aladin = ref.read(aladinDataSourceProvider);
-    final top = candidates.take(_searchCandidateCount).toList();
+    final queries = buildOcrQueries(candidates.map((c) => c.text).toList());
 
     final resultLists = await Future.wait(
-      top.map((c) => aladin.searchByTitle(c.text).catchError(
+      queries.map((q) => aladin.searchByTitle(q).catchError(
             (Object _) => <BookItem>[],
           )),
     );
 
-    final seen = <int>{};
-    final merged = <BookItem>[];
-    for (final list in resultLists) {
-      // 후보별 상위 10건만 사용 — 하위 결과는 관련성이 낮음
-      for (final book in list.take(10)) {
-        if (seen.add(book.itemId)) merged.add(book);
-      }
-    }
-    return merged;
+    return mergeCoverSearchResults(resultLists);
   }
 
   @override
@@ -202,7 +193,7 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
       );
 
   Widget _candidateTile(TitleCandidate c) {
-    final isSearched = _candidates.indexOf(c) < _searchCandidateCount;
+    final isSearched = _candidates.indexOf(c) < searchCandidateCount;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
