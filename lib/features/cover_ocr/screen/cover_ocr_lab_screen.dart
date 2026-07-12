@@ -40,9 +40,14 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
   Future<void> _pick(ImageSource source) async {
     final file = await _picker.pickImage(source: source, imageQuality: 90);
     if (file == null) return;
+    await _runOcrPipeline(file.path);
+  }
 
+  /// 주어진 이미지 경로로 OCR + 알라딘 검색을 돌리고 화면 상태를 갱신한다.
+  /// 촬영/갤러리 픽과 크롭본(임시파일)이 공유한다.
+  Future<void> _runOcrPipeline(String path) async {
     setState(() {
-      _imagePath = file.path;
+      _imagePath = path;
       _candidates = [];
       _results = [];
       _error = null;
@@ -53,7 +58,7 @@ class _CoverOcrLabScreenState extends ConsumerState<CoverOcrLabScreen> {
 
     try {
       final ocrWatch = Stopwatch()..start();
-      final candidates = await recognizeBookCover(file.path);
+      final candidates = await recognizeBookCover(path);
       ocrWatch.stop();
 
       if (!mounted) return;
