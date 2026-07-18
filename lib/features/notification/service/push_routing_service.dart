@@ -26,7 +26,7 @@ class PushRoutingService {
     final type = (data['type'] as String?)?.toUpperCase();
     switch (type) {
       case 'A':
-        return Routes.barcode;
+        return Routes.capture;
       case 'B':
         final id = _parseInt(data['mybookId']);
         if (id != null) return Routes.bookInfo(id);

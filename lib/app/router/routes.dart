@@ -7,8 +7,7 @@ abstract final class Routes {
   static const searchBook      = '/main/search-book';
   static const addBook         = '/add-book';
   static const manualBookInput = '/manual-book-input';
-  static const barcode         = '/barcode';
-  static const coverOcrLab     = '/cover-ocr-lab';
+  static const capture         = '/capture';
   static const coverOcrResult  = '/cover-ocr-result';
   static const history         = '/main/history';
   static const setting         = '/main/setting';

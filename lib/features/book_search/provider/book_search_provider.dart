@@ -82,10 +82,17 @@ class BookSearchNotifier extends Notifier<BookSearchState>
     }
   }
 
+  /// 검색 화면 재진입 시 이전 검색 결과가 남지 않도록 초기 상태로 되돌린다.
+  void reset() {
+    state = const BookSearchState();
+  }
+
   /// ISBN으로 알라딘 단건 조회. 결과를 [selectedBook]에 세팅.
   /// 성공 시 true, 결과가 없거나 실패 시 false.
+  /// 검색 목록([results]/[query])은 건드리지 않는다 — 바코드/표지 플로우가
+  /// 아래에 깔린 검색 화면의 목록을 덮어쓰면 안 되기 때문.
   Future<bool> searchByIsbn(String isbn) async {
-    state = state.copyWith(isLoading: true, query: isbn);
+    state = state.copyWith(isLoading: true);
     try {
       final results = await _aladin.searchByIsbn(isbn);
       if (results.isEmpty) {
@@ -95,7 +102,6 @@ class BookSearchNotifier extends Notifier<BookSearchState>
       state = state.copyWith(
         isLoading: false,
         selectedBook: results.first,
-        results: results,
       );
       return true;
     } catch (e) {

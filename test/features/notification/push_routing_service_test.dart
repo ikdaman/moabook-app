@@ -3,17 +3,17 @@ import 'package:moabook/features/notification/service/push_routing_service.dart'
 
 void main() {
   group('PushRoutingService.resolvePath', () {
-    test('type=A → /barcode', () {
+    test('type=A → /capture', () {
       expect(
         PushRoutingService.resolvePath({'type': 'A'}),
-        '/barcode',
+        '/capture',
       );
     });
 
-    test('type=a (소문자) → /barcode (대소문자 무관)', () {
+    test('type=a (소문자) → /capture (대소문자 무관)', () {
       expect(
         PushRoutingService.resolvePath({'type': 'a'}),
-        '/barcode',
+        '/capture',
       );
     });
 

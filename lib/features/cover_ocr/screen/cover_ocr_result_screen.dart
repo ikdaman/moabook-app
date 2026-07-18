@@ -1,7 +1,10 @@
-// 표지 OCR 검색 결과 화면
+// 사진 검색 결과 화면
 //
-// 바코드 화면에서 표지를 촬영 → OCR → 알라딘 검색까지 끝낸 뒤,
-// 이 화면에 결과 목록만 표시한다. 카메라 로직 없음(순수 표시).
+// 촬영/갤러리 → OCR → 알라딘 검색까지 끝낸 뒤, 촬영한 사진 미리보기와
+// 결과 목록을 표시한다. "다시 찍기"는 pop 으로 촬영 화면에 돌아간다.
+// 카메라 로직 없음(순수 표시).
+
+import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -14,44 +17,86 @@ import '../../../app/theme/app_typography.dart';
 import '../../../domain/model/book_item.dart';
 import '../../book_search/provider/book_search_provider.dart';
 
-class CoverOcrResultScreen extends ConsumerWidget {
-  const CoverOcrResultScreen({super.key, required this.results});
+/// 촬영 화면 → 결과 화면으로 넘기는 인자 묶음.
+class CoverOcrResultArgs {
+  const CoverOcrResultArgs({required this.imagePath, required this.results});
 
+  final String imagePath;
+  final List<BookItem> results;
+}
+
+class CoverOcrResultScreen extends ConsumerWidget {
+  const CoverOcrResultScreen({
+    super.key,
+    required this.imagePath,
+    required this.results,
+  });
+
+  final String imagePath;
   final List<BookItem> results;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isEmpty = results.isEmpty;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundDefault,
       appBar: AppBar(
         backgroundColor: AppColors.backgroundDefault,
         title: Text(
-          '표지 검색 결과',
+          '사진 검색',
           style: AppTypography.dungGeunMoHeader
               .copyWith(color: AppColors.textPrimary),
         ),
       ),
-      body: results.isEmpty
-          ? Center(
-              child: Text(
-                '표지에서 책을 찾지 못했어요.\n바코드 스캔을 이용해 주세요.',
-                style: AppTypography.dungGeunMoBody
-                    .copyWith(color: AppColors.textGray),
-                textAlign: TextAlign.center,
-              ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _photoPreview(context),
+          const SizedBox(height: 16),
+          Text(
+            isEmpty
+                ? '※ 책 제목이 명확하게 보이는 사진을 업로드해 주세요.'
+                : '※ 사진에 텍스트가 많은 경우, 알맞은 결과가 하단에 보일 수 있어요.',
+            style: AppTypography.wantedSansBodySmall
+                .copyWith(color: AppColors.primary),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '검색 결과',
+            style: AppTypography.dungGeunMoSubtitle
+                .copyWith(color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 8),
+          if (isEmpty)
+            Text(
+              '없음',
+              style: AppTypography.dungGeunMoBody
+                  .copyWith(color: AppColors.textGray),
             )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Text(
-                  '검색 결과 ${results.length}권',
-                  style: AppTypography.dungGeunMoSubtitle
-                      .copyWith(color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: 8),
-                ...results.map((book) => _bookCard(context, ref, book)),
-              ],
-            ),
+          else
+            ...results.map((book) => _bookCard(context, ref, book)),
+        ],
+      ),
+    );
+  }
+
+  /// 촬영한 사진 썸네일 (가운데 정렬).
+  Widget _photoPreview(BuildContext context) {
+    return Center(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(imagePath),
+          height: 160,
+          fit: BoxFit.contain,
+          errorBuilder: (_, _, _) => const SizedBox(
+            height: 160,
+            width: 120,
+            child: Icon(Icons.image_not_supported_outlined),
+          ),
+        ),
+      ),
     );
   }
 

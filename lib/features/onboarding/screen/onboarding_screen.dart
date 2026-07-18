@@ -71,8 +71,8 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _onBookTap(BookItem book) async {
     final notifier = ref.read(bookSearchProvider.notifier);
-    // 상세(쪽수 등)만 가져오고 검색 목록은 유지한다. searchByIsbn 은 results 를
-    // 덮어써서 팝업을 닫으면 목록이 사라지므로 lookupDetail 을 쓴다.
+    // 상세(쪽수 등)만 가져오고 검색 목록은 유지한다. selectedBook 상태를
+    // 건드리지 않도록 searchByIsbn 대신 lookupDetail 을 쓴다.
     BookItem selected = book;
     if (book.isbn.isNotEmpty) {
       final detail = await notifier.lookupDetail(book.isbn);
