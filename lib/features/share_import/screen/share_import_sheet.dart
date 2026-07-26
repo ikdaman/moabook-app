@@ -97,25 +97,8 @@ Widget _title(String text) => Text(
 
 // ── Step 1: 검색 중 ────────────────────────────────────────────────────────
 
-class _LoadingView extends StatefulWidget {
+class _LoadingView extends StatelessWidget {
   const _LoadingView();
-
-  @override
-  State<_LoadingView> createState() => _LoadingViewState();
-}
-
-class _LoadingViewState extends State<_LoadingView>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 800),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,18 +107,15 @@ class _LoadingViewState extends State<_LoadingView>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _title('일치하는 책을 검색 중이에요...'),
-        const SizedBox(height: 96),
+        const SizedBox(height: 72),
         Center(
-          child: FadeTransition(
-            opacity: Tween(begin: 0.3, end: 1.0).animate(_controller),
-            child: Image.asset(
-              'assets/icon/app_icon.png',
-              width: 44,
-              height: 44,
-            ),
+          child: Image.asset(
+            'assets/images/mascot_bounce.gif',
+            width: 96,
+            height: 96,
           ),
         ),
-        const SizedBox(height: 160),
+        const SizedBox(height: 140),
       ],
     );
   }
