@@ -56,25 +56,17 @@ struct ShareSheetView: View {
 
     // ── Step 1: 검색 중 ───────────────────────────────────────────────────
 
-    @State private var pulsing = false
-
     private var loadingView: some View {
         VStack(alignment: .leading, spacing: 0) {
             title("일치하는 책을 검색 중이에요...")
-            Spacer().frame(height: 96)
+            Spacer().frame(height: 72)
             HStack {
                 Spacer()
-                appIcon
-                    .frame(width: 44, height: 44)
-                    .opacity(pulsing ? 1.0 : 0.3)
-                    .animation(
-                        .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
-                        value: pulsing
-                    )
-                    .onAppear { pulsing = true }
+                AnimatedGifView(name: "mascot_bounce")
+                    .frame(width: 96, height: 96)
                 Spacer()
             }
-            Spacer().frame(height: 160)
+            Spacer().frame(height: 140)
         }
     }
 
@@ -229,16 +221,6 @@ struct ShareSheetView: View {
         .frame(width: width, height: height)
         .clipped()
         .cornerRadius(4)
-    }
-
-    /// 번들에 복사해 둔 app_icon.png. 없으면 ProgressView 로 대체.
-    @ViewBuilder
-    private var appIcon: some View {
-        if let ui = UIImage(named: "app_icon") {
-            Image(uiImage: ui).resizable()
-        } else {
-            ProgressView()
-        }
     }
 
     private var placeholderCover: some View {
