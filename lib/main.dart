@@ -14,6 +14,7 @@ import 'core/auth/shared_token_store.dart';
 import 'core/env/env.dart';
 import 'core/network/auth_event.dart';
 import 'features/auth/provider/auth_provider.dart';
+import 'features/home/provider/home_provider.dart';
 import 'features/notification/provider/notification_providers.dart';
 import 'features/notification/provider/push_settings_provider.dart';
 import 'features/notification/service/fcm_service.dart';
@@ -95,10 +96,15 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   /// 앱이 foreground 로 돌아올 때마다 C 알림을 7일 뒤로 재예약 →
   /// "마지막 진입 후 7일" 트리거 구현. 푸시 설정 OFF 면 예약하지 않는다.
+  /// 홈 목록도 함께 갱신 — 공유 확장(share-import)이 앱 밖에서 책을
+  /// 저장한 뒤 복귀하면 warm start 라 목록이 낡아 있기 때문.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _rescheduleCIfEnabled();
+      if (ref.read(isLoggedInProvider).valueOrNull == true) {
+        ref.read(homeProvider.notifier).load();
+      }
     }
   }
 
