@@ -21,6 +21,7 @@
 		AE9F3DE22FC740A800CC771F /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AE9F3DE12FC740A800CC771F /* WidgetKit.framework */; };
 		AE9F3DE42FC740A800CC771F /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AE9F3DE32FC740A800CC771F /* SwiftUI.framework */; };
 		AE9F3DF32FC740A900CC771F /* MoabookWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AE9F3DE02FC740A800CC771F /* MoabookWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		5A5E000000000000000000A3 /* MoabookShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5A5E000000000000000000A2 /* MoabookShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F7A76FC4E51687C4C6F48AFF /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F877F27FAAED2248E14CCB6 /* Pods_Runner.framework */; };
 /* End PBXBuildFile section */
 
@@ -38,6 +39,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = AE9F3DDF2FC740A800CC771F;
 			remoteInfo = MoabookWidgetExtension;
+		};
+		5A5E000000000000000000A4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A5E000000000000000000A1;
+			remoteInfo = MoabookShareExtension;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -59,6 +67,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				AE9F3DF32FC740A900CC771F /* MoabookWidgetExtension.appex in Embed Foundation Extensions */,
+				5A5E000000000000000000A3 /* MoabookShareExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -90,6 +99,7 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AE83CB492FC882D80093E853 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "Runner/GoogleService-Info.plist"; sourceTree = "<group>"; };
 		AE9F3DE02FC740A800CC771F /* MoabookWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MoabookWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A5E000000000000000000A2 /* MoabookShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MoabookShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE9F3DE12FC740A800CC771F /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		AE9F3DE32FC740A800CC771F /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		B92A6235A11C3AB4C15AF9B6 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
@@ -106,6 +116,13 @@
 			);
 			target = AE9F3DDF2FC740A800CC771F /* MoabookWidgetExtension */;
 		};
+		5A5E000000000000000000AA /* Exceptions for "MoabookShareExtension" folder in "MoabookShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A5E000000000000000000A1 /* MoabookShareExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -119,6 +136,18 @@
 			explicitFolders = (
 			);
 			path = MoabookWidget;
+			sourceTree = "<group>";
+		};
+		5A5E000000000000000000A9 /* MoabookShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5A5E000000000000000000AA /* Exceptions for "MoabookShareExtension" folder in "MoabookShareExtension" target */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = MoabookShareExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -147,6 +176,13 @@
 			files = (
 				AE9F3DE42FC740A800CC771F /* SwiftUI.framework in Frameworks */,
 				AE9F3DE22FC740A800CC771F /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A5E000000000000000000A7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -192,6 +228,7 @@
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				AE9F3DE52FC740A800CC771F /* MoabookWidget */,
+				5A5E000000000000000000A9 /* MoabookShareExtension */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				E1130D58CAE11C117C38BA24 /* Pods */,
@@ -205,6 +242,7 @@
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
 				AE9F3DE02FC740A800CC771F /* MoabookWidgetExtension.appex */,
+				5A5E000000000000000000A2 /* MoabookShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -279,6 +317,7 @@
 			);
 			dependencies = (
 				AE9F3DF22FC740A900CC771F /* PBXTargetDependency */,
+				5A5E000000000000000000A5 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -308,6 +347,26 @@
 			productReference = AE9F3DE02FC740A800CC771F /* MoabookWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		5A5E000000000000000000A1 /* MoabookShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A5E000000000000000000AB /* Build configuration list for PBXNativeTarget "MoabookShareExtension" */;
+			buildPhases = (
+				5A5E000000000000000000A6 /* Sources */,
+				5A5E000000000000000000A7 /* Frameworks */,
+				5A5E000000000000000000A8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A5E000000000000000000A9 /* MoabookShareExtension */,
+			);
+			name = MoabookShareExtension;
+			productName = MoabookShareExtension;
+			productReference = 5A5E000000000000000000A2 /* MoabookShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -328,6 +387,9 @@
 						LastSwiftMigration = 1100;
 					};
 					AE9F3DDF2FC740A800CC771F = {
+						CreatedOnToolsVersion = 26.5;
+					};
+					5A5E000000000000000000A1 = {
 						CreatedOnToolsVersion = 26.5;
 					};
 				};
@@ -351,6 +413,7 @@
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
 				AE9F3DDF2FC740A800CC771F /* MoabookWidgetExtension */,
+				5A5E000000000000000000A1 /* MoabookShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -376,6 +439,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AE9F3DDE2FC740A800CC771F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A5E000000000000000000A8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -522,6 +592,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A5E000000000000000000A6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -534,6 +611,11 @@
 			isa = PBXTargetDependency;
 			target = AE9F3DDF2FC740A800CC771F /* MoabookWidgetExtension */;
 			targetProxy = AE9F3DF12FC740A900CC771F /* PBXContainerItemProxy */;
+		};
+		5A5E000000000000000000A5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A5E000000000000000000A1 /* MoabookShareExtension */;
+			targetProxy = 5A5E000000000000000000A4 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -978,6 +1060,129 @@
 			};
 			name = Profile;
 		};
+		5A5E000000000000000000AC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = MoabookShareExtension/MoabookShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T583WJWNAK;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MoabookShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "모아북";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Ikdaman.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5A5E000000000000000000AD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = MoabookShareExtension/MoabookShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T583WJWNAK;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MoabookShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "모아북";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Ikdaman.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		5A5E000000000000000000AE /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = MoabookShareExtension/MoabookShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T583WJWNAK;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MoabookShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "모아북";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Ikdaman.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1017,6 +1222,16 @@
 				AE9F3DF52FC740A900CC771F /* Debug */,
 				AE9F3DF62FC740A900CC771F /* Release */,
 				AE9F3DF72FC740A900CC771F /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A5E000000000000000000AB /* Build configuration list for PBXNativeTarget "MoabookShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A5E000000000000000000AC /* Debug */,
+				5A5E000000000000000000AD /* Release */,
+				5A5E000000000000000000AE /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
