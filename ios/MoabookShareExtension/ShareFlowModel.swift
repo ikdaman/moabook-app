@@ -15,12 +15,16 @@ final class ShareFlowModel: ObservableObject {
     @Published var savedBook: AladinBook?
     @Published var isSaving = false
 
+    /// 공유받은 이미지 — 시트 뒤 배경(사진 + dim) 렌더링용.
+    @Published var sharedImage: UIImage?
+
     func fail(_ kind: ErrorKind) {
         errorKind = kind
         step = .error
     }
 
     func start(image: UIImage?) {
+        sharedImage = image
         Task {
             guard let image else {
                 fail(.imageFailed)

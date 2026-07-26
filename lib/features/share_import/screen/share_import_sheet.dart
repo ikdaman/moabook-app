@@ -4,6 +4,8 @@
 // "2. 갤러리에서 추가(바텀시트)_260723" 3단계 + 오류 케이스)
 // 상단 dim 영역 탭 → 닫기.
 
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,30 +38,35 @@ class _ShareImportSheetState extends ConsumerState<ShareImportSheet> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Column(
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          // dim 영역: 탭하면 닫기.
-          Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: notifier.close,
-              child: const ColoredBox(color: Colors.black26),
-            ),
+          // 공유받은 사진을 배경으로 깔고 검정 59% dim (Figma 디자인).
+          // OS 공유 시트가 뒤에 무엇을 남기든 항상 동일한 배경이 보장된다.
+          if (state.imagePath != null)
+            Image.file(File(state.imagePath!), fit: BoxFit.cover),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: notifier.close,
+            child: const ColoredBox(color: Color(0x96000000)),
           ),
-          Container(
-            width: double.infinity,
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.65,
-            ),
-            decoration: const BoxDecoration(
-              color: AppColors.backgroundDefault,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
-                child: _body(state, notifier),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              width: double.infinity,
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.65,
+              ),
+              decoration: const BoxDecoration(
+                color: AppColors.backgroundDefault,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+                  child: _body(state, notifier),
+                ),
               ),
             ),
           ),

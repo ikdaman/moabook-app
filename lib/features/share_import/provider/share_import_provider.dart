@@ -42,12 +42,17 @@ class ShareImportState {
   final BookItem? savedBook;
   final bool isSaving;
 
+  /// 공유받은 이미지 경로 — 시트 뒤 배경으로 깔아 디자인(사진 + dim)을
+  /// OS 공유 시트 동작과 무관하게 재현한다.
+  final String? imagePath;
+
   const ShareImportState({
     this.step = ShareImportStep.loading,
     this.error,
     this.results = const [],
     this.savedBook,
     this.isSaving = false,
+    this.imagePath,
   });
 
   ShareImportState copyWith({
@@ -56,12 +61,14 @@ class ShareImportState {
     List<BookItem>? results,
     BookItem? savedBook,
     bool? isSaving,
+    String? imagePath,
   }) => ShareImportState(
     step:      step      ?? this.step,
     error:     error     ?? this.error,
     results:   results   ?? this.results,
     savedBook: savedBook ?? this.savedBook,
     isSaving:  isSaving  ?? this.isSaving,
+    imagePath: imagePath ?? this.imagePath,
   );
 }
 
@@ -72,7 +79,11 @@ class ShareImportNotifier extends Notifier<ShareImportState> {
   ShareImportState build() => const ShareImportState();
 
   void _fail(ShareImportError kind) {
-    state = ShareImportState(step: ShareImportStep.error, error: kind);
+    state = ShareImportState(
+      step: ShareImportStep.error,
+      error: kind,
+      imagePath: state.imagePath,
+    );
   }
 
   /// 시트 진입 시 1회 호출: 이미지 수신 → 로그인 확인 → OCR → 검색.
@@ -96,6 +107,7 @@ class ShareImportNotifier extends Notifier<ShareImportState> {
       _fail(ShareImportError.imageFailed);
       return;
     }
+    state = state.copyWith(imagePath: imagePath);
 
     final List<TitleCandidate> candidates;
     try {
@@ -133,6 +145,7 @@ class ShareImportNotifier extends Notifier<ShareImportState> {
     state = ShareImportState(
       step: ShareImportStep.pickBook,
       results: merged,
+      imagePath: imagePath,
     );
   }
 
@@ -147,6 +160,7 @@ class ShareImportNotifier extends Notifier<ShareImportState> {
       state = ShareImportState(
         step: ShareImportStep.saved,
         savedBook: book,
+        imagePath: state.imagePath,
       );
     } on DioException catch (e) {
       _fail(e.response?.statusCode == 401

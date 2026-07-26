@@ -25,9 +25,19 @@ struct ShareSheetView: View {
     let onOpenApp: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            // dim 영역: 탭하면 닫기.
-            Color.black.opacity(0.15)
+        ZStack(alignment: .bottom) {
+            // 공유받은 사진 배경 + 검정 59% dim (Figma 디자인).
+            if let image = model.sharedImage {
+                GeometryReader { geo in
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                }
+                .ignoresSafeArea()
+            }
+            Color.black.opacity(0.59)
                 .ignoresSafeArea()
                 .onTapGesture { onClose() }
 
