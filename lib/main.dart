@@ -15,10 +15,16 @@ import 'features/auth/provider/auth_provider.dart';
 import 'features/notification/provider/notification_providers.dart';
 import 'features/notification/provider/push_settings_provider.dart';
 import 'features/notification/service/fcm_service.dart';
+import 'features/share_import/share_main.dart' as share_import;
 import 'firebase_options.dart';
 import 'widget_bridge/widget_background_callback.dart';
 import 'widget_bridge/widget_navigator.dart';
 import 'widget_bridge/widget_publisher.dart';
+
+/// 갤러리 공유(ShareActivity) 진입점. 루트 라이브러리에 있어야
+/// 네이티브 쪽 entrypoint 이름 조회가 가능해 위임만 한다.
+@pragma('vm:entry-point')
+void shareMain() => share_import.shareMain();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -158,18 +158,7 @@ class BookSearchNotifier extends Notifier<BookSearchState>
     state = state.copyWith(isSaving: true);
     try {
       await _myBook.saveMyBook({
-        'bookInfo': {
-          'source':       'ALADIN',
-          'aladinId':     book.itemId,
-          'isbn':         book.isbn,
-          'title':        book.title,
-          'author':       book.author,
-          'publisher':    book.publisher,
-          'description':  book.description,
-          'totalPage':    book.totalPage,
-          'publishDate':  book.pubDate,
-          'coverImage':   book.cover,
-        },
+        'bookInfo': book.toSaveRequestBookInfo(),
         if (startedDate != null || finishedDate != null)
           'historyInfo': {
             'startedDate':   startedDate,

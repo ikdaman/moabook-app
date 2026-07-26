@@ -22,4 +22,18 @@ class BookItem {
     required this.pubDate,
     this.totalPage,
   });
+
+  /// `POST /mybooks` 요청 바디의 `bookInfo` 형태로 변환.
+  Map<String, dynamic> toSaveRequestBookInfo() => {
+        'source':      'ALADIN',
+        'aladinId':    itemId,
+        'isbn':        isbn,
+        'title':       title,
+        'author':      author,
+        'publisher':   publisher,
+        'description': description,
+        'totalPage':   totalPage,
+        'publishDate': pubDate,
+        'coverImage':  cover,
+      };
 }
