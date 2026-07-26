@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/auth/shared_token_store.dart';
 import '../../domain/model/login_state.dart';
 import '../../domain/model/logout_state.dart';
 import '../../domain/model/signup_state.dart';
@@ -90,9 +91,11 @@ class AuthRepositoryImpl implements AuthRepository {
       try { await _remote.logout(); } catch (_) {}
       await socialLogoutFn();
       await _storage.deleteAll();
+      await SharedTokenStore.clear();
       yield const LogoutSuccess();
     } catch (e) {
       await _storage.deleteAll();
+      await SharedTokenStore.clear();
       yield LogoutError(e.toString());
     }
   }
@@ -145,6 +148,7 @@ class AuthRepositoryImpl implements AuthRepository {
       _storage.write(key: 'provider',      value: provider),
       _storage.write(key: 'nickname',      value: nickname),
     ]);
+    await SharedTokenStore.mirror(authorization, refreshToken);
   }
 
   @override

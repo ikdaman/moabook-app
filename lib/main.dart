@@ -3,12 +3,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 import 'app/router/app_router.dart';
 import 'app/router/routes.dart';
 import 'app/theme/app_theme.dart';
+import 'core/auth/shared_token_store.dart';
 import 'core/env/env.dart';
 import 'core/network/auth_event.dart';
 import 'features/auth/provider/auth_provider.dart';
@@ -26,6 +28,18 @@ import 'widget_bridge/widget_publisher.dart';
 @pragma('vm:entry-point')
 void shareMain() => share_import.shareMain();
 
+/// iOS Share Extension 용 토큰 미러 (기동 시 1회).
+/// 이번 버전 이전에 로그인한 유저도 재로그인 없이 공유 기능을 쓸 수 있도록
+/// keychain 의 현재 토큰을 App Group 으로 복사한다. iOS 외에는 no-op.
+Future<void> _mirrorTokensForShareExtension() async {
+  const storage = FlutterSecureStorage();
+  final access = await storage.read(key: 'access_token');
+  final refresh = await storage.read(key: 'refresh_token');
+  if (access != null && refresh != null) {
+    await SharedTokenStore.mirror(access, refresh);
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -42,6 +56,7 @@ void main() async {
 
   KakaoSdk.init(nativeAppKey: Env.kakaoAppKey);
   await WidgetPublisher.init();
+  await _mirrorTokensForShareExtension();
   await registerWidgetBackgroundCallback();
   WidgetNavigator.listen();
   runApp(const ProviderScope(child: App()));

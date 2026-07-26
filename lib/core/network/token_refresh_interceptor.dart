@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../auth/shared_token_store.dart';
 import 'auth_event.dart';
 
 /// 401 응답 → /auth/reissue 로 토큰 갱신 → 원 요청 재시도.
@@ -122,6 +123,7 @@ class TokenRefreshInterceptor extends Interceptor {
       if (newAccess != null && newRefresh != null) {
         await _storage.write(key: 'access_token', value: newAccess);
         await _storage.write(key: 'refresh_token', value: newRefresh);
+        await SharedTokenStore.mirror(newAccess, newRefresh);
         return true;
       }
       return false;
@@ -152,6 +154,7 @@ class TokenRefreshInterceptor extends Interceptor {
 
   Future<void> _clearTokens() async {
     await _storage.deleteAll();
+    await SharedTokenStore.clear();
     notifyAuthExpired();
     if (kDebugMode) debugPrint('TokenRefreshInterceptor: tokens cleared');
   }
