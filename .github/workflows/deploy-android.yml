@@ -89,6 +89,16 @@ jobs:
       - name: Run code generation
         run: dart run build_runner build --delete-conflicting-outputs
 
+      - name: Limit Gradle memory for CI runner
+        # private repo 기본 러너는 RAM 7GB — 로컬용 -Xmx8G 를 그대로 쓰면
+        # R8/dex 피크 때 OOM killer 가 Gradle 을 SIGTERM(exit 143) 시킨다.
+        # CI 에서만 러너에 맞게 하향 조정. (간헐 실패의 원인이었음)
+        run: |
+          sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G/' android/gradle.properties
+          echo "org.gradle.workers.max=2" >> android/gradle.properties
+          echo "kotlin.daemon.jvmargs=-Xmx2G" >> android/gradle.properties
+          cat android/gradle.properties
+
       - name: Build AAB
         run: |
           flutter build appbundle \
