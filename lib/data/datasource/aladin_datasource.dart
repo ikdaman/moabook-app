@@ -8,13 +8,18 @@ class AladinDataSource {
 
   final Dio _dio = Dio(BaseOptions(baseUrl: _baseUrl));
 
-  Future<List<BookItem>> searchByTitle(String query, {int page = 1}) async {
+  /// [byKeyword]면 제목+저자를 함께 훑는 Keyword 검색 — OCR 결합 쿼리용.
+  Future<List<BookItem>> searchByTitle(
+    String query, {
+    int page = 1,
+    bool byKeyword = false,
+  }) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '/ttb/api/ItemSearch.aspx',
       queryParameters: {
         'ttbkey':    _ttbKey,
         'query':     query,
-        'queryType': 'Title',
+        'queryType': byKeyword ? 'Keyword' : 'Title',
         'cover':     'Big',
         'output':    'js',
         'version':   '20131101',

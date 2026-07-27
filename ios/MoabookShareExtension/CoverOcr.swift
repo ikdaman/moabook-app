@@ -20,8 +20,13 @@ enum CoverOcr {
 
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        request.recognitionLanguages = ["ko-KR"]
+        // 영문 제목 표지 대비 en 보조 — ko 단독이면 라틴 문자 인식이 약하다.
+        request.recognitionLanguages = ["ko-KR", "en-US"]
         request.usesLanguageCorrection = true
+        // 번역서 원제(프랑스어 등) 오독 방지 — ko/en 힌트 위에 자동 감지 보강.
+        if #available(iOS 16.0, macOS 13.0, *) {
+            request.automaticallyDetectsLanguage = true
+        }
 
         let handler = VNImageRequestHandler(
             cgImage: cgImage,
@@ -44,6 +49,9 @@ enum CoverOcr {
             let height: Double
             let topY: Double     // 0(맨위) ~ 1(맨아래)
             let centerY: Double
+            let left: Double
+            let right: Double
+            var bottomY: Double { topY + height }
         }
 
         var lines: [Line] = []
@@ -54,10 +62,44 @@ enum CoverOcr {
                 text: text.trimmingCharacters(in: .whitespacesAndNewlines),
                 height: box.height,
                 topY: 1 - box.maxY,
-                centerY: 1 - box.midY
+                centerY: 1 - box.midY,
+                left: box.minX,
+                right: box.maxX
             ))
         }
         guard !lines.isEmpty else { return [] }
+
+        // 여러 줄 제목 결합 (Dart combineAdjacentTitleLines 포팅):
+        // 가장 큰 라인과 세로 인접·가로 겹침·크기 35%↑ 라인을 위아래로 이어붙인다.
+        func combineAdjacentTitleLines(_ input: [Line]) -> String? {
+            guard input.count >= 2,
+                  let main = input.max(by: { $0.height < $1.height })
+            else { return nil }
+
+            func adjacent(_ o: Line) -> Bool {
+                if o.text == main.text && o.topY == main.topY { return false }
+                if o.height < main.height * 0.35 { return false }
+                let gap = o.topY >= main.topY
+                    ? o.topY - main.bottomY
+                    : main.topY - o.bottomY
+                if gap > main.height { return false }
+                return min(o.right, main.right) - max(o.left, main.left) > 0
+            }
+
+            var above: Line?
+            var below: Line?
+            for o in input where adjacent(o) {
+                if o.bottomY <= main.topY + main.height * 0.5 {
+                    if above == nil || o.topY > above!.topY { above = o }
+                } else if o.topY >= main.topY + main.height * 0.5 {
+                    if below == nil || o.topY < below!.topY { below = o }
+                }
+            }
+            if above == nil && below == nil { return nil }
+            return [above?.text, main.text, below?.text]
+                .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+                .joined(separator: " ")
+        }
 
         let maxHeight = lines.map(\.height).max() ?? 1
         let minY = lines.map(\.topY).min() ?? 0
@@ -84,10 +126,18 @@ enum CoverOcr {
             ))
         }
 
-        return candidates.sorted { $0.score > $1.score }
+        var sorted = candidates.sorted { $0.score > $1.score }
+
+        // 여러 줄 제목 결합 후보를 최우선으로 삽입 (노이즈 라인은 재료 제외).
+        if let combined = combineAdjacentTitleLines(lines.filter { !isNoise($0.text) }),
+           let top = sorted.first,
+           !sorted.contains(where: { $0.text == combined }) {
+            sorted.insert(TitleCandidate(text: combined, score: top.score + 1), at: 0)
+        }
+        return sorted
     }
 
-    /// 제목이 아닐 게 거의 확실한 라인 필터 (Dart `_isNoise` 포팅).
+    /// 제목이 아닐 게 거의 확실한 라인 필터 (Dart `isOcrNoiseLine` 포팅).
     private static func isNoise(_ text: String) -> Bool {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.isEmpty { return true }
@@ -101,8 +151,16 @@ enum CoverOcr {
         // ISBN / 바코드 숫자열
         if matches(#"\d{9,}"#) { return true }
         if matches(#"ISBN"#) { return true }
-        // 숫자/기호만 있는 라인
-        if matches(#"^[\d\s\-\.\|/]+$"#) { return true }
+        // 숫자/기호만 있는 라인 (스크린샷 상태바 시계 "1:53", "154 3•" 포함)
+        if matches(#"^[\d\s\-\.\|/:•%<>*]+$"#) { return true }
+
+        // ── 스크린샷/SNS 잡동사니 (갤러리 공유 이미지 실측 기반) ──
+        // 단독 토큰 라틴+숫자 혼합: 상태바 아이콘 오독 "087a05", "G1"
+        if matches(#"^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9]+$"#) { return true }
+        // 유저명/도메인 토큰: "travel_0photo", "elly_camping"
+        if matches(#"^[A-Za-z0-9._]*[._][A-Za-z0-9._]*$"#) { return true }
+        // 경과시간/카운트: "7분", "1천", "facelessowner 1일", "22시간 전"
+        if matches(#"^(\S+\s+)?\d+\s*(분|시간|일|주|개월|년|천|만|억)(\s*전)?$"#) { return true }
 
         let cliches = ["베스트셀러", "개정판", "초판", "스테디셀러", "추천", "화제의",
                        "전국서점", "값", "정가", "바코드", "세트"]

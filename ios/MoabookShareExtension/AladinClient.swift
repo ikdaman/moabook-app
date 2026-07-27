@@ -20,6 +20,12 @@ struct AladinBook: Identifiable {
     var id: Int { itemId }
 }
 
+/// OCR 검색 쿼리 하나 (Dart OcrQuery 포팅). byKeyword 면 제목+저자 Keyword 검색.
+struct OcrQuery {
+    let text: String
+    let byKeyword: Bool
+}
+
 enum AladinClient {
     private static let baseUrl = "https://www.aladin.co.kr"
     private static let ttbKey = "ttbgju060611831003"
@@ -33,18 +39,93 @@ enum AladinClient {
 
     // ── 쿼리 생성 (Dart buildOcrQueries 포팅) ─────────────────────────────
 
-    static func buildQueries(from candidates: [TitleCandidate]) -> [String] {
-        var queries: [String] = []
+    /// "손원평 지음" — 작가명 라인 확정 패턴(접미형). 제목 쿼리에서 제외.
+    private static let strongAuthorLine =
+        #"^([가-힣][가-힣·\s]{0,12}[가-힣])\s*(지음|지은이|옮김|엮음|그림|글|저)$"#
+    /// "지은이 에이핫" — 접두형 작가 라인. 접미형과 동급 확정.
+    private static let prefixAuthorLine =
+        #"^(지은이|지음|글|그림|옮긴이|엮은이)\s+([가-힣][가-힣·\s]{0,12}[가-힣])$"#
+    /// "김호연 장편소설" — 작가 추출하되 제목 쿼리로도 유지.
+    private static let genreAuthorLine =
+        #"^([가-힣][가-힣·\s]{0,12}[가-힣])\s+(장편소설|소설|산문집|시집|에세이)$"#
+
+    private static func isAuthorOnlyLine(_ trimmed: String) -> Bool {
+        firstCapture(in: trimmed, pattern: strongAuthorLine) != nil
+            || firstCapture(in: trimmed, pattern: prefixAuthorLine) != nil
+    }
+
+    static func buildQueries(from candidates: [TitleCandidate]) -> [OcrQuery] {
+        let texts = candidates.map(\.text)
+        let author = extractAuthor(from: texts)
+        let titleTexts = texts.filter {
+            !isAuthorOnlyLine($0.trimmingCharacters(in: .whitespaces))
+        }
+
+        var queries: [OcrQuery] = []
         var seen = Set<String>()
-        for candidate in candidates.prefix(candidateCount) {
-            for variant in variants(of: candidate.text) {
+
+        // 1) 제목+작가 결합 Keyword 쿼리 — 상위 2개 제목 후보의 정제본 기준.
+        //    외국어 원제가 상위를 차지하는 표지(번역서) 대비, 상위권 첫 한글
+        //    후보도 결합 대상에 추가한다.
+        if let author {
+            var combineSources = Array(titleTexts.prefix(2))
+            if let hangul = titleTexts.prefix(candidateCount).first(where: {
+                $0.range(of: #"[가-힣]"#, options: .regularExpression) != nil
+                    && !combineSources.contains($0)
+            }) {
+                combineSources.append(hangul)
+            }
+            for raw in combineSources {
+                // 장르 패턴 라인("김호연 장편소설")은 결합 기반으로 부적절.
+                if firstCapture(in: raw.trimmingCharacters(in: .whitespaces),
+                                pattern: genreAuthorLine) != nil { continue }
+                let vs = variants(of: raw)
+                guard let title = vs.last, title != author else { continue }
+                let combined = "\(title) \(author)"
+                if seen.insert(combined).inserted && queries.count < maxQueries {
+                    queries.append(OcrQuery(text: combined, byKeyword: true))
+                }
+            }
+        }
+
+        // 2) 제목 단독 쿼리.
+        for raw in titleTexts.prefix(candidateCount) {
+            for variant in variants(of: raw) {
                 if seen.insert(variant).inserted {
-                    queries.append(variant)
+                    queries.append(OcrQuery(text: variant, byKeyword: false))
                     if queries.count >= maxQueries { return queries }
                 }
             }
         }
         return queries
+    }
+
+    /// OCR 후보 전체에서 작가명 추출 (작가 라인은 점수 하위로 밀리기 쉬워
+    /// candidateCount 제한 없이 훑는다). Dart extractOcrAuthor 포팅.
+    private static func extractAuthor(from texts: [String]) -> String? {
+        for raw in texts {
+            let t = raw.trimmingCharacters(in: .whitespaces)
+            if let name = firstCapture(in: t, pattern: strongAuthorLine)
+                ?? firstCapture(in: t, pattern: prefixAuthorLine, group: 2)
+                ?? firstCapture(in: t, pattern: genreAuthorLine) {
+                return name.trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return nil
+    }
+
+    /// 정규식 캡처 그룹 반환. 미매칭이면 nil.
+    private static func firstCapture(
+        in text: String, pattern: String, group: Int = 1
+    ) -> String? {
+        guard
+            let regex = try? NSRegularExpression(pattern: pattern),
+            let match = regex.firstMatch(
+                in: text, range: NSRange(text.startIndex..., in: text)),
+            match.numberOfRanges > group,
+            let range = Range(match.range(at: group), in: text)
+        else { return nil }
+        return String(text[range])
     }
 
     /// 원문 + 정제 변형 (괄호 안 부가정보/장식 기호 제거).
@@ -76,7 +157,7 @@ enum AladinClient {
     // ── 검색 + 병합 ───────────────────────────────────────────────────────
 
     /// 쿼리들을 병렬 호출해 라운드로빈 병합 결과와 "전부 실패" 여부를 반환.
-    static func search(queries: [String]) async -> (books: [AladinBook], allFailed: Bool) {
+    static func search(queries: [OcrQuery]) async -> (books: [AladinBook], allFailed: Bool) {
         guard !queries.isEmpty else { return ([], false) }
 
         var resultLists = [[AladinBook]](repeating: [], count: queries.count)
@@ -117,12 +198,12 @@ enum AladinClient {
         return merged
     }
 
-    private static func searchByTitle(_ query: String) async throws -> [AladinBook] {
+    private static func searchByTitle(_ query: OcrQuery) async throws -> [AladinBook] {
         var components = URLComponents(string: "\(baseUrl)/ttb/api/ItemSearch.aspx")!
         components.queryItems = [
             URLQueryItem(name: "ttbkey", value: ttbKey),
-            URLQueryItem(name: "query", value: query),
-            URLQueryItem(name: "queryType", value: "Title"),
+            URLQueryItem(name: "query", value: query.text),
+            URLQueryItem(name: "queryType", value: query.byKeyword ? "Keyword" : "Title"),
             URLQueryItem(name: "cover", value: "Big"),
             URLQueryItem(name: "output", value: "js"),
             URLQueryItem(name: "version", value: "20131101"),

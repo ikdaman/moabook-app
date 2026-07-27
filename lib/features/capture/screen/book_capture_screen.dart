@@ -68,7 +68,8 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
       );
       final controller = CameraController(
         back,
-        ResolutionPreset.high,
+        // OCR용 촬영 화질이 인식률을 좌우 — high(720p)는 표지 글자가 뭉개진다.
+        ResolutionPreset.max,
         enableAudio: false,
         imageFormatGroup: Platform.isAndroid
             ? ImageFormatGroup.nv21
@@ -217,8 +218,8 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
     setState(() => _searching = true);
     try {
       await _stopStream();
-      final file =
-          await _picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+      // 재압축 없이 원본 그대로 — 공유 경로와 동일 조건으로 OCR에 넘긴다.
+      final file = await _picker.pickImage(source: ImageSource.gallery);
       if (file != null) await _searchCover(file.path);
     } catch (_) {
       _showError('사진을 불러오지 못했어요.');

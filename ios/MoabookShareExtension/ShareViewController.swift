@@ -4,6 +4,7 @@
 // NSItemProvider 에서 이미지를 꺼내 다운스케일 후 ShareFlowModel 로 넘기고,
 // SwiftUI 시트(ShareSheetView)를 투명 배경 위에 호스팅한다.
 
+import ImageIO
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -11,7 +12,8 @@ import UniformTypeIdentifiers
 final class ShareViewController: UIViewController {
 
     /// 확장 메모리 한도(~120MB) 대비 최대 변 제한.
-    private static let maxImageDimension: CGFloat = 2000
+    /// CGImageSource 다운샘플은 원본 전체를 디코드하지 않아 3000px도 안전.
+    private static let maxImageDimension: CGFloat = 3000
 
     private let model = ShareFlowModel()
 
@@ -38,6 +40,9 @@ final class ShareViewController: UIViewController {
 
     // ── 이미지 수신 ───────────────────────────────────────────────────────
 
+    /// Live Photo 는 loadItem(public.image) 이 PHLivePhoto 를 넘기려다
+    /// (확장은 Photos 를 링크하지 않아) 디코드 예외로 즉사한다.
+    /// loadFileRepresentation 은 항상 정지 이미지 파일 URL 을 주므로 안전.
     private func loadSharedImage() {
         let provider = (extensionContext?.inputItems as? [NSExtensionItem])?
             .compactMap { $0.attachments }
@@ -49,43 +54,66 @@ final class ShareViewController: UIViewController {
             return
         }
 
-        provider.loadItem(
-            forTypeIdentifier: UTType.image.identifier, options: nil
-        ) { [weak self] item, _ in
-            guard let self else { return }
-            let image = Self.extractImage(from: item)
+        provider.loadFileRepresentation(
+            forTypeIdentifier: UTType.image.identifier
+        ) { [weak self] url, _ in
+            // URL 은 이 핸들러 동안만 유효 — 여기서 바로 다운샘플한다.
+            let image = url.flatMap { Self.downsampledImage(at: $0) }
             DispatchQueue.main.async {
-                self.model.start(image: image.map(Self.downscaled))
+                guard let self else { return }
+                if let image {
+                    self.model.start(image: image)
+                } else {
+                    self.loadInMemoryImage(from: provider)
+                }
             }
         }
     }
 
-    private static func extractImage(from item: NSSecureCoding?) -> UIImage? {
-        switch item {
-        case let url as URL:
-            guard let data = try? Data(contentsOf: url) else { return nil }
-            return UIImage(data: data)
-        case let data as Data:
-            return UIImage(data: data)
-        case let image as UIImage:
-            return image
-        default:
-            return nil
+    /// 파일 표현이 없는 소스(드물게 UIImage/Data 만 주는 앱) 폴백.
+    private func loadInMemoryImage(from provider: NSItemProvider) {
+        _ = provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
+            let image = (object as? UIImage).flatMap { image -> UIImage? in
+                guard let data = image.jpegData(compressionQuality: 0.9) else {
+                    return nil
+                }
+                return Self.downsampledImage(from: data)
+            }
+            DispatchQueue.main.async {
+                self?.model.start(image: image)
+            }
         }
     }
 
-    private static func downscaled(_ image: UIImage) -> UIImage {
-        let maxSide = max(image.size.width, image.size.height)
-        guard maxSide > maxImageDimension else { return image }
-        let scale = maxImageDimension / maxSide
-        let newSize = CGSize(
-            width: image.size.width * scale,
-            height: image.size.height * scale
-        )
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = 1
-        return UIGraphicsImageRenderer(size: newSize, format: format)
-            .image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+    // ── 다운샘플 ─────────────────────────────────────────────────────────
+    // 원본 전체 디코드 없이 타깃 크기로 바로 디코드해 메모리 스파이크를 피한다.
+    // (UIGraphicsImageRenderer 방식은 24MP+ 사진에서 확장 한도를 넘겨 jetsam 킬.)
+
+    private static func downsampledImage(at url: URL) -> UIImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return nil
+        }
+        return downsampledImage(from: source)
+    }
+
+    private static func downsampledImage(from data: Data) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+            return nil
+        }
+        return downsampledImage(from: source)
+    }
+
+    private static func downsampledImage(from source: CGImageSource) -> UIImage? {
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,  // EXIF 회전 반영
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxImageDimension,
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(
+            source, 0, options as CFDictionary
+        ) else { return nil }
+        return UIImage(cgImage: cgImage)
     }
 
     // ── 종료/앱 열기 ──────────────────────────────────────────────────────

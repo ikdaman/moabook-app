@@ -1,6 +1,7 @@
 import FirebaseCore
 import FirebaseMessaging
 import Flutter
+import ImageIO
 import NidThirdPartyLogin
 import UIKit
 
@@ -55,6 +56,57 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "MoabookCoverOcr") {
+      Self.registerCoverOcrChannel(messenger: registrar.messenger())
+    }
+  }
+
+  // ── 표지 OCR 채널 ──────────────────────────────────────────────────────
+  // Share Extension 과 동일한 Vision 파이프라인(CoverOcr.swift 공유)을
+  // 앱 내 촬영/갤러리 경로에도 제공한다. ML Kit 대비 인식률이 좋아 iOS 는
+  // Dart 쪽에서 이 채널을 우선 사용한다.
+
+  private static func registerCoverOcrChannel(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "moabook/cover_ocr", binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "recognize" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard
+        let args = call.arguments as? [String: Any],
+        let path = args["path"] as? String,
+        let image = downsampledImage(atPath: path)
+      else {
+        result(FlutterError(
+          code: "bad_image", message: "이미지를 열 수 없습니다", details: nil))
+        return
+      }
+      Task.detached(priority: .userInitiated) {
+        let candidates = await CoverOcr.recognize(image: image)
+        let payload = candidates.map { ["text": $0.text, "score": $0.score] }
+        DispatchQueue.main.async { result(payload) }
+      }
+    }
+  }
+
+  /// 원본 전체 디코드 없이 Vision 입력 크기(3000px)로 다운샘플.
+  private static func downsampledImage(atPath path: String) -> UIImage? {
+    let url = URL(fileURLWithPath: path)
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+      return nil
+    }
+    let options: [CFString: Any] = [
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
+      kCGImageSourceCreateThumbnailWithTransform: true,
+      kCGImageSourceShouldCacheImmediately: true,
+      kCGImageSourceThumbnailMaxPixelSize: 3000,
+    ]
+    guard let cgImage = CGImageSourceCreateThumbnailAtIndex(
+      source, 0, options as CFDictionary)
+    else { return nil }
+    return UIImage(cgImage: cgImage)
   }
 
   /// embedded.mobileprovision 의 aps-environment 값을 읽어 APNs 토큰 타입 결정.

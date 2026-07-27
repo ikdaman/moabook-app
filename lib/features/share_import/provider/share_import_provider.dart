@@ -126,7 +126,9 @@ class ShareImportNotifier extends Notifier<ShareImportState> {
     var failedQueries = 0;
     final resultLists = await Future.wait(
       queries.map(
-        (q) => aladin.searchByTitle(q).catchError((Object _) {
+        (q) => aladin
+            .searchByTitle(q.text, byKeyword: q.byKeyword)
+            .catchError((Object _) {
           failedQueries++;
           return <BookItem>[];
         }),
