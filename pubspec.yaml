@@ -2,7 +2,7 @@ name: moabook
 description: "모아북 — 독서 기록 앱 (Android + iOS 통합 Flutter 재구축)"
 publish_to: 'none'
 
-version: 2.0.20+55
+version: 2.0.21+56
 
 environment:
   sdk: ^3.12.0

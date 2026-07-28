@@ -58,7 +58,7 @@ class CoverOcrResultScreen extends ConsumerWidget {
             isEmpty
                 ? '※ 책 제목이 명확하게 보이는 사진을 업로드해 주세요.'
                 : '※ 사진에 텍스트가 많은 경우, 알맞은 결과가 하단에 보일 수 있어요.',
-            style: AppTypography.wantedSansBodySmall
+            style: AppTypography.dungGeunMoSubtitle
                 .copyWith(color: AppColors.primary),
           ),
           const SizedBox(height: 16),
@@ -117,7 +117,7 @@ class CoverOcrResultScreen extends ConsumerWidget {
               ),
         title: Text(
           book.title,
-          style: AppTypography.dungGeunMoBody
+          style: AppTypography.wantedSansBookTitle
               .copyWith(color: AppColors.textPrimary),
         ),
         subtitle: Text(
