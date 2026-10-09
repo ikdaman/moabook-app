@@ -43,30 +43,3 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-
-# Sensitive files (never commit)
-release.keystore
-android/key.properties
-/env/*.json
-fastlane/AuthKey_*.p8
-ios/Runner/GoogleService-Info.plist
-
-# Push notification secrets (APNs / Firebase)
-secrets/
-*.p8
-**/google-services.json
-**/firebase-service-account.json
-
-# Local skill / agent tool installs (managed per developer)
-.agents/
-.claude/*
-# 단, 공유 프로젝트 스킬은 추적한다.
-!.claude/skills/
-.claude/skills/*
-!.claude/skills/release-app/
-
-# Patched plugin example build artifacts
-patches/**/build/
-
-# Rebuildable design sharing archives
-/output/*.zip

@@ -1,0 +1,320 @@
+{
+  "device": "iPhone 17",
+  "deviceId": "242D3538-3472-49A4-8356-E412039855C4",
+  "capturedAt": "2026-10-09T12:04:03.419594+00:00",
+  "source": "xcrun simctl io screenshot; rendered by Flutter on iOS Simulator",
+  "screens": [
+    {
+      "style": "A",
+      "screen": "shelf",
+      "label": "기본 서가",
+      "file": "A/01-shelf.png"
+    },
+    {
+      "style": "A",
+      "screen": "shelf-empty",
+      "label": "기본 서가 · 빈 화면",
+      "file": "A/02-shelf-empty.png"
+    },
+    {
+      "style": "A",
+      "screen": "collection",
+      "label": "주제 서가",
+      "file": "A/03-collection.png"
+    },
+    {
+      "style": "A",
+      "screen": "collections",
+      "label": "나의 컬렉션",
+      "file": "A/04-collections.png"
+    },
+    {
+      "style": "A",
+      "screen": "collections-empty",
+      "label": "나의 컬렉션 · 빈 화면",
+      "file": "A/05-collections-empty.png"
+    },
+    {
+      "style": "A",
+      "screen": "collection-create",
+      "label": "컬렉션 만들기",
+      "file": "A/06-collection-create.png"
+    },
+    {
+      "style": "A",
+      "screen": "collection-edit",
+      "label": "컬렉션 편집",
+      "file": "A/07-collection-edit.png"
+    },
+    {
+      "style": "A",
+      "screen": "add-options",
+      "label": "책 추가 · 진입 방식",
+      "file": "A/08-add-options.png"
+    },
+    {
+      "style": "A",
+      "screen": "search",
+      "label": "책 검색 · 결과",
+      "file": "A/09-search.png"
+    },
+    {
+      "style": "A",
+      "screen": "search-empty",
+      "label": "책 검색 · 결과 없음",
+      "file": "A/10-search-empty.png"
+    },
+    {
+      "style": "A",
+      "screen": "book-info",
+      "label": "책 정보",
+      "file": "A/11-book-info.png"
+    },
+    {
+      "style": "A",
+      "screen": "save-wish",
+      "label": "책 저장 · 읽고 싶은 책",
+      "file": "A/12-save-wish.png"
+    },
+    {
+      "style": "A",
+      "screen": "save-reading",
+      "label": "책 저장 · 읽고 있는 책",
+      "file": "A/13-save-reading.png"
+    },
+    {
+      "style": "A",
+      "screen": "save-read",
+      "label": "책 저장 · 읽은 책",
+      "file": "A/14-save-read.png"
+    },
+    {
+      "style": "A",
+      "screen": "duplicate",
+      "label": "이미 저장한 책",
+      "file": "A/15-duplicate.png"
+    },
+    {
+      "style": "A",
+      "screen": "card-front",
+      "label": "독서카드 · 앞면",
+      "file": "A/16-card-front.png"
+    },
+    {
+      "style": "A",
+      "screen": "card-back",
+      "label": "독서카드 · 기록",
+      "file": "A/17-card-back.png"
+    },
+    {
+      "style": "A",
+      "screen": "card-empty",
+      "label": "독서카드 · 기록 없음",
+      "file": "A/18-card-empty.png"
+    },
+    {
+      "style": "A",
+      "screen": "record-options",
+      "label": "기록 추가 · 종류 선택",
+      "file": "A/19-record-options.png"
+    },
+    {
+      "style": "A",
+      "screen": "record-entry",
+      "label": "기록 추가 · 구매",
+      "file": "A/20-record-entry.png"
+    },
+    {
+      "style": "A",
+      "screen": "record-quote",
+      "label": "기록 추가 · 문장",
+      "file": "A/21-record-quote.png"
+    },
+    {
+      "style": "A",
+      "screen": "record-free",
+      "label": "기록 추가 · 자유 기록",
+      "file": "A/22-record-free.png"
+    },
+    {
+      "style": "A",
+      "screen": "record-complete",
+      "label": "기록 추가 · 완료",
+      "file": "A/23-record-complete.png"
+    },
+    {
+      "style": "A",
+      "screen": "date-picker",
+      "label": "날짜 선택",
+      "file": "A/24-date-picker.png"
+    },
+    {
+      "style": "A",
+      "screen": "capture",
+      "label": "표지·바코드 촬영",
+      "file": "A/25-capture.png"
+    },
+    {
+      "style": "A",
+      "screen": "gallery",
+      "label": "갤러리에서 추가",
+      "file": "A/26-gallery.png"
+    },
+    {
+      "style": "C",
+      "screen": "shelf",
+      "label": "기본 서가",
+      "file": "C/01-shelf.png"
+    },
+    {
+      "style": "C",
+      "screen": "shelf-empty",
+      "label": "기본 서가 · 빈 화면",
+      "file": "C/02-shelf-empty.png"
+    },
+    {
+      "style": "C",
+      "screen": "collection",
+      "label": "주제 서가",
+      "file": "C/03-collection.png"
+    },
+    {
+      "style": "C",
+      "screen": "collections",
+      "label": "나의 컬렉션",
+      "file": "C/04-collections.png"
+    },
+    {
+      "style": "C",
+      "screen": "collections-empty",
+      "label": "나의 컬렉션 · 빈 화면",
+      "file": "C/05-collections-empty.png"
+    },
+    {
+      "style": "C",
+      "screen": "collection-create",
+      "label": "컬렉션 만들기",
+      "file": "C/06-collection-create.png"
+    },
+    {
+      "style": "C",
+      "screen": "collection-edit",
+      "label": "컬렉션 편집",
+      "file": "C/07-collection-edit.png"
+    },
+    {
+      "style": "C",
+      "screen": "add-options",
+      "label": "책 추가 · 진입 방식",
+      "file": "C/08-add-options.png"
+    },
+    {
+      "style": "C",
+      "screen": "search",
+      "label": "책 검색 · 결과",
+      "file": "C/09-search.png"
+    },
+    {
+      "style": "C",
+      "screen": "search-empty",
+      "label": "책 검색 · 결과 없음",
+      "file": "C/10-search-empty.png"
+    },
+    {
+      "style": "C",
+      "screen": "book-info",
+      "label": "책 정보",
+      "file": "C/11-book-info.png"
+    },
+    {
+      "style": "C",
+      "screen": "save-wish",
+      "label": "책 저장 · 읽고 싶은 책",
+      "file": "C/12-save-wish.png"
+    },
+    {
+      "style": "C",
+      "screen": "save-reading",
+      "label": "책 저장 · 읽고 있는 책",
+      "file": "C/13-save-reading.png"
+    },
+    {
+      "style": "C",
+      "screen": "save-read",
+      "label": "책 저장 · 읽은 책",
+      "file": "C/14-save-read.png"
+    },
+    {
+      "style": "C",
+      "screen": "duplicate",
+      "label": "이미 저장한 책",
+      "file": "C/15-duplicate.png"
+    },
+    {
+      "style": "C",
+      "screen": "card-front",
+      "label": "독서카드 · 앞면",
+      "file": "C/16-card-front.png"
+    },
+    {
+      "style": "C",
+      "screen": "card-back",
+      "label": "독서카드 · 기록",
+      "file": "C/17-card-back.png"
+    },
+    {
+      "style": "C",
+      "screen": "card-empty",
+      "label": "독서카드 · 기록 없음",
+      "file": "C/18-card-empty.png"
+    },
+    {
+      "style": "C",
+      "screen": "record-options",
+      "label": "기록 추가 · 종류 선택",
+      "file": "C/19-record-options.png"
+    },
+    {
+      "style": "C",
+      "screen": "record-entry",
+      "label": "기록 추가 · 구매",
+      "file": "C/20-record-entry.png"
+    },
+    {
+      "style": "C",
+      "screen": "record-quote",
+      "label": "기록 추가 · 문장",
+      "file": "C/21-record-quote.png"
+    },
+    {
+      "style": "C",
+      "screen": "record-free",
+      "label": "기록 추가 · 자유 기록",
+      "file": "C/22-record-free.png"
+    },
+    {
+      "style": "C",
+      "screen": "record-complete",
+      "label": "기록 추가 · 완료",
+      "file": "C/23-record-complete.png"
+    },
+    {
+      "style": "C",
+      "screen": "date-picker",
+      "label": "날짜 선택",
+      "file": "C/24-date-picker.png"
+    },
+    {
+      "style": "C",
+      "screen": "capture",
+      "label": "표지·바코드 촬영",
+      "file": "C/25-capture.png"
+    },
+    {
+      "style": "C",
+      "screen": "gallery",
+      "label": "갤러리에서 추가",
+      "file": "C/26-gallery.png"
+    }
+  ]
+}

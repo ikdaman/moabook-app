@@ -1,0 +1,73 @@
+[
+  {
+    "id": "boy",
+    "isbn": "8997381679",
+    "title": "소년과 두더지와 여우와 말 | 찰리 맥커시",
+    "source": "https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=8997381679",
+    "image": "https://image.aladin.co.kr/product/23682/64/cover500/s412139391_1.jpg",
+    "usage": "Local design review reference; book artwork remains copyrighted by its respective rights holders."
+  },
+  {
+    "id": "human",
+    "isbn": "9788936434120",
+    "title": "소년이 온다 | 한강",
+    "source": "https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=9788936434120",
+    "image": "https://image.aladin.co.kr/product/4086/97/cover500/8936434128_2.jpg",
+    "usage": "Local design review reference; book artwork remains copyrighted by its respective rights holders."
+  },
+  {
+    "id": "vegetarian",
+    "isbn": "9788936434595",
+    "title": "채식주의자 (리마스터판) | 창비 리마스터 소설선  | 한강",
+    "source": "https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=9788936434595",
+    "image": "https://image.aladin.co.kr/product/29137/2/cover500/8936434594_2.jpg",
+    "usage": "Local design review reference; book artwork remains copyrighted by its respective rights holders."
+  },
+  {
+    "id": "farewell",
+    "isbn": "9788954682152",
+    "title": "작별하지 않는다 | 한강",
+    "source": "https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=9788954682152",
+    "image": "https://image.aladin.co.kr/product/27877/5/cover500/8954682154_3.jpg",
+    "usage": "Local design review reference; book artwork remains copyrighted by its respective rights holders."
+  },
+  {
+    "id": "contradiction",
+    "isbn": "9788998441012",
+    "title": "모순 | 양귀자",
+    "source": "https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=9788998441012",
+    "image": "https://image.aladin.co.kr/product/2584/37/cover500/s392131969_1.jpg",
+    "usage": "Local design review reference; book artwork remains copyrighted by its respective rights holders."
+  },
+  {
+    "id": "almond",
+    "isbn": "9788936434267",
+    "title": "아몬드 (양장) | 손원평",
+    "source": "https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=9788936434267",
+    "image": "https://image.aladin.co.kr/product/10565/12/cover500/8936434268_1.jpg",
+    "usage": "Local design review reference; book artwork remains copyrighted by its respective rights holders."
+  },
+  {
+    "id": "kim",
+    "isbn": "9788937473135",
+    "title": "82년생 김지영 | 오늘의 젊은 작가 13 | 조남주",
+    "source": "https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=9788937473135",
+    "image": "https://image.aladin.co.kr/product/9476/48/cover500/8937473135_1.jpg",
+    "usage": "Local design review reference; book artwork remains copyrighted by its respective rights holders."
+  },
+  {
+    "id": "demian",
+    "isbn": "9788937460449",
+    "title": "데미안 | 민음사 세계문학전집 44 | 헤르만 헤세",
+    "source": "https://www.aladin.co.kr/shop/wproduct.aspx?ISBN=9788937460449",
+    "image": "https://image.aladin.co.kr/product/26/0/cover500/s452139198_1.jpg",
+    "usage": "Local design review reference; book artwork remains copyrighted by its respective rights holders."
+  },
+  {
+    "id": "store",
+    "title": "불편한 편의점",
+    "source": "https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=269428498",
+    "image": "https://image.aladin.co.kr/product/26942/84/cover500/k582730818_1.jpg",
+    "usage": "Local design review reference; rights retained by respective rights holders."
+  }
+]

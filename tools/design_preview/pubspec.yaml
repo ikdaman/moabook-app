@@ -1,0 +1,54 @@
+name: moabook_design_preview
+description: Offline Moabook design review host
+publish_to: none
+version: 1.0.0+1
+environment:
+  sdk: ^3.12.0
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_svg: ^2.0.10+1
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+flutter:
+  uses-material-design: true
+  config:
+    enable-lldb-debugging: false
+  assets:
+    - assets/images/
+    - assets/icon/
+    - assets/design_preview/icons/
+    - assets/design_preview/covers/
+
+  fonts:
+    - family: PlexKR
+      fonts:
+        - asset: assets/design_preview/fonts/IBMPlexSansKR-Regular.ttf
+          weight: 400
+        - asset: assets/design_preview/fonts/IBMPlexSansKR-Medium.ttf
+          weight: 500
+        - asset: assets/design_preview/fonts/IBMPlexSansKR-SemiBold.ttf
+          weight: 600
+        - asset: assets/design_preview/fonts/IBMPlexSansKR-Bold.ttf
+          weight: 700
+    - family: GowunBatang
+      fonts:
+        - asset: assets/design_preview/fonts/GowunBatang-Regular.ttf
+          weight: 400
+        - asset: assets/design_preview/fonts/GowunBatang-Bold.ttf
+          weight: 700
+    - family: PlexMono
+      fonts:
+        - asset: assets/design_preview/fonts/IBMPlexMono-Medium.ttf
+          weight: 500
+    - family: DungGeunMo
+      fonts:
+        - asset: assets/fonts/dunggeunmo.ttf
+    - family: WantedSans
+      fonts:
+        - asset: assets/fonts/wanted_sans_regular.ttf
+          weight: 400
+        - asset: assets/fonts/wanted_sans_semibold.ttf
+          weight: 600
