@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'design_system.dart';
 import 'sample_data.dart';
 
@@ -51,8 +52,15 @@ class DesignPreviewState extends State<DesignPreview> {
   final List<String> customCollections = [];
   final List<String> history = [];
   final ScrollController scroll = ScrollController();
+  final PageController shelfPages = PageController();
+  final GlobalKey<NavigatorState> previewNavigator =
+      GlobalKey<NavigatorState>();
+  int shelfPage = 0;
+  int shelfPageCount = 1;
+  bool get isShelfScreen =>
+      ['shelf', 'shelf-empty', 'add-options'].contains(screen);
 
-  void showPreview(String target, String style) {
+  void showPreview(String target, String style, {int page = 0}) {
     if (!previewScreens.containsKey(target)) {
       throw ArgumentError('Unknown screen: $target');
     }
@@ -62,6 +70,7 @@ class DesignPreviewState extends State<DesignPreview> {
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       mood = style == 'C' ? Mood.c : Mood.a;
+      shelfPage = page;
       screen = target;
       book = previewBooks.first;
       collectionName = '인생 책 LIST';
@@ -77,6 +86,9 @@ class DesignPreviewState extends State<DesignPreview> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scroll.hasClients) scroll.jumpTo(0);
+      if (shelfPages.hasClients) {
+        shelfPages.jumpToPage(page.clamp(0, shelfPageCount - 1));
+      }
     });
   }
 
@@ -86,6 +98,7 @@ class DesignPreviewState extends State<DesignPreview> {
       history.add(screen);
       screen = target;
     });
+    restoreShelfPage();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scroll.hasClients) scroll.jumpTo(0);
     });
@@ -94,17 +107,29 @@ class DesignPreviewState extends State<DesignPreview> {
   void back() {
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => screen = history.isEmpty ? 'shelf' : history.removeLast());
+    restoreShelfPage();
+  }
+
+  void restoreShelfPage() {
+    final page = shelfPage;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (isShelfScreen && shelfPages.hasClients) {
+        shelfPages.jumpToPage(page.clamp(0, shelfPageCount - 1));
+      }
+    });
   }
 
   @override
   void dispose() {
     scroll.dispose();
+    shelfPages.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: '모아북 디자인 시안',
+    navigatorKey: previewNavigator,
     debugShowCheckedModeBanner: false,
     theme: p.theme,
     home: AnnotatedRegion<SystemUiOverlayStyle>(
@@ -120,16 +145,26 @@ class DesignPreviewState extends State<DesignPreview> {
                 Column(
                   children: [
                     Expanded(
-                      child: SingleChildScrollView(
-                        controller: scroll,
-                        padding: EdgeInsets.fromLTRB(
-                          22,
-                          12,
-                          22,
-                          hasNav ? 12 : 28,
-                        ),
-                        child: page(),
-                      ),
+                      child: isShelfScreen
+                          ? Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                22,
+                                12,
+                                22,
+                                12,
+                              ),
+                              child: shelf(empty: screen == 'shelf-empty'),
+                            )
+                          : SingleChildScrollView(
+                              controller: scroll,
+                              padding: EdgeInsets.fromLTRB(
+                                22,
+                                12,
+                                22,
+                                hasNav ? 12 : 28,
+                              ),
+                              child: page(),
+                            ),
                     ),
                     if (hasNav) navigation(),
                     if (!hasNav && bottomAction != null)
@@ -150,7 +185,7 @@ class DesignPreviewState extends State<DesignPreview> {
                       onTap: back,
                       child: ColoredBox(
                         color: Colors.black.withValues(
-                          alpha: p.dark ? .68 : .5,
+                          alpha: p.dark ? .62 : .55,
                         ),
                       ),
                     ),
@@ -180,11 +215,6 @@ class DesignPreviewState extends State<DesignPreview> {
       '다른 검색어로 찾아보기',
       () => go('search'),
       icon: 'search',
-    ),
-    'card-front' => button(
-      '카드 뒤의 기록 보기',
-      () => go('card-back'),
-      icon: 'arrow-right',
     ),
     'card-back' || 'card-empty' || 'record-options' => Align(
       alignment: Alignment.centerRight,
@@ -257,6 +287,7 @@ class DesignPreviewState extends State<DesignPreview> {
     double size, {
     int weight = 400,
     Color? color,
+    Color? background,
     bool serif = false,
     bool mono = false,
     int? lines,
@@ -266,17 +297,11 @@ class DesignPreviewState extends State<DesignPreview> {
     maxLines: lines,
     overflow: lines == null ? null : TextOverflow.ellipsis,
     textAlign: align,
-    style: p.text(
-      math.max(size, mono ? 11 : 12),
-      weight: weight,
-      color: color,
-      serif: serif,
-      mono: mono,
-    ),
+    style: p.text(size, weight: weight, color: color, serif: serif, mono: mono),
   );
   Widget gap(double height) => SizedBox(height: height);
-  Widget rule({Color? color, double width = 1}) =>
-      Container(height: width, color: color ?? p.line);
+  Widget rule({Color? color, double width = 1.5}) =>
+      Container(height: width, color: color ?? (p.dark ? p.line : p.ink));
   Widget icon(String name, {Color? color, double size = 22}) =>
       DesignIcon(name, color: color ?? p.ink, size: math.max(size, 18));
   Widget iconButton(
@@ -361,14 +386,20 @@ class DesignPreviewState extends State<DesignPreview> {
             if (eyebrow != null) t(eyebrow, 10, mono: true, color: p.muted),
           ],
         ),
-      if (!previous && eyebrow != null) ...[label(eyebrow), gap(3)],
+      if (!previous && hasNav) ...[
+        shelfToolbar(eyebrow ?? 'MOABOOK'),
+        gap(3),
+      ] else if (!previous && eyebrow != null) ...[
+        label(eyebrow),
+        gap(3),
+      ],
       Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: t(
               title,
-              p.dark ? 32 : 29,
+              p.dark ? 36 : 28,
               weight: p.dark ? 600 : 700,
               color: p.dark ? p.accent : p.ink,
               serif: serif,
@@ -379,80 +410,83 @@ class DesignPreviewState extends State<DesignPreview> {
         ],
       ),
       gap(17),
-      rule(color: p.ink, width: p.dark ? 1 : 1.3),
+      rule(color: p.ink, width: 1.5),
       gap(18),
     ],
   );
 
   Widget navigation() => Builder(
     builder: (context) => Container(
-      padding: EdgeInsets.fromLTRB(
-        22,
-        0,
-        22,
-        MediaQuery.paddingOf(context).bottom + 8,
-      ),
-      decoration: BoxDecoration(
-        color: p.background,
-        border: Border(top: BorderSide(color: p.line, width: 1)),
-      ),
-      child: Row(
-        children: [
-          navItem(
-            '기본 서가',
-            'library',
-            screen.startsWith('shelf') || screen == 'add-options',
-            () => go('shelf'),
-          ),
-          navItem(
-            '주제 서가',
-            'layers',
-            !screen.startsWith('shelf') && screen != 'add-options',
-            () => go('collection'),
-          ),
-        ],
+      color: p.dark ? p.accent : p.background,
+      child: Container(
+        decoration: BoxDecoration(
+          border: p.dark
+              ? null
+              : Border(top: BorderSide(color: p.ink, width: 1.5)),
+        ),
+        child: Row(
+          children: [
+            navItem(
+              '기본 서가',
+              'library',
+              screen.startsWith('shelf') || screen == 'add-options',
+              () => go('shelf'),
+              bottomInset: MediaQuery.paddingOf(context).bottom,
+            ),
+            navItem(
+              '주제 서가',
+              'layers',
+              !screen.startsWith('shelf') && screen != 'add-options',
+              () => go('collection'),
+              bottomInset: MediaQuery.paddingOf(context).bottom,
+            ),
+          ],
+        ),
       ),
     ),
   );
-  Widget navItem(String title, String name, bool active, VoidCallback onTap) =>
-      Expanded(
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: SizedBox(
-            height: 68,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 58,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: active
-                        ? p.accent.withValues(alpha: p.dark ? .14 : .10)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: icon(
-                      name,
-                      size: 22,
-                      color: active ? (p.dark ? p.accent : p.orange) : p.muted,
-                    ),
-                  ),
-                ),
-                gap(4),
-                t(
-                  title,
-                  13,
-                  weight: active ? 600 : 400,
-                  color: active ? p.ink : p.muted,
-                ),
-              ],
-            ),
-          ),
+  Widget navItem(
+    String title,
+    String name,
+    bool active,
+    VoidCallback onTap, {
+    double bottomInset = 0,
+  }) => Expanded(
+    child: InkWell(
+      onTap: onTap,
+      child: Container(
+        height: 78 + bottomInset,
+        padding: EdgeInsets.only(bottom: bottomInset),
+        decoration: BoxDecoration(
+          color: p.dark ? (active ? p.background : p.accent) : p.background,
+          border: !p.dark && active
+              ? Border(top: BorderSide(color: p.orange, width: 3))
+              : null,
         ),
-      );
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            icon(
+              active ? '$name-active' : name,
+              size: 22,
+              color: p.dark
+                  ? (active ? p.accent : p.background.withValues(alpha: .45))
+                  : (active ? p.ink : p.muted),
+            ),
+            gap(5),
+            t(
+              title,
+              13,
+              weight: active ? (p.dark ? 600 : 700) : 500,
+              color: p.dark
+                  ? (active ? p.accent : p.background.withValues(alpha: .45))
+                  : (active ? p.ink : p.muted),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Color reasonColor(String type) => switch (type) {
     '추천' => p.orange,
@@ -462,7 +496,7 @@ class DesignPreviewState extends State<DesignPreview> {
     _ => p.line,
   };
   Color reasonTextColor(String type) =>
-      type == 'WISH' || (type == '선물' && !p.dark)
+      type == 'WISH' || (!p.dark && (type == '선물' || type == '추천'))
       ? Colors.white
       : const Color(0xff1b1b1b);
 
@@ -471,281 +505,323 @@ class DesignPreviewState extends State<DesignPreview> {
     double? width,
     double? height,
     bool shadow = false,
-  }) => Container(
+  }) => SizedBox(
     width: width,
     height: height,
-    decoration: BoxDecoration(
-      border: Border.all(
-        color: p.dark ? const Color(0xff121212) : p.ink,
-        width: 1,
-      ),
-      boxShadow: shadow
-          ? [const BoxShadow(color: Color(0xff1b1b1b), offset: Offset(6, 6))]
-          : null,
-    ),
-    child: Image.asset(
-      value.cover,
-      fit: BoxFit.cover,
-      errorBuilder: (_, error, stack) => ColoredBox(
-        color: const Color(0xffd4d4d4),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Center(
-            child: t(
-              value.title,
-              12,
-              color: const Color(0xff1b1b1b),
-              align: TextAlign.center,
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-  Widget obi(PreviewBook value, {bool short = false}) => Container(
-    width: double.infinity,
-    constraints: const BoxConstraints(minHeight: 38),
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
-    decoration: BoxDecoration(
-      color: value.reason.isEmpty
-          ? p.card
-          : reasonColor(value.reasonType).withValues(alpha: p.dark ? .16 : .09),
-      borderRadius: BorderRadius.circular(6),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    child: Stack(
+      clipBehavior: Clip.none,
       children: [
-        if (value.reason.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 5),
-            child: Container(
-              width: 4,
-              height: 4,
-              decoration: BoxDecoration(
-                color: reasonColor(value.reasonType),
-                shape: BoxShape.circle,
+        if (shadow)
+          Positioned(
+            left: 6,
+            top: 6,
+            right: -6,
+            bottom: -6,
+            child: ColoredBox(color: p.dark ? const Color(0xff121212) : p.ink),
+          ),
+        Positioned.fill(
+          child: Container(
+            foregroundDecoration: BoxDecoration(
+              border: Border.all(
+                color: p.dark ? const Color(0xff121212) : p.ink,
+                width: shadow && p.dark ? 3 : 1.5,
               ),
             ),
-          ),
-          const SizedBox(width: 5),
-        ],
-        Expanded(
-          child: Text(
-            value.reason.isEmpty
-                ? '저장 이유 없음'
-                : short
-                ? value.reasonType
-                : value.reason,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: p.text(
-              12,
-              height: 1.35,
-              weight: 500,
-              color: value.reason.isEmpty ? p.muted : p.ink,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-
-  Widget shelf({bool empty = false}) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      header(
-        '서가',
-        eyebrow: 'MOABOOK / MY BOOKS',
-        action: iconButton('settings-2', '시안 설정', showDesignPicker),
-      ),
-      Row(
-        children: [
-          t(empty ? '0권의 책' : '${previewBooks.length}권의 책', 12, color: p.muted),
-          const Spacer(),
-          iconButton('download', '서가 이미지 저장', () => notice('서가 이미지 저장 시안입니다.')),
-        ],
-      ),
-      gap(8),
-      button('책 추가', () => go('add-options'), icon: 'plus'),
-      gap(20),
-      if (empty)
-        emptyState(
-          'book-open',
-          '어떤 책이 떠오르나요?',
-          '읽고 싶은 책도, 오래 간직한 책도.\n첫 번째 책을 서가에 꽂아보세요.',
-          null,
-        )
-      else ...[
-        for (int row = 0; row < 2; row++) ...[bookShelf(row), gap(24)],
-        Center(child: t('1 / 1', 11, mono: true, color: p.muted)),
-      ],
-    ],
-  );
-  Widget bookShelf(int row) => LayoutBuilder(
-    builder: (context, constraints) {
-      final books = row == 0
-          ? previewBooks.take(5).toList()
-          : previewBooks.skip(5).toList();
-      const widths = [1.12, .87, .76, 1.04, .82, 1.0, .86, .92, .78];
-      const heights = [
-        205.0,
-        184.0,
-        194.0,
-        181.0,
-        197.0,
-        188.0,
-        171.0,
-        184.0,
-        175.0,
-      ];
-      const colors = [
-        Color(0xffe5dfcf),
-        Color(0xff334332),
-        Color(0xff8ca9b5),
-        Color(0xffadc7cb),
-        Color(0xffe5dbce),
-        Color(0xffc3b190),
-        Color(0xffcba477),
-        Color(0xffe7e3d9),
-        Color(0xff4d4659),
-      ];
-      final start = row == 0 ? 0 : 5;
-      final unit = (constraints.maxWidth - 10) / 5.1;
-      return Column(
-        children: [
-          SizedBox(
-            height: row == 0 ? 205 : 188,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(books.length, (i) {
-                final value = books[i];
-                final n = start + i;
-                final lightInk = n == 1 || n == 8;
-                final foreground = lightInk
-                    ? const Color(0xfff4f1ea)
-                    : const Color(0xff282824);
-                return Padding(
-                  padding: const EdgeInsets.only(right: 2),
-                  child: Semantics(
-                    label: '${value.title}, 독서카드 열기',
-                    button: true,
-                    child: InkWell(
-                      onTap: () {
-                        book = value;
-                        go('card-front');
-                      },
-                      child: Container(
-                        width: unit * widths[n],
-                        height: heights[n],
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          color: colors[n],
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(3),
-                          ),
-                          border: Border.all(
-                            color: Colors.black.withValues(alpha: .22),
-                            width: .8,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: .10),
-                              offset: const Offset(2, 0),
-                              blurRadius: 2,
-                            ),
-                          ],
+            child: value.demo
+                ? ColoredBox(
+                    color: const Color(0xffd4d4d4),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Center(
+                        child: t(
+                          value.title,
+                          16,
+                          weight: 600,
+                          color: const Color(0xff1b1b1b),
+                          align: TextAlign.center,
                         ),
-                        child: Column(
-                          children: [
-                            gap(12),
-                            Container(
-                              width: 18,
-                              height: 1,
-                              color: foreground.withValues(alpha: .35),
-                            ),
-                            gap(9),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                ),
-                                child: RotatedBox(
-                                  quarterTurns: 1,
-                                  child: Text(
-                                    value.title,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: p.text(
-                                      13,
-                                      weight: 500,
-                                      height: 1.3,
-                                      color: foreground,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Text(
-                                value.author.split(' ').first,
-                                maxLines: 1,
-                                style: p.text(
-                                  9,
-                                  height: 1.2,
-                                  color: foreground.withValues(alpha: .8),
-                                ),
-                              ),
-                            ),
-                            if (value.reason.isNotEmpty)
-                              Container(
-                                height: 17,
-                                color: reasonColor(value.reasonType),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  value.reasonType == 'WISH'
-                                      ? 'W'
-                                      : value.reasonType.substring(0, 1),
-                                  style: p.text(
-                                    9,
-                                    weight: 600,
-                                    height: 1,
-                                    color: reasonTextColor(value.reasonType),
-                                  ),
-                                ),
-                              ),
-                          ],
+                      ),
+                    ),
+                  )
+                : Image.asset(
+                    value.cover,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, error, stack) => ColoredBox(
+                      color: const Color(0xffd4d4d4),
+                      child: Center(
+                        child: t(
+                          value.title,
+                          12,
+                          color: const Color(0xff1b1b1b),
+                          align: TextAlign.center,
                         ),
                       ),
                     ),
                   ),
-                );
-              }),
-            ),
           ),
-          Container(
-            height: 5,
-            decoration: BoxDecoration(
-              color: p.dark ? const Color(0xff4a493b) : const Color(0xffb6a98e),
-              borderRadius: BorderRadius.circular(2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: .10),
-                  blurRadius: 4,
-                  offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+  );
+  Widget obi(PreviewBook value, {bool short = false, bool front = false}) =>
+      Container(
+        width: double.infinity,
+        constraints: BoxConstraints(minHeight: p.dark ? 28 : 26),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+        decoration: BoxDecoration(
+          color: value.reason.isEmpty
+              ? (p.dark ? const Color(0xff2a2a2a) : Colors.transparent)
+              : reasonColor(value.reasonType),
+          border: p.dark ? null : Border.all(color: p.ink, width: 1.5),
+        ),
+        child: Text(
+          value.reason.isEmpty
+              ? (p.dark ? '—' : '저장 이유 없음')
+              : short
+              ? value.reasonType
+              : value.reason,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: p.text(
+            front ? 12 : 10.5,
+            height: 1.25,
+            weight: value.reason.isEmpty ? 400 : 600,
+            color: value.reason.isEmpty
+                ? p.muted
+                : reasonTextColor(value.reasonType),
+          ),
+        ),
+      );
+
+  Widget shelfToolbar(String eyebrow, {String? count}) => Row(
+    children: [
+      Expanded(
+        child: t(eyebrow, 10, mono: true, color: p.dark ? p.accent : p.muted),
+      ),
+      if (count != null) ...[
+        t(count, 11, mono: true, color: p.muted),
+        const SizedBox(width: 8),
+      ],
+      iconButton('settings-2', '시안 설정', showDesignPicker),
+    ],
+  );
+
+  static const spineWidths = [
+    38.0,
+    26.0,
+    22.0,
+    35.0,
+    28.0,
+    34.0,
+    24.0,
+    31.0,
+    26.0,
+  ];
+  static const spineHeights = [1.0, .90, .96, .86, .93, .98, .89, .95, .91];
+  List<List<PreviewBook>> shelfRows(double width) {
+    final rows = <List<PreviewBook>>[];
+    var row = <PreviewBook>[];
+    var used = 0.0;
+    for (var i = 0; i < shelfPreviewBooks.length; i++) {
+      final needed =
+          spineWidths[i % spineWidths.length] + (row.isEmpty ? 0 : 5);
+      if (row.isNotEmpty && used + needed > width) {
+        rows.add(row);
+        row = [];
+        used = 0;
+      }
+      used += spineWidths[i % spineWidths.length] + (row.isEmpty ? 0 : 5);
+      row.add(shelfPreviewBooks[i]);
+    }
+    if (row.isNotEmpty) rows.add(row);
+    return rows;
+  }
+
+  Widget shelf({bool empty = false}) => LayoutBuilder(
+    builder: (context, constraints) {
+      final rows = shelfRows(constraints.maxWidth);
+      final count = (rows.length / 3).ceil();
+      shelfPageCount = count;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          shelfToolbar(
+            'MOABOOK / MY BOOKS',
+            count: empty ? '0권' : '${shelfPreviewBooks.length}권',
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: t(
+                  '서가',
+                  p.dark ? 36 : 28,
+                  weight: p.dark ? 600 : 700,
+                  serif: true,
+                  color: p.dark ? p.accent : p.ink,
                 ),
-              ],
-            ),
+              ),
+              iconButton('plus', '책 추가', () => go('add-options')),
+              iconButton(
+                'download',
+                '서가 이미지 저장',
+                () => notice('서가 이미지 저장 시안입니다.'),
+              ),
+            ],
           ),
+          gap(12),
+          rule(color: p.ink),
+          gap(16),
+          if (empty)
+            Expanded(
+              child: Center(
+                child: emptyState(
+                  'book-open',
+                  '어떤 책이 떠오르나요?',
+                  '읽고 싶은 책도, 오래 간직한 책도.\n첫 번째 책을 서가에 꽂아보세요.',
+                  null,
+                ),
+              ),
+            )
+          else ...[
+            Expanded(
+              child: PageView.builder(
+                key: const Key('shelf-pager'),
+                controller: shelfPages,
+                itemCount: count,
+                onPageChanged: (page) => setState(() => shelfPage = page),
+                itemBuilder: (context, page) => Column(
+                  children: [
+                    for (var row = 0; row < 3; row++) ...[
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, space) => bookShelf(
+                            page * 3 + row < rows.length
+                                ? rows[page * 3 + row]
+                                : [],
+                            space.maxHeight,
+                            key: ValueKey('shelf-$page-row-$row'),
+                          ),
+                        ),
+                      ),
+                      if (row != 2) gap(16),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            gap(10),
+            Center(
+              child: Text(
+                '${shelfPage.clamp(0, count - 1) + 1} / $count',
+                key: const Key('shelf-page-indicator'),
+                style: p.text(11, mono: true, color: p.muted),
+              ),
+            ),
+          ],
         ],
       );
     },
   );
 
+  Widget bookShelf(List<PreviewBook> books, double height, {Key? key}) =>
+      Column(
+        key: key,
+        children: [
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (var i = 0; i < books.length; i++) ...[
+                  if (i != 0) const SizedBox(width: 5),
+                  Builder(
+                    builder: (context) {
+                      final value = books[i];
+                      final n = shelfPreviewBooks.indexOf(value);
+                      final foreground = p.dark
+                          ? const Color(0xffdddddd)
+                          : p.ink;
+                      return Semantics(
+                        label: '${value.title}, 독서카드 열기',
+                        button: true,
+                        child: InkWell(
+                          key: ValueKey('spine-${value.id}'),
+                          onTap: () {
+                            book = value;
+                            go('card-front');
+                          },
+                          child: Container(
+                            width: spineWidths[n % spineWidths.length],
+                            height:
+                                (height - (p.dark ? 4 : 3)) *
+                                spineHeights[n % spineHeights.length],
+                            clipBehavior: Clip.antiAlias,
+                            decoration: BoxDecoration(
+                              color: p.dark
+                                  ? [
+                                      const Color(0xff2e2e2e),
+                                      const Color(0xff3a3a3a),
+                                      const Color(0xff262626),
+                                    ][n % 3]
+                                  : const Color(0xffe3ded1),
+                              border: Border.all(
+                                color: p.dark ? Colors.transparent : p.ink,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                gap(8),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    child: VerticalSpineTitle(
+                                      value.title,
+                                      style: p.text(
+                                        11,
+                                        weight: p.dark ? 500 : 600,
+                                        height: 1,
+                                        color: foreground,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                gap(8),
+                                if (value.reason.isNotEmpty)
+                                  Container(
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: reasonColor(value.reasonType),
+                                      border: p.dark
+                                          ? null
+                                          : Border(
+                                              top: BorderSide(
+                                                color: p.ink,
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Container(height: p.dark ? 4 : 3, color: p.dark ? p.accent : p.ink),
+        ],
+      );
+
   Widget collection() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      label('COLLECTION / 01'),
+      shelfToolbar('COLLECTION / 01'),
       InkWell(
         key: const Key('collection-picker'),
         onTap: () => go('collections'),
@@ -754,7 +830,7 @@ class DesignPreviewState extends State<DesignPreview> {
             Flexible(
               child: t(
                 collectionName,
-                p.dark ? 31 : 28,
+                p.dark ? 36 : 28,
                 serif: true,
                 weight: 700,
                 color: p.dark ? p.accent : p.ink,
@@ -767,7 +843,7 @@ class DesignPreviewState extends State<DesignPreview> {
         ),
       ),
       gap(16),
-      rule(color: p.ink, width: 1.3),
+      rule(color: p.ink, width: 1.5),
       gap(9),
       Row(
         children: [
@@ -797,8 +873,6 @@ class DesignPreviewState extends State<DesignPreview> {
             ),
         ],
       ),
-      gap(8),
-      Center(child: t('1 / 1', 11, mono: true, color: p.muted)),
     ],
   );
   Widget actionText(String title, String name, VoidCallback onTap) => InkWell(
@@ -825,7 +899,7 @@ class DesignPreviewState extends State<DesignPreview> {
           : math.min(94.0, (constraints.maxWidth - 22) / 3);
       return Wrap(
         spacing: editing ? 11 : (constraints.maxWidth - itemWidth * 3) / 2,
-        runSpacing: editing ? 19 : 18,
+        runSpacing: editing ? 19 : 12,
         children: books
             .map(
               (value) => SizedBox(
@@ -880,7 +954,7 @@ class DesignPreviewState extends State<DesignPreview> {
                             ),
                         ],
                       ),
-                      if (!editing) ...[gap(7), obi(value)],
+                      if (!editing) obi(value, short: p.dark),
                       if (editing) ...[gap(6), t(value.title, 11, lines: 2)],
                     ],
                   ),
@@ -1058,11 +1132,11 @@ class DesignPreviewState extends State<DesignPreview> {
           fillColor: p.card,
           hintText: '책 제목 또는 저자',
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: p.ink, width: 1.3),
+            borderRadius: BorderRadius.zero,
+            borderSide: BorderSide(color: p.ink, width: 1.5),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.zero,
             borderSide: BorderSide(
               color: p.dark ? p.accent : p.ink,
               width: 1.5,
@@ -1139,7 +1213,7 @@ class DesignPreviewState extends State<DesignPreview> {
         ],
       ),
       gap(16),
-      Center(child: cover(book, width: 145, height: 205, shadow: true)),
+      Center(child: cover(book, width: 145, height: 205)),
       gap(29),
       t(book.title, 23, weight: 700),
       if (book.id == 'boy') ...[
@@ -1182,218 +1256,281 @@ class DesignPreviewState extends State<DesignPreview> {
     ],
   );
 
-  Widget cardFront() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          iconButton('chevron-left', '서가로 돌아가기', back),
-          t('CARD 1 / 2', 10, mono: true, color: p.muted),
-        ],
-      ),
-      gap(16),
-      if (p.dark)
-        Container(
-          width: double.infinity,
-          height: 302,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: p.orange,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                left: 17,
-                top: 20,
-                child: t(
-                  readingStatus,
-                  33,
-                  weight: 600,
-                  color: const Color(0xff121212),
-                ),
-              ),
-              Positioned(
-                left: 18,
-                top: 80,
-                child: t(
-                  'A BOOK\nIN MY LIFE',
-                  11,
-                  mono: true,
-                  color: const Color(0xff121212),
-                ),
-              ),
-              Positioned(
-                right: 19,
-                top: 35,
-                child: cover(book, width: 130, height: 180, shadow: true),
-              ),
-              Positioned(left: 18, bottom: 48, child: stair()),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  color: p.accent,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 11,
+  void flipCard(String target) {
+    setState(() => screen = target);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (scroll.hasClients) scroll.jumpTo(0);
+    });
+  }
+
+  double cardSwipeDistance = 0;
+  Widget flippableCard(Widget child, {required bool front}) => GestureDetector(
+    key: ValueKey(front ? 'card-front-surface' : 'card-back-surface'),
+    behavior: HitTestBehavior.opaque,
+    onTap: front ? () => flipCard('card-back') : null,
+    onHorizontalDragStart: (_) => cardSwipeDistance = 0,
+    onHorizontalDragUpdate: (event) => cardSwipeDistance += event.delta.dx,
+    onHorizontalDragEnd: (event) {
+      if (cardSwipeDistance.abs() >= 48 ||
+          (event.primaryVelocity ?? 0).abs() >= 250) {
+        flipCard(front ? 'card-back' : 'card-front');
+      }
+      cardSwipeDistance = 0;
+    },
+    child: child,
+  );
+
+  Widget cardFront() => flippableCard(
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [iconButton('chevron-left', '서가로 돌아가기', back)],
+        ),
+        gap(16),
+        if (p.dark)
+          Container(
+            width: double.infinity,
+            height: 302,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: p.orange,
+              borderRadius: BorderRadius.zero,
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 17,
+                  top: 20,
+                  child: t(
+                    readingStatus,
+                    36,
+                    weight: 600,
+                    color: const Color(0xff121212),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: t(
-                          book.reason,
-                          12,
-                          weight: 600,
+                ),
+                Positioned(
+                  right: 19,
+                  top: 35,
+                  child: cover(book, width: 130, height: 184, shadow: true),
+                ),
+                Positioned(left: 40, bottom: 0, child: stair()),
+                Positioned(
+                  left: 140,
+                  top: 150,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: p.accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 90,
+                  top: 210,
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      color: p.accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    color: p.accent,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 11,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: t(
+                            book.reason,
+                            15,
+                            weight: 600,
+                            color: const Color(0xff121212),
+                          ),
+                        ),
+                        icon(
+                          'arrow-right',
                           color: const Color(0xff121212),
+                          size: 18,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else ...[
+          Center(
+            child: SizedBox(
+              width: 160,
+              height: 226,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  cover(book, width: 160, height: 226, shadow: true),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 30,
+                    child: obi(book, front: true),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          gap(32),
+        ],
+        gap(p.dark ? 22 : 0),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: double.infinity,
+              constraints: BoxConstraints(minHeight: p.dark ? 0 : 300),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: p.dark ? p.background : p.card,
+                borderRadius: BorderRadius.zero,
+                border: p.dark ? null : Border.all(color: p.ink, width: 1.5),
+              ),
+              child: CustomPaint(
+                painter: p.dark ? null : RuledPaper(p.line),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: t(
+                              book.title,
+                              p.dark ? 24 : 19,
+                              weight: p.dark ? 600 : 700,
+                              background: p.dark ? null : p.card,
+                            ),
+                          ),
+                        ],
+                      ),
+                      gap(13),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: t(
+                              '${book.author} · ${book.publisher}${p.dark ? ' · 2026.08.03 추가' : ''}',
+                              12,
+                              mono: true,
+                              background: p.dark ? null : p.card,
+                              color: p.muted,
+                            ),
+                          ),
+                          if (!p.dark) const DateStamp(date: '2026.08.03'),
+                        ],
+                      ),
+                      gap(16),
+                      statusChip(p.dark ? '독서 카드' : readingStatus),
+                      gap(27),
+                      Container(
+                        padding: const EdgeInsets.only(
+                          top: 8,
+                          bottom: 8,
+                          left: 4,
+                          right: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          border: p.dark
+                              ? Border.all(color: p.ink, width: 1.5)
+                              : Border(
+                                  top: BorderSide(color: p.ink, width: 1.5),
+                                ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => flipCard('card-back'),
+                                child: Row(
+                                  children: [
+                                    t('독서 카드 기록 ', 12, weight: 500),
+                                    Container(
+                                      color: p.dark ? p.accent : null,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: p.dark ? 8 : 0,
+                                        vertical: p.dark ? 2 : 0,
+                                      ),
+                                      child: t(
+                                        '${3 + addedRecords.length}개',
+                                        13,
+                                        weight: 600,
+                                        color: p.dark ? p.background : p.orange,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () => go('record-options'),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  children: [
+                                    t('추가하기', 12, weight: 600),
+                                    const SizedBox(width: 6),
+                                    icon('arrow-right', size: 16),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      icon(
-                        'arrow-right',
-                        color: const Color(0xff121212),
-                        size: 18,
-                      ),
+                      gap(27),
+                      t('이 책과 함께한 순간을 모아보세요.', 11, color: p.muted),
                     ],
                   ),
                 ),
               ),
-            ],
-          ),
-        )
-      else ...[
-        Center(child: cover(book, width: 151, height: 205, shadow: true)),
-        gap(14),
-        Center(child: SizedBox(width: 270, child: obi(book))),
-        gap(22),
+            ),
+            if (!p.dark)
+              Positioned(
+                top: -13,
+                left: 15,
+                child: Container(
+                  color: p.ink,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  child: t('독서 카드', 11, weight: 500, mono: true, color: p.card),
+                ),
+              ),
+          ],
+        ),
       ],
-      gap(p.dark ? 22 : 0),
-      Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: double.infinity,
-            constraints: BoxConstraints(minHeight: p.dark ? 0 : 300),
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: p.card,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: p.ink, width: 1.3),
-            ),
-            child: CustomPaint(
-              painter: p.dark ? null : RuledPaper(p.line),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: t(book.title, 19, weight: 700)),
-                        if (!p.dark) ...[
-                          const SizedBox(width: 9),
-                          Transform.rotate(
-                            angle: -.075,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: p.blue, width: 1.5),
-                                color: p.card,
-                              ),
-                              child: t(
-                                '2026.08.03\n추가',
-                                9,
-                                mono: true,
-                                color: p.blue,
-                                align: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    gap(13),
-                    t('${book.author} · ${book.publisher}', 12, color: p.muted),
-                    gap(16),
-                    statusChip(readingStatus),
-                    gap(27),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => go('card-back'),
-                            child: Row(
-                              children: [
-                                t('독서 카드 기록 ', 12, weight: 500),
-                                t(
-                                  '${3 + addedRecords.length}개',
-                                  13,
-                                  weight: 600,
-                                  color: p.dark ? p.accent : p.orange,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: () => go('record-options'),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              children: [
-                                t('추가하기', 12, weight: 600),
-                                const SizedBox(width: 6),
-                                icon('arrow-right', size: 16),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    gap(27),
-                    t('이 책과 함께한 순간을 모아보세요.', 11, color: p.muted),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          if (!p.dark)
-            Positioned(
-              top: -13,
-              left: 15,
-              child: Container(
-                color: p.ink,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                child: t('독서 카드', 10, weight: 600, color: p.card),
-              ),
-            ),
-        ],
-      ),
-      gap(20),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(width: 18, height: 4, color: p.dark ? p.accent : p.ink),
-          const SizedBox(width: 6),
-          Container(width: 5, height: 4, color: p.line),
-        ],
-      ),
-    ],
+    ),
+    front: true,
   );
-  Widget stair() => Row(
-    crossAxisAlignment: CrossAxisAlignment.end,
-    children: [
-      for (int i = 0; i < 3; i++)
-        Container(width: 28, height: 24.0 * (i + 1), color: p.gift),
-    ],
+  Widget stair() => SvgPicture.asset(
+    'assets/design_preview/reference/c-stair.svg',
+    width: 150,
+    height: 170,
   );
   Widget statusChip(String value) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -1404,83 +1541,109 @@ class DesignPreviewState extends State<DesignPreview> {
     child: t(value, 11, weight: 600, color: Colors.white),
   );
 
-  Widget cardBack({bool empty = false}) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          iconButton('chevron-left', '독서카드 앞면', () => go('card-front')),
-          t('CARD 2 / 2', 10, mono: true, color: p.muted),
-        ],
-      ),
-      gap(16),
-      Container(
-        width: double.infinity,
-        constraints: const BoxConstraints(minHeight: 550),
-        padding: const EdgeInsets.fromLTRB(18, 21, 18, 21),
-        decoration: BoxDecoration(
-          color: p.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: p.dark ? p.line : p.ink, width: 1.2),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget cardBack({bool empty = false}) => flippableCard(
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            t(book.title, 18, weight: 700),
-            gap(8),
-            t('2026.08.03 추가', 10, mono: true, color: p.muted),
-            gap(7),
-            t(book.reason, 11, color: p.muted),
-            gap(20),
-            rule(color: p.ink),
-            if (empty) ...[
-              gap(80),
-              Center(child: icon('pencil', size: 34, color: p.muted)),
-              gap(18),
-              Center(child: t('첫 번째 기억을 남겨보세요', 16, serif: true, weight: 600)),
-              gap(10),
-              Center(
-                child: t(
-                  '책을 만난 날, 떠오른 생각, 마음에 든 문장.\n어떤 순간이든 좋아요.',
-                  12,
-                  color: p.muted,
-                  align: TextAlign.center,
-                ),
-              ),
-            ] else ...[
-              timeline(
-                '08.03',
-                '읽고 싶은 책 추가',
-                '하말넘많에서 소개한 이야기가 마음에 남았다.\n느리게 펼쳐보고 싶어서 서가에 담았다.',
-                'bookmark',
-                '저장',
-              ),
-              timeline(
-                '08.05',
-                '책 수령',
-                '동네 서점에서 샀다.\n책을 직접 만져보고 고르는 시간이 좋았다.',
-                'gift',
-                '구매',
-              ),
-              timeline(
-                '08.12',
-                '읽기',
-                '첫 장부터 좋다.\n오늘은 조금만, 천천히 읽어보기로.',
-                'book-open',
-                '읽는 중',
-              ),
-              for (final record in addedRecords)
-                timeline('08.18', record.$1, record.$2, 'pencil', '기록'),
-              if (addedRecords.isEmpty) ...[
-                gap(18),
-                t('책과의 시간은 계속됩니다.', 11, color: p.muted),
-              ],
-            ],
+            iconButton('chevron-left', '독서카드 앞면', () => flipCard('card-front')),
           ],
         ),
-      ),
-    ],
+        gap(16),
+        Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 550),
+          padding: p.dark
+              ? EdgeInsets.zero
+              : const EdgeInsets.fromLTRB(18, 21, 18, 21),
+          decoration: BoxDecoration(
+            color: p.dark ? p.background : p.card,
+            borderRadius: BorderRadius.zero,
+            border: p.dark ? null : Border.all(color: p.ink, width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: p.dark ? const EdgeInsets.all(16) : EdgeInsets.zero,
+                color: p.dark ? p.orange : null,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    t(
+                      book.title,
+                      p.dark ? 17 : 16,
+                      weight: p.dark ? 600 : 700,
+                      color: p.dark ? p.background : p.ink,
+                    ),
+                    gap(8),
+                    t(
+                      '2026.08.03 추가',
+                      11,
+                      mono: true,
+                      color: p.dark ? p.background : p.muted,
+                    ),
+                    gap(7),
+                    t(book.reason, 11, color: p.dark ? p.background : p.muted),
+                  ],
+                ),
+              ),
+              gap(14),
+              if (!p.dark) rule(color: p.ink),
+              if (empty) ...[
+                gap(80),
+                Center(child: icon('pencil', size: 34, color: p.muted)),
+                gap(18),
+                Center(
+                  child: t('첫 번째 기억을 남겨보세요', 16, serif: true, weight: 600),
+                ),
+                gap(10),
+                Center(
+                  child: t(
+                    '책을 만난 날, 떠오른 생각, 마음에 든 문장.\n어떤 순간이든 좋아요.',
+                    12,
+                    color: p.muted,
+                    align: TextAlign.center,
+                  ),
+                ),
+              ] else ...[
+                timeline(
+                  '08.03',
+                  '읽고 싶은 책 추가',
+                  '하말넘많에서 소개한 이야기가 마음에 남았다.\n느리게 펼쳐보고 싶어서 서가에 담았다.',
+                  'bookmark',
+                  '저장',
+                ),
+                timeline(
+                  '08.05',
+                  '책 수령',
+                  '동네 서점에서 샀다.\n책을 직접 만져보고 고르는 시간이 좋았다.',
+                  'gift',
+                  '구매',
+                ),
+                timeline(
+                  '08.12',
+                  '읽기',
+                  '첫 장부터 좋다.\n오늘은 조금만, 천천히 읽어보기로.',
+                  'book-open',
+                  '읽는 중',
+                ),
+                for (final record in addedRecords)
+                  timeline('08.18', record.$1, record.$2, 'pencil', '기록'),
+                if (addedRecords.isEmpty) ...[
+                  gap(18),
+                  t('책과의 시간은 계속됩니다.', 11, color: p.muted),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ],
+    ),
+    front: false,
   );
   Widget timeline(
     String day,
@@ -1489,15 +1652,19 @@ class DesignPreviewState extends State<DesignPreview> {
     String name,
     String category,
   ) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 23),
+    margin: EdgeInsets.only(bottom: p.dark ? 10 : 0),
+    padding: EdgeInsets.symmetric(vertical: 14, horizontal: p.dark ? 14 : 0),
     decoration: BoxDecoration(
-      border: Border(bottom: BorderSide(color: p.line, width: .8)),
+      color: p.dark ? p.card : null,
+      border: p.dark
+          ? null
+          : Border(bottom: BorderSide(color: p.line, width: 1)),
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 54,
+          width: p.dark ? 66 : 70,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1518,7 +1685,7 @@ class DesignPreviewState extends State<DesignPreview> {
                 spacing: 7,
                 runSpacing: 5,
                 children: [
-                  t(title, 15, weight: 600),
+                  t(title, 13, weight: p.dark ? 600 : 700),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
@@ -1526,8 +1693,8 @@ class DesignPreviewState extends State<DesignPreview> {
                     ),
                     decoration: BoxDecoration(
                       color: p.dark ? p.blue : null,
-                      border: Border.all(color: p.dark ? p.blue : p.line),
-                      borderRadius: BorderRadius.circular(p.dark ? 20 : 6),
+                      border: Border.all(color: p.dark ? p.blue : p.ink),
+                      borderRadius: BorderRadius.circular(p.dark ? 20 : 0),
                     ),
                     child: t(
                       category,
@@ -1538,7 +1705,13 @@ class DesignPreviewState extends State<DesignPreview> {
                 ],
               ),
               gap(9),
-              t(memo, 14, color: p.muted),
+              t(
+                memo,
+                12.5,
+                color: p.dark
+                    ? const Color(0xffcfcfcf)
+                    : const Color(0xff333333),
+              ),
             ],
           ),
         ),
@@ -1552,14 +1725,19 @@ class DesignPreviewState extends State<DesignPreview> {
       onTap: () => go('record-options'),
       customBorder: const CircleBorder(),
       child: Container(
-        width: 70,
-        height: 70,
+        width: p.dark ? 68 : 70,
+        height: p.dark ? 68 : 70,
         decoration: BoxDecoration(color: p.button, shape: BoxShape.circle),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            icon('plus', size: 18, color: p.onButton),
-            t('기록 추가', 11, weight: 600, color: p.onButton),
+            t(
+              '기록\n추가',
+              13,
+              weight: 600,
+              color: p.onButton,
+              align: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -1580,7 +1758,13 @@ class DesignPreviewState extends State<DesignPreview> {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: p.dark ? const Color(0xff1b1b1b) : p.background,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+        borderRadius: BorderRadius.zero,
+        border: Border(
+          top: BorderSide(
+            color: p.dark ? p.accent : p.ink,
+            width: p.dark ? 4 : 2,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: .12),
@@ -1612,7 +1796,7 @@ class DesignPreviewState extends State<DesignPreview> {
             gap(12),
             Row(
               children: [
-                Expanded(child: t(title, 23, weight: 600, serif: true)),
+                Expanded(child: t(title, 16, weight: 600)),
                 iconButton('x', '닫기', back),
               ],
             ),
@@ -1869,8 +2053,8 @@ class DesignPreviewState extends State<DesignPreview> {
         padding: const EdgeInsets.all(23),
         decoration: BoxDecoration(
           color: p.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: p.ink, width: 1.3),
+          borderRadius: BorderRadius.zero,
+          border: Border.all(color: p.ink, width: 1.5),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1929,14 +2113,9 @@ class DesignPreviewState extends State<DesignPreview> {
   Widget recordGroup(String title, List<(String, String)> options) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Row(
-        children: [
-          t(title, 11, weight: 600, color: p.dark ? p.accent : p.muted),
-          const SizedBox(width: 12),
-          Expanded(child: rule()),
-        ],
-      ),
-      gap(12),
+      t(title, 11, weight: 500, mono: true, color: p.dark ? p.accent : p.ink),
+      if (!p.dark) ...[gap(4), rule()],
+      gap(6),
       Wrap(
         spacing: 7,
         runSpacing: 8,
@@ -1950,11 +2129,14 @@ class DesignPreviewState extends State<DesignPreview> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 11,
+                    vertical: 7,
                   ),
                   decoration: BoxDecoration(
                     color: p.card,
-                    border: Border.all(color: p.line, width: 1.1),
+                    border: Border.all(
+                      color: p.dark ? const Color(0xff555555) : p.ink,
+                      width: 1.5,
+                    ),
                     borderRadius: BorderRadius.circular(p.dark ? 30 : 8),
                   ),
                   child: Row(
@@ -1962,7 +2144,7 @@ class DesignPreviewState extends State<DesignPreview> {
                     children: [
                       icon(option.$2, size: 14, color: p.muted),
                       const SizedBox(width: 6),
-                      t(option.$1, 14, weight: 500),
+                      t(option.$1, 13, weight: 500),
                     ],
                   ),
                 ),
@@ -2135,7 +2317,7 @@ class DesignPreviewState extends State<DesignPreview> {
         padding: const EdgeInsets.all(21),
         decoration: BoxDecoration(
           color: p.card,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.zero,
           border: Border.all(color: p.ink),
         ),
         child: Column(
@@ -2211,7 +2393,7 @@ class DesignPreviewState extends State<DesignPreview> {
           children: [
             Transform.rotate(
               angle: -.09,
-              child: cover(book, width: 171, height: 238, shadow: true),
+              child: cover(book, width: 171, height: 238),
             ),
             Container(
               width: 235,
@@ -2253,7 +2435,7 @@ class DesignPreviewState extends State<DesignPreview> {
         child: Center(
           child: Transform.rotate(
             angle: -.04,
-            child: cover(book, width: 145, height: 198, shadow: true),
+            child: cover(book, width: 145, height: 198),
           ),
         ),
       ),
@@ -2314,7 +2496,7 @@ class DesignPreviewState extends State<DesignPreview> {
 
   void notice(String message) {
     // Product-only actions without a backend remain local in this offline preview.
-    final context = scroll.position.context.notificationContext;
+    final context = previewNavigator.currentContext;
     if (context != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
@@ -2323,7 +2505,7 @@ class DesignPreviewState extends State<DesignPreview> {
   }
 
   void showDesignPicker() {
-    final context = scroll.position.context.notificationContext;
+    final context = previewNavigator.currentContext;
     if (context == null) return;
     showModalBottomSheet<void>(
       context: context,

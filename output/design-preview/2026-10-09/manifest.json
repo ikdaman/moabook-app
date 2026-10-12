@@ -1,7 +1,7 @@
 {
   "device": "iPhone 17",
   "deviceId": "242D3538-3472-49A4-8356-E412039855C4",
-  "capturedAt": "2026-10-09T12:04:03.419594+00:00",
+  "capturedAt": "2026-10-12T14:31:53.290089+00:00",
   "source": "xcrun simctl io screenshot; rendered by Flutter on iOS Simulator",
   "screens": [
     {
@@ -315,6 +315,32 @@
       "screen": "gallery",
       "label": "갤러리에서 추가",
       "file": "C/26-gallery.png"
+    }
+  ],
+  "shelfPages": [
+    {
+      "style": "A",
+      "page": 1,
+      "pageCount": 3,
+      "file": "A/27-shelf-page-2.png"
+    },
+    {
+      "style": "A",
+      "page": 2,
+      "pageCount": 3,
+      "file": "A/28-shelf-page-3.png"
+    },
+    {
+      "style": "C",
+      "page": 1,
+      "pageCount": 3,
+      "file": "C/27-shelf-page-2.png"
+    },
+    {
+      "style": "C",
+      "page": 2,
+      "pageCount": 3,
+      "file": "C/28-shelf-page-3.png"
     }
   ]
 }

@@ -16,12 +16,15 @@ void main() {
       state.showPreview(
         parameters['screen'] ?? 'shelf',
         parameters['style'] ?? 'A',
+        page: int.tryParse(parameters['page'] ?? '') ?? 0,
       );
       await WidgetsBinding.instance.endOfFrame;
       return ServiceExtensionResponse.result(
         jsonEncode({
           'screen': state.screen,
           'style': state.mood.name.toUpperCase(),
+          if (parameters.containsKey('page')) 'page': state.shelfPage,
+          if (parameters.containsKey('page')) 'pageCount': state.shelfPageCount,
         }),
       );
     } catch (error) {

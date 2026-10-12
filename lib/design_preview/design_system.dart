@@ -24,6 +24,7 @@ class DesignPalette {
     double size, {
     int weight = 400,
     Color? color,
+    Color? background,
     double height = 1.5,
     bool serif = false,
     bool mono = false,
@@ -33,12 +34,18 @@ class DesignPalette {
         : serif && !dark
         ? 'GowunBatang'
         : 'PlexKR',
+    fontFamilyFallback: const ['PlexKR'],
     fontSize: size,
     fontWeight:
         FontWeight.values[((dark && weight > 600 ? 600 : weight) ~/ 100) - 1],
     color: color ?? ink,
+    backgroundColor: background,
     height: height,
-    letterSpacing: mono ? .5 : -.3,
+    letterSpacing: mono
+        ? .5
+        : dark && size >= 17
+        ? -size * .02
+        : -.3,
   );
   ThemeData get theme => ThemeData(
     brightness: dark ? Brightness.dark : Brightness.light,
@@ -77,12 +84,77 @@ class RuledPaper extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = .6;
-    for (double y = 22; y < size.height; y += 32) {
+      ..strokeWidth = 1;
+    for (double y = 43; y < size.height; y += 32) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
 
   @override
   bool shouldRepaint(RuledPaper oldDelegate) => color != oldDelegate.color;
+}
+
+/// Mirrors the outline of a-stamp.svg; native Text retains bundled Plex fonts.
+class DateStamp extends StatelessWidget {
+  const DateStamp({super.key, required this.date});
+  final String date;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 104,
+    height: 46,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        SvgPicture.asset(
+          'assets/design_preview/reference/a-stamp-outline.svg',
+          width: 104,
+          height: 46,
+        ),
+        Transform.rotate(
+          angle: -4 * 3.141592653589793 / 180,
+          child: Text(
+            '$date\n추가',
+            textAlign: TextAlign.center,
+            style: const DesignPalette(Mood.a).text(
+              11,
+              mono: true,
+              weight: 500,
+              height: 1.3,
+              color: const Color(0xff2b45e0),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class VerticalSpineTitle extends StatelessWidget {
+  const VerticalSpineTitle(this.title, {super.key, required this.style});
+  final String title;
+  final TextStyle style;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final glyphs = title.characters
+          .where((c) => c.trim().isNotEmpty)
+          .toList();
+      final step = (style.fontSize ?? 11) + 2;
+      final count = (constraints.maxHeight / step).floor();
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < count && i < glyphs.length; i++)
+            SizedBox(
+              height: step,
+              child: Text(
+                i == count - 1 && glyphs.length > count ? '⋮' : glyphs[i],
+                style: style,
+                textAlign: TextAlign.center,
+              ),
+            ),
+        ],
+      );
+    },
+  );
 }

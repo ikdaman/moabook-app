@@ -61,10 +61,22 @@ def main():
                 raise RuntimeError(f'Unexpected screenshot size: {file}')
             manifest['screens'].append({'style': style, 'screen': screen, 'label': label, 'file': str(file.relative_to(args.output))})
             print(f'{style} {index:02}/{len(screens)} {screen}', flush=True)
+    manifest['shelfPages'] = []
+    for style in ['A', 'C']:
+        first = rpc('ext.moabook.preview', isolateId=isolate, style=style, screen='shelf', page=0)
+        for page in range(1, first['pageCount']):
+            result = rpc('ext.moabook.preview', isolateId=isolate, style=style, screen='shelf', page=page)
+            if result['page'] != page:
+                raise RuntimeError(f'Unexpected shelf page: {result}')
+            time.sleep(.6)
+            file = args.output / style / f'{len(screens) + page:02}-shelf-page-{page + 1}.png'
+            subprocess.run(['xcrun', 'simctl', 'io', args.device, 'screenshot', str(file)], check=True, capture_output=True)
+            manifest['shelfPages'].append({'style': style, 'page': page, 'pageCount': first['pageCount'], 'file': str(file.relative_to(args.output))})
+            print(f'{style} shelf page {page + 1}/{first["pageCount"]}', flush=True)
     (args.output / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
     from build_design_gallery import build
     build(args.output)
-    print(f'Saved {len(manifest["screens"])} screenshots to {args.output}')
+    print(f'Saved {len(manifest["screens"])} screens + {len(manifest["shelfPages"])} shelf pages to {args.output}')
     # Leave the simulator on the editorial home for hands-on review.
     rpc('ext.moabook.preview', isolateId=isolate, style='A', screen='shelf')
 

@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>모아북 · 디자인 가이드와 최신 캡처</title>
+<!-- LOCAL_FONTS -->
+<style>
+/* Layout: 무드별로 한 구역. 설명 한 줄 + 폰 화면 5장이 가로로 흐르다 줄바꿈. 폰 안 색은 시안 자체의 색이라 테마와 무관하게 고정. */
+:root{
+  --bg:#EEEDE9; --fg:#1A1A1C; --muted:#63635F; --line:#CBC9C2; --surface:#FFFFFF; --accent:#2B45E0;
+  --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#16161A;--fg:#EDEDEA;--muted:#A0A09A;--line:#34343A;--surface:#212126;--accent:#8DA0FF;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16161A;--fg:#EDEDEA;--muted:#A0A09A;--line:#34343A;--surface:#212126;--accent:#8DA0FF;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.65 var(--sans);padding-inline:16px}
+.board{max-width:1060px;margin:0 auto;padding-block:40px 80px;display:flex;flex-direction:column;gap:56px}
+h1,h2,p,ul{margin:0}
+h1{font-size:clamp(1.7rem,5vw,2.2rem);line-height:1.3;text-wrap:balance}
+.eyebrow{font:500 12px var(--mono);letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.intro{display:flex;flex-direction:column;gap:10px}
+.intro p{color:var(--muted);max-width:68ch}
+.mood{display:flex;flex-direction:column;gap:22px;border-top:2px solid var(--fg);padding-top:22px}
+.mhead{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:8px 40px;align-items:start}
+.mhead>*{min-width:0}
+.mhead h2{font-size:1.4rem;line-height:1.35;text-wrap:balance}
+.mhead .sub{color:var(--muted);font-size:14px;margin-top:6px}
+.tag{display:inline-block;font:500 12px var(--mono);border:1.5px solid var(--fg);padding:1px 8px;border-radius:3px;margin-bottom:8px}
+.tag.rec{background:var(--fg);color:var(--bg)}
+.spec{display:flex;flex-direction:column;gap:10px}
+.sw{display:flex;gap:6px;flex-wrap:wrap}
+.sw i{width:28px;height:28px;border-radius:4px;border:1px solid var(--line);display:block}
+.spec ul{padding-left:18px;font-size:13.5px;color:var(--muted)}
+@media (max-width:760px){.mhead{grid-template-columns:minmax(0,1fr)}}
+.phones{display:flex;gap:20px 24px;flex-wrap:wrap}
+.fig{display:flex;flex-direction:column;gap:8px}
+.pw{width:304px;height:610px;flex:none;max-width:100%}
+.ph{width:390px;height:782px;transform:scale(.78);transform-origin:0 0;border-radius:44px;border:9px solid #111;overflow:hidden;position:relative;background:#fff;box-shadow:0 12px 30px rgba(0,0,0,.2)}
+.cap{font:12px var(--mono);color:var(--muted)}
+.scr{position:absolute;inset:0;overflow:hidden}
+.sb{height:44px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 26px 6px;font:600 14px var(--sans)}
+.note{font-size:13.5px;color:var(--muted);max-width:70ch}
+.cmp{overflow-x:auto;border:1.5px solid var(--fg);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:600px;font-size:13.5px}
+th,td{padding:10px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font:500 11.5px var(--mono);color:var(--muted);letter-spacing:.05em}
+tr:last-child td{border-bottom:0}
+
+/* 책 표지 자리: 이미지 없이 단색 #D4D4D4 */
+.cover{position:relative;overflow:hidden;background:#555}
+.cv1,.cv2,.cv3,.cv4,.cv5,.cv6{background:#D4D4D4}
+.cover .t{position:absolute;left:8%;top:8%;right:8%;font:600 11px/1.3 var(--sans);color:#555}
+
+/* ================= A. 에디토리얼 라인 ================= */
+.a{--ab:#F4F1EA;--ai:#1B1B1B;--ar:#FF5A36;--abl:#2B45E0;--ay:#F2C200;background:var(--ab);color:var(--ai);font-family:var(--sans)}
+.a .nav{display:flex;justify-content:space-between;align-items:center;padding:4px 22px;height:36px}
+.a .nav .back{font-size:26px;line-height:1}
+.a .mono{font:500 11px var(--mono);letter-spacing:.06em}
+.a .cov-wrap{display:flex;justify-content:center;padding-top:6px}
+.a .cover-big{width:160px;height:226px;border:1.5px solid var(--ai);box-shadow:6px 6px 0 var(--ai)}
+.a .obi{position:absolute;left:0;right:0;bottom:30px;padding:8px 10px;font:600 12px/1.3 var(--sans);background:var(--ar);color:#fff;border-top:1.5px solid var(--ai);border-bottom:1.5px solid var(--ai)}
+.a .paper{position:absolute;left:18px;right:18px;top:326px;bottom:18px;background:#FFFDF8;border:1.5px solid var(--ai);padding:44px 18px 16px;background-image:linear-gradient(transparent 31px,#C9C4B6 31px 32px);background-size:100% 32px;background-position:0 12px}
+.a .idx{position:absolute;left:18px;top:-1.5px;transform:translateY(-100%);background:var(--ai);color:#fff;font:500 11px var(--mono);letter-spacing:.08em;padding:3px 12px}
+.a .paper h3{font:700 19px/1.35 var(--sans);margin:0 0 6px;background:#FFFDF8}
+.a .by{font:400 12px var(--mono);color:#555;margin-bottom:12px;background:#FFFDF8;display:inline-block}
+.a .chip{display:inline-block;background:var(--ai);color:#fff;font:600 12px var(--sans);padding:3px 10px}
+.a .stampbox{position:absolute;right:16px;top:50px;border:2px solid var(--abl);color:var(--abl);font:500 11px/1.3 var(--mono);padding:3px 8px;transform:rotate(-4deg);text-align:center;background:#FFFDF8}
+.a .more{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:8px;border-top:1.5px solid var(--ai);font:600 13px var(--sans);background:#FFFDF8}
+.a .more b{color:var(--ar);font-weight:600}
+.a .head{padding:6px 22px 0}
+.a .head .k{display:flex;justify-content:space-between}
+.a .head h3{font:700 28px/1.2 "Gowun Batang",serif;margin:6px 0 4px}
+.a .tools{display:flex;gap:10px;font:500 11px var(--mono);border-top:1.5px solid var(--ai);border-bottom:1px solid var(--ai);padding:7px 0;margin-top:8px}
+.a .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:14px 22px 0}
+.a .bk .cover{width:100%;aspect-ratio:3/3.7;border:1.5px solid var(--ai)}
+.a .bk .bar{font:600 10.5px/1.25 var(--sans);padding:4px 6px;border:1.5px solid var(--ai);border-top:0;min-height:26px;display:flex;align-items:center}
+.a .r{background:var(--ar);color:#fff}.a .w{background:var(--abl);color:#fff}.a .g{background:var(--ai);color:#fff}.a .s{background:var(--ay);color:var(--ai)}.a .n{background:transparent;color:#888;font-weight:400}
+.a .legend{position:absolute;left:22px;right:22px;bottom:84px;display:flex;gap:10px;font:500 10px var(--mono);border-top:1px solid var(--ai);padding-top:8px}
+.a .legend span::before{content:"";display:inline-block;width:9px;height:9px;margin-right:4px;background:var(--c);border:1px solid var(--ai)}
+.a .tabbar{position:absolute;left:0;right:0;bottom:0;height:78px;border-top:1.5px solid var(--ai);display:flex;background:var(--ab)}
+.a .tabbar div{flex:1;display:flex;align-items:center;justify-content:center;font:500 13px var(--sans);color:#8a8a82}
+.a .tabbar .on{color:var(--ai);font-weight:700;box-shadow:inset 0 3px 0 var(--ar)}
+/* 뒷면 */
+.a .back-card{position:absolute;left:18px;right:18px;top:92px;bottom:96px;background:#FFFDF8;border:1.5px solid var(--ai);padding:20px 18px;overflow:hidden}
+.a .back-card h4{font:700 16px/1.4 var(--sans);margin:0}
+.a .back-card .meta{font:500 11px/1.5 var(--mono);color:#555;margin-top:6px;padding-bottom:12px;border-bottom:1.5px solid var(--ai)}
+.a .tl{margin-top:14px;display:flex;flex-direction:column;gap:14px}
+.a .ev{display:grid;grid-template-columns:70px minmax(0,1fr);gap:10px;padding-bottom:14px;border-bottom:1px solid #C9C4B6}
+.a .ev:last-child{border-bottom:0}
+.a .ev time{font:500 11px/1.6 var(--mono);color:#555}
+.a .ev b{display:block;font:700 13px var(--sans)}
+.a .ev p{font:400 12.5px/1.55 var(--sans);color:#333;margin-top:3px}
+.a .ev .k{display:inline-block;font:500 10px var(--mono);border:1px solid var(--ai);padding:0 5px;margin-right:6px;vertical-align:1px}
+.a .fab{position:absolute;right:22px;bottom:22px;width:70px;height:70px;border-radius:50%;background:var(--ai);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font:600 13px/1.25 var(--sans)}
+.a .dim{position:absolute;inset:0;background:rgba(27,27,27,.55)}
+.a .sheet{position:absolute;left:0;right:0;bottom:0;top:218px;background:var(--ab);border-top:2px solid var(--ai);padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.a .sheet .h{display:flex;justify-content:space-between;font:700 16px var(--sans)}
+.a .grp .l{font:500 11px var(--mono);letter-spacing:.06em;margin-bottom:6px;border-bottom:1.5px solid var(--ai);padding-bottom:4px}
+.a .opts{display:flex;flex-wrap:wrap;gap:6px}
+.a .opts span{border:1.5px solid var(--ai);padding:5px 10px;font:500 13px var(--sans);background:#FFFDF8}
+.a .opts span.free{width:100%;text-align:center;background:var(--ai);color:#fff}
+/* 서가 */
+.a .shelves{padding:16px 22px 0;display:flex;flex-direction:column;gap:20px}
+.a .shelf{display:flex;align-items:flex-end;gap:5px;height:152px;border-bottom:3px solid var(--ai);padding:0 2px}
+.a .sp{position:relative;border:1.5px solid var(--ai);border-bottom:0;background:#E3DED1;display:flex;justify-content:center;padding-top:8px;overflow:hidden}
+.a .sp span{writing-mode:vertical-rl;font:600 11px/1 var(--sans);max-height:calc(100% - 44px);overflow:hidden;white-space:nowrap}
+.a .sp i{position:absolute;left:0;right:0;bottom:0;height:32px;border-top:1.5px solid var(--ai)}
+.a .pg{text-align:center;font:500 11px var(--mono);margin-top:12px}
+
+/* ================= C. 컬러 블록 (가벼운 굵기) ================= */
+.c{--cb:#121212;--co:#FF5B2E;--cl:#C8F031;--cp:#6A4BFF;--ct:#E8C9A0;--cs:#1E1E1E;background:var(--cb);color:#fff;font-family:var(--sans)}
+.c .nav{display:flex;justify-content:space-between;padding:4px 22px;height:36px;align-items:center;font-size:26px}
+.c .nav .mono{font:500 11px var(--mono);color:var(--cl)}
+.c .hero{margin:8px 18px 0;height:300px;background:var(--co);position:relative;overflow:hidden}
+.c .stair{position:absolute;left:40px;bottom:0;width:150px;height:170px;background:var(--ct);clip-path:polygon(0 100%,0 70%,25% 70%,25% 45%,50% 45%,50% 22%,75% 22%,75% 0,100% 0,100% 100%)}
+.c .dot{position:absolute;width:30px;height:30px;border-radius:50%;background:var(--cl)}
+.c .hero .cover{position:absolute;right:22px;top:26px;width:130px;height:184px;border:3px solid #121212;box-shadow:6px 6px 0 #121212}
+.c .hero .big{position:absolute;left:18px;top:16px;font:600 36px/1 var(--sans);letter-spacing:-.02em;color:#121212}
+.c .obi{position:absolute;left:0;right:0;bottom:0;background:var(--cl);color:#121212;font:600 15px/1.3 var(--sans);padding:12px 18px;display:flex;justify-content:space-between}
+.c .info2{padding:18px 20px}
+.c .info2 h3{font:600 24px/1.3 var(--sans);letter-spacing:-.02em;margin:0}
+.c .by{font:400 13px var(--mono);color:#aaa;margin:8px 0 14px}
+.c .chip{display:inline-block;background:var(--cp);color:#fff;font:500 13px var(--sans);padding:4px 12px;border-radius:99px}
+.c .rec{margin-top:16px;display:flex;justify-content:space-between;align-items:center;border:1.5px solid #fff;padding:12px 14px;font:500 14px var(--sans)}
+.c .rec b{background:var(--cl);color:#121212;padding:2px 10px;font-weight:600}
+.c .head{padding:6px 20px 0}
+.c .head h3{font:600 36px/1.15 var(--sans);letter-spacing:-.02em;color:var(--cl);margin:0}
+.c .cnt{font:500 12px var(--mono);color:#aaa;margin-top:6px}
+.c .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:20px 18px 0}
+.c .bk .cover{width:100%;aspect-ratio:3/3.7}
+.c .bk .bar{font:600 10.5px/1.25 var(--sans);padding:6px;min-height:28px;display:flex;align-items:center;color:#121212}
+.c .r{background:var(--co)}.c .w{background:var(--cp);color:#fff!important}.c .g{background:var(--ct)}.c .s{background:var(--cl)}.c .n{background:#2a2a2a;color:#888!important;font-weight:400!important}
+.c .tabbar{position:absolute;left:0;right:0;bottom:0;height:78px;display:flex;background:var(--cl)}
+.c .tabbar div{flex:1;display:flex;align-items:center;justify-content:center;font:600 14px var(--sans);color:#121212;opacity:.45}
+.c .tabbar .on{opacity:1;background:#121212;color:var(--cl)}
+/* 뒷면 */
+.c .bhead{margin:8px 18px 0;background:var(--co);color:#121212;padding:14px 16px}
+.c .bhead h4{font:600 17px/1.35 var(--sans);margin:0;letter-spacing:-.01em}
+.c .bhead .m{font:500 11px var(--mono);margin-top:6px;display:flex;justify-content:space-between}
+.c .btl{padding:14px 18px 0;display:flex;flex-direction:column;gap:10px}
+.c .ev{background:var(--cs);padding:12px 14px;display:grid;grid-template-columns:66px minmax(0,1fr);gap:10px}
+.c .ev time{font:500 11px/1.6 var(--mono);color:var(--cl)}
+.c .ev b{display:block;font:600 13px var(--sans)}
+.c .ev p{font:400 12.5px/1.55 var(--sans);color:#cfcfcf;margin-top:3px}
+.c .ev .k{display:inline-block;font:500 10px var(--mono);background:var(--cp);color:#fff;padding:0 6px;margin-right:6px;border-radius:99px}
+.c .fab{position:absolute;right:20px;bottom:22px;width:68px;height:68px;border-radius:50%;background:var(--cl);color:#121212;display:flex;align-items:center;justify-content:center;text-align:center;font:600 13px/1.25 var(--sans)}
+.c .dim{position:absolute;inset:0;background:rgba(0,0,0,.62)}
+.c .sheet{position:absolute;left:0;right:0;bottom:0;top:218px;background:#1B1B1B;border-top:4px solid var(--cl);padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.c .sheet .h{display:flex;justify-content:space-between;font:600 16px var(--sans)}
+.c .grp .l{font:500 11px var(--mono);letter-spacing:.06em;color:var(--cl);margin-bottom:6px}
+.c .opts{display:flex;flex-wrap:wrap;gap:6px}
+.c .opts span{border:1.5px solid #555;padding:5px 10px;font:500 13px var(--sans);border-radius:99px}
+.c .opts span.free{width:100%;text-align:center;background:var(--cl);color:#121212;border-color:var(--cl);border-radius:0;font-weight:600}
+/* 서가 */
+.c .shelves{padding:16px 20px 0;display:flex;flex-direction:column;gap:20px}
+.c .shelf{display:flex;align-items:flex-end;gap:5px;height:152px;border-bottom:4px solid var(--cl)}
+.c .sp{position:relative;background:#2E2E2E;display:flex;justify-content:center;padding-top:8px;overflow:hidden}
+.c .sp:nth-child(3n+2){background:#3A3A3A}.c .sp:nth-child(3n){background:#262626}
+.c .sp span{writing-mode:vertical-rl;font:500 11px/1 var(--sans);color:#ddd;max-height:calc(100% - 44px);overflow:hidden;white-space:nowrap}
+.c .sp i{position:absolute;left:0;right:0;bottom:0;height:32px}
+.c .pg{text-align:center;font:500 11px var(--mono);margin-top:12px;color:#aaa}
+
+/* ================= 디자인 가이드 ================= */
+.guide{display:flex;flex-direction:column;gap:28px;border:1.5px solid var(--fg);background:var(--surface);padding:22px}
+.guide h3{font-size:1.1rem;margin:0}
+.guide h4{font:500 12px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.guide section{display:flex;flex-direction:column}
+.swg{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.swc{display:grid;grid-template-columns:44px minmax(0,1fr);gap:2px 10px;align-items:center;border:1px solid var(--line);padding:8px}
+.swc i{grid-row:span 3;width:44px;height:44px;border-radius:4px;border:1px solid var(--line)}
+.swc b{font-size:13px}
+.swc code{font:500 12px var(--mono);color:var(--muted)}
+.swc span{font-size:12px;color:var(--muted);line-height:1.4}
+.gt{overflow-x:auto;border:1px solid var(--line)}
+.gt table{min-width:560px;font-size:13px}
+.gt th{background:transparent}
+.gt td code,.rules code{font:500 12px var(--mono);background:color-mix(in srgb,var(--fg) 8%,transparent);padding:1px 5px;border-radius:3px}
+.smp{padding:8px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:180px;max-width:360px}
+.smp.a{background:#F4F1EA;color:#1B1B1B}.smp.c{background:#121212;color:#fff}
+.assets{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.asset{border:1px solid var(--line);display:flex;flex-direction:column}
+.asset .stage{display:flex;align-items:center;justify-content:center;padding:16px;min-height:110px}
+.asset .stage.a{background:#F4F1EA}.asset .stage.c{background:#121212}
+.asset .stage svg{max-width:100%;height:auto}
+.asset .meta{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--line);font-size:12.5px}
+.asset .meta span{min-width:0}
+button.cp{font:500 12px var(--mono);border:1.5px solid var(--fg);background:transparent;color:var(--fg);padding:3px 10px;border-radius:3px;cursor:pointer;flex:none}
+button.cp:hover{background:var(--fg);color:var(--bg)}
+button.cp:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rules{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.rules li{min-width:0}
+.tokbox{position:relative}
+.tokbox pre{margin:0;padding:14px;background:color-mix(in srgb,var(--fg) 6%,transparent);border:1px solid var(--line);font:400 12px/1.6 var(--mono);overflow-x:auto}
+.tokbox button{position:absolute;right:8px;top:8px;background:var(--surface)}
+.gnote{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.jump{display:flex;gap:10px;flex-wrap:wrap;font:500 13px var(--mono)}
+.jump a{color:var(--fg);border:1.5px solid var(--fg);padding:3px 10px;border-radius:3px;text-decoration:none}
+.jump a:hover{background:var(--fg);color:var(--bg)}
+@media (max-width:760px){.guide{padding:16px}}
+</style><style>.fig .actual{display:block;width:304px;max-width:100%;height:auto;border:1.5px solid var(--line)}.fig{width:304px}.phones{align-items:flex-start}body{margin:0} .actual-link{display:block}</style></head><body>
+
+
+<div class="board">
+
+<header class="intro">
+  <span class="eyebrow">MoaBook · 디자인 가이드 · 2026.10.12</span>
+  <h1>모아북 화면 무드: A와 C</h1>
+  <p>원본 무드 보드의 규격과 SVG 에셋을 기준으로 복원한 A/C 디자인입니다. 아래 화면은 최신 Flutter iPhone 17 시뮬레이터 실측 캡처입니다. 전체 26개 화면 × 2개 스타일은 비교 갤러리에서 확인할 수 있습니다.</p>
+  <nav class="jump" aria-label="바로가기"><a href="index.html">전체 화면·서가 페이지 비교</a><a href="icons-preview.html">아이콘 교체 비교</a><a href="https://claude.ai/artifact/VSoiFpSiJDf4JayX2CBpLa">원본 무드 보드</a><a href="#guide-a">A 디자인 가이드</a><a href="#guide-c">C 디자인 가이드</a></nav>
+  <p class="note">구현: 컬렉션에는 실제 표지 9권을, 기본 서가에는 가상의 샘플을 더해 총 90권을 사용합니다. 서가는 3단으로 표시하고 좌우 드래그로 페이지를 넘깁니다. 책 추가는 상단의 작은 + 버튼으로 배치하며, 두 서가 모두 같은 우측 최상단에 톱니 설정이 있습니다. 아래 SVG는 원본 에셋이며, 글자가 있는 SVG는 앱에서 번들 폰트로 다시 그립니다. 책등 폭은 22~38px이며 작가명·띠지 문자를 빼고 제목만 세로로 표시합니다. C 탭 버튼의 색 면은 하단 안전 여백까지 전체를 채웁니다. 일반 버튼과 A 옵션은 최신 요청에 따라 8px 둥근 모서리를 사용합니다. 독서카드의 별도 기록 보기 버튼과 앞뒤 인디케이터는 제거했으며, 카드 터치·좌우 스와이프로 전환합니다. 아래 원본 SVG와 규격은 참고 기준이며, 최신 구현은 캡처에 표시됩니다. 빈 이미지 색과 치수는 원본 설계 기준으로 함께 보관합니다.</p>
+</header>
+
+<!-- ================= A ================= -->
+<section class="mood" aria-labelledby="a-t">
+  <div class="mhead">
+    <div>
+      <span class="tag rec">추천</span>
+      <h2 id="a-t">A. 에디토리얼 라인 + 컬러 띠지</h2>
+      <p class="sub">편집물처럼 절제한 바탕, 색은 띠지와 강조에만. 괘선 종이와 스탬프는 독서카드 안에만 둬.</p>
+    </div>
+    <div class="spec">
+      <div class="sw"><i style="background:#F4F1EA"></i><i style="background:#1B1B1B"></i><i style="background:#FF5A36"></i><i style="background:#2B45E0"></i><i style="background:#F2C200"></i></div>
+      <ul>
+        <li>서체: IBM Plex Sans KR(본문·제목), Gowun Batang(컬렉션·서가 제목), IBM Plex Mono(메타)</li>
+        <li>띠지 색은 저장 이유 종류: 추천 / WISH / 선물 / 소개</li>
+      </ul>
+    </div>
+  </div>
+  <div class="phones">
+
+    <div class="fig"><!-- GUIDE_SCREEN_A_card-front --><div class="cap">A-1 독서카드 앞면</div></div>
+
+    <div class="fig"><!-- GUIDE_SCREEN_A_collection --><div class="cap">A-2 컬렉션 상세</div></div>
+
+    <div class="fig"><!-- GUIDE_SCREEN_A_card-back --><div class="cap">A-3 독서카드 뒷면</div></div>
+
+    <div class="fig"><!-- GUIDE_SCREEN_A_record-options --><div class="cap">A-4 기록 추가 시트</div></div>
+
+    <div class="fig"><!-- GUIDE_SCREEN_A_shelf --><div class="cap">A-5 서가</div></div>
+
+  </div>
+
+  <div class="guide" id="guide-a">
+    <h3>A 디자인 가이드</h3>
+    <section><h4>색</h4><div class="swg"><div class="swc"><i style="background:#F4F1EA"></i><b>종이 바탕</b><code>#F4F1EA</code><span>앱 전체 바탕</span></div><div class="swc"><i style="background:#1B1B1B"></i><b>잉크</b><code>#1B1B1B</code><span>글자, 선, 단색 그림자, 선물 띠지</span></div><div class="swc"><i style="background:#FF5A36"></i><b>주황</b><code>#FF5A36</code><span>추천 띠지, 강조 숫자, 탭 활성 표시</span></div><div class="swc"><i style="background:#2B45E0"></i><b>코발트</b><code>#2B45E0</code><span>WISH 띠지, 스탬프</span></div><div class="swc"><i style="background:#F2C200"></i><b>노랑</b><code>#F2C200</code><span>소개 띠지</span></div><div class="swc"><i style="background:#FFFDF8"></i><b>카드 종이</b><code>#FFFDF8</code><span>독서카드, 기록 칩 바탕</span></div><div class="swc"><i style="background:#C9C4B6"></i><b>괘선</b><code>#C9C4B6</code><span>카드 안 가로줄, 타임라인 구분선</span></div><div class="swc"><i style="background:#D4D4D4"></i><b>표지 빈 이미지</b><code>#D4D4D4</code><span>책 표지 자리 (이미지 없음)</span></div><div class="swc"><i style="background:#E3DED1"></i><b>책등 빈 블록</b><code>#E3DED1</code><span>서가 책등 바탕 (이미지 없음)</span></div></div></section>
+    <section><h4>타이포</h4><div class="gt"><table><thead><tr><th>역할</th><th>서체 · 굵기</th><th>크기 / 행간</th><th>샘플</th></tr></thead><tbody><tr><td>컬렉션·서가 제목</td><td><code>Gowun Batang</code> 700</td><td>28px / 1.2</td><td><div class="smp a" style="font:700 28px/1.2 'Gowun Batang',serif">인생 책 LIST</div></td></tr><tr><td>독서카드 제목(앞면)</td><td><code>IBM Plex Sans KR</code> 700</td><td>19px / 1.35</td><td><div class="smp a" style="font:700 19px/1.35 var(--sans)">소년과 두더지와 여우와 말</div></td></tr><tr><td>독서카드 제목(뒷면)</td><td>Plex Sans KR 700</td><td>16px / 1.4</td><td><div class="smp a" style="font:700 16px/1.4 var(--sans)">소년과 두더지와 여우와 말</div></td></tr><tr><td>이벤트명</td><td>Plex Sans KR 700</td><td>13px</td><td><div class="smp a" style="font:700 13px var(--sans)">읽고 싶은 책 추가</div></td></tr><tr><td>본문(메모)</td><td>Plex Sans KR 400</td><td>12.5px / 1.55</td><td><div class="smp a" style="font:400 12.5px/1.55 var(--sans)">첫 장부터 좋다.</div></td></tr><tr><td>띠지 문구(표지 위)</td><td>Plex Sans KR 600</td><td>12px / 1.3</td><td><div class="smp a" style="font:600 12px/1.3 var(--sans)">하말넘말에서 추천해줌</div></td></tr><tr><td>띠지 문구(목록)</td><td>Plex Sans KR 600</td><td>10.5px / 1.25</td><td><div class="smp a" style="font:600 10.5px/1.25 var(--sans)">생일 선물로 받음</div></td></tr><tr><td>메타(날짜·쪽수)</td><td><code>IBM Plex Mono</code> 500</td><td>11px, 자간 .06em</td><td><div class="smp a" style="font:500 11px var(--mono);letter-spacing:.06em">2026.08.03 · CARD 1 / 2</div></td></tr><tr><td>칩·옵션</td><td>Plex Sans KR 500~600</td><td>12~13px</td><td><div class="smp a" style="font:600 12px var(--sans)">읽는 중</div></td></tr></tbody></table></div></section>
+    <section><h4>간격 · 선 · 모서리</h4><div class="gt"><table><thead><tr><th>항목</th><th>값</th></tr></thead><tbody><tr><td>화면 좌우 여백</td><td>22px (독서카드 박스는 화면에서 18px 안쪽)</td></tr><tr><td>책 격자</td><td>3열, 간격 10px, 표지 비율 3 : 3.7</td></tr><tr><td>선 두께</td><td>기본 1.5px 잉크. 목록 헤더 아래 1px, 서가 선반 3px</td></tr><tr><td>모서리</td><td>카드·책등은 직각(0). 일반 버튼·입력칸·A 옵션은 8px 라운드, 기록 추가는 원</td></tr><tr><td>그림자</td><td>단색 오프셋 <code>6px 6px 0 #1B1B1B</code>. 독서카드 앞면의 큰 표지에만</td></tr><tr><td>탭바</td><td>높이 78px, 위쪽 1.5px 선, 활성 탭은 위쪽 3px 주황 선 + 굵은 글자</td></tr><tr><td>괘선 종이</td><td>가로줄 간격 32px (<code>#C9C4B6</code> 1px)</td></tr></tbody></table></div></section>
+    <section><h4>컴포넌트 규격</h4><div class="gt"><table><thead><tr><th>컴포넌트</th><th>규격</th></tr></thead><tbody><tr><td>띠지(표지 위)</td><td>표지 아래에서 30px 위, 가로 꽉 채움, 위아래 1.5px 잉크 선, 종류별 색 배경 + 문구</td></tr><tr><td>띠지(목록)</td><td>표지 바로 아래에 붙는 바. 최소 높이 26px, 1.5px 잉크 테두리. 저장 이유가 없으면 투명 바 + 회색 글씨</td></tr><tr><td>상태 칩</td><td>잉크 배경, 흰 글자 600 12px, 가로 10px / 세로 3px 여백</td></tr><tr><td>스탬프</td><td>2px 코발트 테두리, Plex Mono 500 11px, -4도 회전, 독서카드 앞면 우상단</td></tr><tr><td>카드 인덱스 탭</td><td>잉크 배경, 흰 글자 Plex Mono 11px, 자간 .08em, 카드 위쪽 모서리에 걸침</td></tr><tr><td>타임라인 행</td><td>날짜 70px 열 + 내용. 행 사이 1px 괘선. 책 수령·읽기 같은 종류는 1px 테두리 미니 태그</td></tr><tr><td>기록 추가 버튼</td><td>지름 70px 원, 잉크 배경, 흰 글자 2줄</td></tr><tr><td>기록 추가 시트</td><td>위쪽 2px 잉크 선, 종이 바탕, 뒤는 <code>rgba(27,27,27,.55)</code> 딤. 그룹 라벨은 Plex Mono + 아래 1.5px 선</td></tr><tr><td>옵션 칩</td><td>1.5px 잉크 테두리, 카드 종이색 바탕, 500 13px. 자유 기록은 가로 꽉 채운 8px 라운드 잉크 버튼</td></tr><tr><td>책등(빈 블록)</td><td>폭 22~38px, 화면 높이에 맞춘 3단 배치, 1.5px 잉크 테두리, 바탕 #E3DED1, 세로 제목 600 11px. 하단 32px는 띠지 색</td></tr></tbody></table></div></section>
+    <section><h4>에셋 (SVG)</h4><div class="assets"><div class="asset"><div class="stage a"><svg id="as-a-stamp" viewBox="0 0 120 52" width="140" xmlns="http://www.w3.org/2000/svg"><g transform="rotate(-4 60 26)"><rect x="3" y="4" width="114" height="44" fill="none" stroke="#2B45E0" stroke-width="3"/><text x="60" y="24" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="500" fill="#2B45E0">2026.08.03</text><text x="60" y="40" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="500" fill="#2B45E0">추가</text></g></svg></div><div class="meta"><span><b>스탬프</b><br>독서카드 앞면 우상단</span><button type="button" class="cp" data-copy="as-a-stamp">SVG 복사</button></div></div><div class="asset"><div class="stage a"><svg id="as-a-rule" viewBox="0 0 200 96" width="200" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="198" height="94" fill="#FFFDF8" stroke="#1B1B1B" stroke-width="1.5"/><path d="M1 32H199M1 64H199" stroke="#C9C4B6" stroke-width="1"/></svg></div><div class="meta"><span><b>괘선 종이</b><br>간격 32px, 카드 바탕</span><button type="button" class="cp" data-copy="as-a-rule">SVG 복사</button></div></div><div class="asset"><div class="stage a"><svg id="as-a-tab" viewBox="0 0 90 24" width="120" xmlns="http://www.w3.org/2000/svg"><rect width="90" height="24" fill="#1B1B1B"/><text x="45" y="16" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="#fff" letter-spacing=".9">독서 카드</text></svg></div><div class="meta"><span><b>카드 인덱스 탭</b><br>카드 위쪽에 걸침</span><button type="button" class="cp" data-copy="as-a-tab">SVG 복사</button></div></div><div class="asset"><div class="stage a"><svg id="as-a-obi" viewBox="0 0 220 130" width="220" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans KR, sans-serif" font-size="11" font-weight="600"><g stroke="#1B1B1B" stroke-width="1.5"><rect x="1" y="1" width="218" height="26" fill="#FF5A36"/><rect x="1" y="35" width="218" height="26" fill="#2B45E0"/><rect x="1" y="69" width="218" height="26" fill="#1B1B1B"/><rect x="1" y="103" width="218" height="26" fill="#F2C200"/></g><text x="10" y="18" fill="#fff">추천 · 하말넘말에서 추천해줌</text><text x="10" y="52" fill="#fff">WISH</text><text x="10" y="86" fill="#fff">선물 · 생일 선물로 받음</text><text x="10" y="120" fill="#1B1B1B">소개 · 선생님이 인생책이라고…</text></svg></div><div class="meta"><span><b>띠지 4종</b><br>종류별 색 규칙</span><button type="button" class="cp" data-copy="as-a-obi">SVG 복사</button></div></div><div class="asset"><div class="stage a"><svg id="as-a-cover" viewBox="0 0 110 150" width="100" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="96" height="136" fill="#1B1B1B"/><rect x="2" y="2" width="96" height="136" fill="#D4D4D4" stroke="#1B1B1B" stroke-width="1.5"/><text x="50" y="74" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="#555">표지</text></svg></div><div class="meta"><span><b>표지 + 오프셋 그림자</b><br>빈 표지 자리, 앞면 전용</span><button type="button" class="cp" data-copy="as-a-cover">SVG 복사</button></div></div><div class="asset"><div class="stage a"><svg id="as-a-spine" viewBox="0 0 120 150" width="120" xmlns="http://www.w3.org/2000/svg"><g stroke="#1B1B1B" stroke-width="1.5"><rect x="10" y="12" width="30" height="136" fill="#E3DED1"/><rect x="10" y="116" width="30" height="32" fill="#FF5A36"/><rect x="48" y="26" width="26" height="122" fill="#E3DED1"/><rect x="82" y="8" width="30" height="140" fill="#E3DED1"/><rect x="82" y="116" width="30" height="32" fill="#F2C200"/></g><path d="M2 148H118" stroke="#1B1B1B" stroke-width="3"/></svg></div><div class="meta"><span><b>책등 빈 블록</b><br>이미지 없음, 띠지 색만</span><button type="button" class="cp" data-copy="as-a-spine">SVG 복사</button></div></div></div><p class="gnote">SVG 안의 글자는 폰트가 없으면 대체 서체로 보여요. 개발에 넘길 때는 글자를 아웃라인으로 바꾸거나 앱 서체로 다시 그려야 해요.</p></section>
+    <section><h4>사용 규칙 (제안)</h4><ol class="rules">
+<li>색은 띠지와 강조에만 크게 쓴다. 바탕과 글자는 종이색과 잉크색 두 가지로 유지한다.</li>
+<li>괘선 종이, 스탬프, 인덱스 탭은 독서카드 안에서만 쓴다. 서가와 컬렉션에는 쓰지 않는다.</li>
+<li>띠지 색은 저장 이유 종류에 묶는다. 새 종류가 생기기 전에는 색을 더하지 않는다.</li>
+<li>그림자는 큰 표지 한 곳에만 쓴다. 목록의 작은 표지에는 쓰지 않는다.</li>
+<li>컬렉션·서가 제목만 명조(Gowun Batang)를 쓴다. 나머지는 Plex Sans KR.</li>
+<li>카드·책등은 직각, 일반 버튼은 8px 라운드, 기록 추가 버튼은 원으로 구분한다.</li>
+</ol></section>
+    <section><h4>CSS 토큰</h4><div class="tokbox"><pre id="tok-a">/* MoaBook · A 에디토리얼 라인 */
+:root{
+  --moa-paper:#F4F1EA;   --moa-ink:#1B1B1B;
+  --moa-orange:#FF5A36;  --moa-cobalt:#2B45E0;  --moa-yellow:#F2C200;
+  --moa-card:#FFFDF8;    --moa-rule:#C9C4B6;    --moa-spine:#E3DED1;
+  --moa-line:1.5px;      --moa-shadow:6px 6px 0 var(--moa-ink);
+  --moa-sans:"IBM Plex Sans KR",sans-serif;
+  --moa-serif:"Gowun Batang",serif;
+  --moa-mono:"IBM Plex Mono",monospace;
+}</pre><button type="button" class="cp" data-copy="tok-a">복사</button></div></section>
+  </div>
+</section>
+
+<!-- ================= C ================= -->
+<section class="mood" aria-labelledby="c-t">
+  <div class="mhead">
+    <div>
+      <span class="tag">비교안</span>
+      <h2 id="c-t">C. 컬러 블록 (가벼운 굵기)</h2>
+      <p class="sub">어두운 바탕에 큰 색 면. 제목 서체를 굵은 디스플레이체에서 IBM Plex Sans KR 600으로 바꿔 힘을 뺐어.</p>
+    </div>
+    <div class="spec">
+      <div class="sw"><i style="background:#121212"></i><i style="background:#FF5B2E"></i><i style="background:#C8F031"></i><i style="background:#6A4BFF"></i><i style="background:#E8C9A0"></i></div>
+      <ul>
+        <li>서체: IBM Plex Sans KR 하나로 통일(제목 600, 본문 400~500), IBM Plex Mono(메타)</li>
+        <li>띠지는 색 면 전체: 주황 추천 / 보라 WISH / 탄 선물 / 라임 소개</li>
+      </ul>
+    </div>
+  </div>
+  <div class="phones">
+
+    <div class="fig"><!-- GUIDE_SCREEN_C_card-front --><div class="cap">C-1 독서카드 앞면</div></div>
+
+    <div class="fig"><!-- GUIDE_SCREEN_C_collection --><div class="cap">C-2 컬렉션 상세</div></div>
+
+    <div class="fig"><!-- GUIDE_SCREEN_C_card-back --><div class="cap">C-3 독서카드 뒷면</div></div>
+
+    <div class="fig"><!-- GUIDE_SCREEN_C_record-options --><div class="cap">C-4 기록 추가 시트</div></div>
+
+    <div class="fig"><!-- GUIDE_SCREEN_C_shelf --><div class="cap">C-5 서가</div></div>
+
+  </div>
+
+  <div class="guide" id="guide-c">
+    <h3>C 디자인 가이드</h3>
+    <section><h4>색</h4><div class="swg"><div class="swc"><i style="background:#121212"></i><b>바탕</b><code>#121212</code><span>앱 전체 바탕, 탭 활성 면</span></div><div class="swc"><i style="background:#FF5B2E"></i><b>주황</b><code>#FF5B2E</code><span>추천 띠지, 독서카드 히어로 면</span></div><div class="swc"><i style="background:#C8F031"></i><b>라임</b><code>#C8F031</code><span>포인트: 탭바, 소개 띠지, 서가 선반, 서가·컬렉션 제목</span></div><div class="swc"><i style="background:#6A4BFF"></i><b>보라</b><code>#6A4BFF</code><span>WISH 띠지, 상태·종류 칩</span></div><div class="swc"><i style="background:#E8C9A0"></i><b>탄</b><code>#E8C9A0</code><span>선물 띠지, 계단 도형</span></div><div class="swc"><i style="background:#D4D4D4"></i><b>표지 빈 이미지</b><code>#D4D4D4</code><span>책 표지 자리 (이미지 없음)</span></div><div class="swc"><i style="background:#1E1E1E"></i><b>카드 면</b><code>#1E1E1E</code><span>타임라인 카드</span></div><div class="swc"><i style="background:#1B1B1B"></i><b>시트 면</b><code>#1B1B1B</code><span>기록 추가 시트</span></div><div class="swc"><i style="background:#2A2A2A"></i><b>비활성</b><code>#2A2A2A</code><span>저장 이유 없음 바 (글자는 #888888)</span></div><div class="swc"><i style="background:#AAAAAA"></i><b>보조 글자</b><code>#AAAAAA</code><span>메타, 저자 줄</span></div></div></section>
+    <section><h4>타이포</h4><div class="gt"><table><thead><tr><th>역할</th><th>서체 · 굵기</th><th>크기 / 행간</th><th>샘플</th></tr></thead><tbody><tr><td>컬렉션·서가 제목</td><td><code>IBM Plex Sans KR</code> 600, 자간 -.02em</td><td>36px / 1.15</td><td><div class="smp c" style="font:600 36px/1.15 var(--sans);letter-spacing:-.02em;color:#C8F031">인생 책 LIST</div></td></tr><tr><td>히어로 상태</td><td>Plex Sans KR 600, 자간 -.02em</td><td>36px / 1</td><td><div class="smp c" style="font:600 36px/1 var(--sans);letter-spacing:-.02em;background:#FF5B2E;color:#121212">읽는 중</div></td></tr><tr><td>독서카드 제목(앞면)</td><td>Plex Sans KR 600</td><td>24px / 1.3</td><td><div class="smp c" style="font:600 24px/1.3 var(--sans);letter-spacing:-.02em">소년과 두더지와 여우와 말</div></td></tr><tr><td>독서카드 제목(뒷면)</td><td>Plex Sans KR 600</td><td>17px / 1.35</td><td><div class="smp c" style="font:600 17px/1.35 var(--sans);background:#FF5B2E;color:#121212">소년과 두더지와 여우와 말</div></td></tr><tr><td>이벤트명</td><td>Plex Sans KR 600</td><td>13px</td><td><div class="smp c" style="font:600 13px var(--sans)">읽고 싶은 책 추가</div></td></tr><tr><td>본문(메모)</td><td>Plex Sans KR 400</td><td>12.5px / 1.55</td><td><div class="smp c" style="font:400 12.5px/1.55 var(--sans);color:#cfcfcf">첫 장부터 좋다.</div></td></tr><tr><td>띠지 문구(히어로)</td><td>Plex Sans KR 600</td><td>15px / 1.3</td><td><div class="smp c" style="font:600 15px/1.3 var(--sans);background:#C8F031;color:#121212">하말넘말에서 추천해줌</div></td></tr><tr><td>띠지 문구(목록)</td><td>Plex Sans KR 600</td><td>10.5px / 1.25</td><td><div class="smp c" style="font:600 10.5px/1.25 var(--sans);background:#E8C9A0;color:#121212">선물</div></td></tr><tr><td>메타(날짜·쪽수)</td><td><code>IBM Plex Mono</code> 500</td><td>11~13px</td><td><div class="smp c" style="font:500 11px var(--mono);color:#C8F031">2026.08.03</div></td></tr></tbody></table></div></section>
+    <section><h4>간격 · 선 · 모서리</h4><div class="gt"><table><thead><tr><th>항목</th><th>값</th></tr></thead><tbody><tr><td>화면 좌우 여백</td><td>18~20px</td></tr><tr><td>책 격자</td><td>3열, 간격 12px, 표지 비율 3 : 3.7</td></tr><tr><td>굵기 상한</td><td>600. 700 이상과 디스플레이체는 쓰지 않는다 (굵기를 약하게 한다는 결정 반영)</td></tr><tr><td>모서리</td><td>면(히어로, 띠지, 카드)은 직각. 칩·옵션은 완전 둥근 pill, 기록 추가 버튼은 원</td></tr><tr><td>선</td><td>흰 1.5px 테두리(독서 카드 기록 박스), 서가 선반 4px 라임, 옵션 pill 1.5px #555</td></tr><tr><td>그림자</td><td>독서카드 히어로의 표지에만 <code>6px 6px 0 #121212</code></td></tr><tr><td>탭바</td><td>높이 78px, 라임 면. 활성 탭은 검정 면 + 라임 글자</td></tr></tbody></table></div></section>
+    <section><h4>컴포넌트 규격</h4><div class="gt"><table><thead><tr><th>컴포넌트</th><th>규격</th></tr></thead><tbody><tr><td>히어로 면</td><td>높이 300px, 주황, 좌우 18px 안쪽. 왼쪽 위에 상태 글자, 오른쪽에 표지(130×184, 3px 검정 테두리), 아래에 계단 도형</td></tr><tr><td>띠지(히어로)</td><td>히어로 맨 아래 가로 꽉 채움, 라임 면, 검정 글자 600 15px, 끝에 화살표</td></tr><tr><td>띠지(목록)</td><td>표지 아래 바, 최소 높이 28px, 종류별 면 색(주황·보라·탄·라임), 글자는 검정(보라만 흰색). 저장 이유가 없으면 #2A2A2A + 회색 '—'</td></tr><tr><td>상태 칩</td><td>보라 pill, 흰 글자 500 13px, 가로 12px / 세로 4px</td></tr><tr><td>기록 박스</td><td>1.5px 흰 테두리, '3개' 숫자는 라임 면 + 검정 글자</td></tr><tr><td>타임라인 카드</td><td>#1E1E1E 면, 날짜 66px 열(라임 Plex Mono 11px) + 내용. 종류 태그는 보라 pill 10px</td></tr><tr><td>기록 추가 버튼</td><td>지름 68px 원, 라임 면, 검정 글자 2줄</td></tr><tr><td>기록 추가 시트</td><td>위쪽 4px 라임 선, #1B1B1B 면, 뒤는 <code>rgba(0,0,0,.62)</code> 딤. 그룹 라벨은 라임 Plex Mono</td></tr><tr><td>옵션 pill</td><td>1.5px #555 테두리, 500 13px. 자유 기록은 가로 꽉 채운 라임 면, 8px 라운드</td></tr><tr><td>책등(빈 블록)</td><td>폭 22~38px, 화면 높이에 맞춘 3단 배치, 바탕은 #2E2E2E / #3A3A3A / #262626 번갈아, 세로 제목 500 11px #DDD. 하단 32px는 띠지 색, 선반 4px 라임</td></tr></tbody></table></div></section>
+    <section><h4>에셋 (SVG)</h4><div class="assets"><div class="asset"><div class="stage c"><svg id="as-c-stair" viewBox="0 0 150 170" width="110" xmlns="http://www.w3.org/2000/svg"><polygon points="0,170 0,119 37.5,119 37.5,76.5 75,76.5 75,37.4 112.5,37.4 112.5,0 150,0 150,170" fill="#E8C9A0"/></svg></div><div class="meta"><span><b>계단 도형</b><br>히어로 장식, 탄색</span><button type="button" class="cp" data-copy="as-c-stair">SVG 복사</button></div></div><div class="asset"><div class="stage c"><svg id="as-c-dots" viewBox="0 0 90 40" width="110" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="15" fill="#C8F031"/><circle cx="68" cy="20" r="11" fill="#C8F031"/></svg></div><div class="meta"><span><b>점</b><br>지름 30 / 22px, 라임</span><button type="button" class="cp" data-copy="as-c-dots">SVG 복사</button></div></div><div class="asset"><div class="stage c"><svg id="as-c-obi" viewBox="0 0 220 120" width="220" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans KR, sans-serif" font-size="11" font-weight="600"><rect y="0" width="220" height="26" fill="#FF5B2E"/><rect y="32" width="220" height="26" fill="#6A4BFF"/><rect y="64" width="220" height="26" fill="#E8C9A0"/><rect y="96" width="220" height="24" fill="#C8F031"/><text x="10" y="17" fill="#121212">추천받음</text><text x="10" y="49" fill="#fff">WISH</text><text x="10" y="81" fill="#121212">선물</text><text x="10" y="112" fill="#121212">소개받음</text></svg></div><div class="meta"><span><b>띠지 4종</b><br>종류별 색 규칙</span><button type="button" class="cp" data-copy="as-c-obi">SVG 복사</button></div></div><div class="asset"><div class="stage c"><svg id="as-c-chip" viewBox="0 0 180 80" width="200" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans KR, sans-serif" font-size="12" font-weight="500"><rect x="4" y="8" width="82" height="26" rx="13" fill="#6A4BFF"/><text x="45" y="25" text-anchor="middle" fill="#fff">독서 카드</text><rect x="94" y="8" width="82" height="26" rx="13" fill="none" stroke="#555" stroke-width="1.5"/><text x="135" y="25" text-anchor="middle" fill="#fff">구매</text><rect x="4" y="46" width="172" height="28" fill="#C8F031"/><text x="90" y="64" text-anchor="middle" fill="#121212" font-weight="600">자유 기록</text></svg></div><div class="meta"><span><b>칩 · 버튼</b><br>pill / 라임 면 버튼</span><button type="button" class="cp" data-copy="as-c-chip">SVG 복사</button></div></div><div class="asset"><div class="stage c"><svg id="as-c-fab" viewBox="0 0 80 80" width="76" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans KR, sans-serif" font-size="13" font-weight="600"><circle cx="40" cy="40" r="34" fill="#C8F031"/><text x="40" y="38" text-anchor="middle" fill="#121212">기록</text><text x="40" y="54" text-anchor="middle" fill="#121212">추가</text></svg></div><div class="meta"><span><b>기록 추가 버튼</b><br>지름 68px</span><button type="button" class="cp" data-copy="as-c-fab">SVG 복사</button></div></div><div class="asset"><div class="stage c"><svg id="as-c-spine" viewBox="0 0 120 150" width="120" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="12" width="30" height="136" fill="#2E2E2E"/><rect x="10" y="116" width="30" height="32" fill="#FF5B2E"/><rect x="48" y="26" width="26" height="122" fill="#3A3A3A"/><rect x="82" y="8" width="30" height="140" fill="#262626"/><rect x="82" y="116" width="30" height="32" fill="#C8F031"/><rect x="2" y="146" width="116" height="4" fill="#C8F031"/></svg></div><div class="meta"><span><b>책등 빈 블록</b><br>이미지 없음, 띠지 색만</span><button type="button" class="cp" data-copy="as-c-spine">SVG 복사</button></div></div></div><p class="gnote">SVG 안의 글자는 폰트가 없으면 대체 서체로 보여요. 개발에 넘길 때는 글자를 아웃라인으로 바꾸거나 앱 서체로 다시 그려야 해요.</p></section>
+    <section><h4>사용 규칙 (제안)</h4><ol class="rules">
+<li>굵기는 600까지만 쓴다. 제목이 무거워 보이면 크기를 줄이기보다 자간(-.02em)으로 정리한다.</li>
+<li>한 화면에 큰 색 면은 두 개까지만 쓴다. 예: 독서카드 앞면은 주황 히어로 + 라임 띠지.</li>
+<li>라임은 포인트 색이다. 탭바, 제목, 선반, 버튼 중 한 화면에서 서너 곳을 넘기지 않는다.</li>
+<li>보라는 상태·종류 칩과 WISH 띠지에만 쓴다.</li>
+<li>띠지 글자는 검정으로 하고, 보라 면만 흰 글자를 쓴다.</li>
+<li>면은 직각, 칩과 버튼은 둥글게 한다. 일반 실행 버튼은 사용자의 최신 선호에 따라 8px 라운드를 사용한다.</li>
+</ol></section>
+    <section><h4>CSS 토큰</h4><div class="tokbox"><pre id="tok-c">/* MoaBook · C 컬러 블록 (굵기 600 이하) */
+:root{
+  --moa-bg:#121212;      --moa-orange:#FF5B2E;  --moa-lime:#C8F031;
+  --moa-purple:#6A4BFF;  --moa-tan:#E8C9A0;
+  --moa-card:#1E1E1E;    --moa-sheet:#1B1B1B;
+  --moa-off:#2A2A2A;     --moa-sub:#AAAAAA;
+  --moa-weight-title:600;  --moa-weight-body:400;
+  --moa-shadow:6px 6px 0 #121212;
+  --moa-sans:"IBM Plex Sans KR",sans-serif;
+  --moa-mono:"IBM Plex Mono",monospace;
+}</pre><button type="button" class="cp" data-copy="tok-c">복사</button></div></section>
+  </div>
+</section>
+
+<section aria-labelledby="cmp-t" style="display:flex;flex-direction:column;gap:14px">
+  <h2 id="cmp-t" style="font-size:1.2rem">A와 C 비교</h2>
+  <div class="cmp">
+    <table>
+      <thead><tr><th></th><th>A 에디토리얼 라인</th><th>C 컬러 블록</th></tr></thead>
+      <tbody>
+        <tr><td><b>책이 많아졌을 때</b></td><td>선과 칸이 있어 정돈됨. 서가에서 책등이 차분하게 읽힘</td><td>어두운 바탕이라 색 띠가 또렷하지만, 면이 많아지면 눈이 피로할 수 있음</td></tr>
+        <tr><td><b>독서카드의 존재감</b></td><td>앱 안에서 유일하게 종이 질감이라 돋보임</td><td>화면 전체가 같은 결이라 카드가 특별해 보이는 장치가 약함</td></tr>
+        <tr><td><b>저장 이유(띠지) 표현</b></td><td>문구가 그대로 읽히고 색으로 종류 구분</td><td>색 면이 커서 한눈에 구분되지만 문구는 짧아짐</td></tr>
+        <tr><td><b>기록 추가 시트</b></td><td>괘선 칩, 정보 정리가 잘 됨</td><td>둥근 칩과 라임 포인트로 가볍고 빠르게 읽힘</td></tr>
+        <tr><td><b>기존 결정과의 거리</b></td><td>"에디토리얼 톤, 종이 질감은 독서카드에만"에 그대로 부합</td><td>"에디토리얼 톤"과는 다른 결. 색 규칙은 유지</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  /* [제목, 폭, 높이, 띠지 종류] — 책등 이미지는 쓰지 않고 빈 블록 + 세로 제목만 */
+  var rows=[
+    [['소년과 두더지…',34,140,'r'],['소년이 온다',26,128,'n'],['채식주의자',24,134,'w'],['작별하지 않는다',28,122,'n'],['모순',30,136,'g'],['불편한 편의점',32,130,'n'],['아몬드',26,118,'s'],['82년생 김지영',30,138,'n'],['토지',38,142,'n']],
+    [['데미안',24,126,'n'],['어린 왕자',28,132,'s'],['이방인',24,120,'n'],['변신',22,116,'w'],['호밀밭의 파수꾼',32,140,'n'],['위대한 개츠비',30,134,'r'],['설국',24,122,'n'],['달과 6펜스',28,130,'n'],['노인과 바다',30,136,'g'],['페스트',26,124,'n']],
+    [['사랑의 기술',30,138,'n'],['음악소설집',28,128,'s'],['맨 끝줄 소년',32,136,'n'],['장미의 이름',34,142,'n'],['코스모스',30,134,'w'],['총 균 쇠',26,124,'n'],['sapiens',28,130,'r'],['월든',24,118,'n']]
+  ];
+  var colA={r:'#FF5A36',w:'#2B45E0',g:'#1B1B1B',s:'#F2C200',n:'transparent'};
+  var colC={r:'#FF5B2E',w:'#6A4BFF',g:'#E8C9A0',s:'#C8F031',n:'transparent'};
+  document.querySelectorAll('[data-shelves]').forEach(function(box){
+    var pal=box.getAttribute('data-shelves')==='a'?colA:colC;
+    rows.forEach(function(r){
+      var shelf=document.createElement('div');shelf.className='shelf';
+      r.forEach(function(b){
+        var sp=document.createElement('div');sp.className='sp';
+        sp.style.width=b[1]+'px';sp.style.height=b[2]+'px';
+        var s=document.createElement('span');s.textContent=b[0];sp.appendChild(s);
+        var i=document.createElement('i');i.style.background=pal[b[3]];if(b[3]==='n')i.style.display='none';
+        sp.appendChild(i);shelf.appendChild(sp);
+      });
+      box.appendChild(shelf);
+    });
+  });
+})();
+
+(function(){
+  document.querySelectorAll('[data-copy]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var el=document.getElementById(btn.getAttribute('data-copy'));
+      var txt=el.tagName.toLowerCase()==='svg'?el.outerHTML:el.textContent;
+      var orig=btn.textContent;
+      function done(m){btn.textContent=m;setTimeout(function(){btn.textContent=orig},1400)}
+      function fallback(){
+        try{var r=document.createRange();r.selectNodeContents(el);var sel=getSelection();sel.removeAllRanges();sel.addRange(r);done('선택됨')}catch(e){done('복사 불가')}
+      }
+      try{navigator.clipboard.writeText(txt).then(function(){done('복사됨')},fallback)}catch(e){fallback()}
+    });
+  });
+})();
+</script>
+
+</body></html>

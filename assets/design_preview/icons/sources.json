@@ -1,0 +1,177 @@
+{
+  "family": "Phosphor",
+  "revision": "2b75f3ad12b420c9504ef05df8d2564a28f8500e",
+  "license": "MIT",
+  "icons": {
+    "library": {
+      "icon": "books",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/books-bold.svg"
+    },
+    "layers": {
+      "icon": "squares-four",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/squares-four-bold.svg"
+    },
+    "book-open": {
+      "icon": "book-open-text",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/book-open-text-bold.svg"
+    },
+    "bookmark": {
+      "icon": "bookmark-simple",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/bookmark-simple-bold.svg"
+    },
+    "heart": {
+      "icon": "heart",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/heart-bold.svg"
+    },
+    "calendar-days": {
+      "icon": "calendar-blank",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/calendar-blank-bold.svg"
+    },
+    "chevron-left": {
+      "icon": "caret-left",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/caret-left-bold.svg"
+    },
+    "chevron-right": {
+      "icon": "caret-right",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/caret-right-bold.svg"
+    },
+    "chevron-down": {
+      "icon": "caret-down",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/caret-down-bold.svg"
+    },
+    "circle-pause": {
+      "icon": "pause-circle",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/pause-circle-bold.svg"
+    },
+    "circle-check": {
+      "icon": "check-circle",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/check-circle-bold.svg"
+    },
+    "grid-2x2": {
+      "icon": "squares-four",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/squares-four-bold.svg"
+    },
+    "quote": {
+      "icon": "quotes",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/quotes-bold.svg"
+    },
+    "arrow-left": {
+      "icon": "arrow-left",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/arrow-left-bold.svg"
+    },
+    "arrow-right": {
+      "icon": "arrow-right",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/arrow-right-bold.svg"
+    },
+    "handshake": {
+      "icon": "handshake",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/handshake-bold.svg"
+    },
+    "gift": {
+      "icon": "gift",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/gift-bold.svg"
+    },
+    "pencil": {
+      "icon": "pencil-simple-line",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/pencil-simple-line-bold.svg"
+    },
+    "scan-barcode": {
+      "icon": "barcode",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/barcode-bold.svg"
+    },
+    "camera": {
+      "icon": "camera",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/camera-bold.svg"
+    },
+    "image": {
+      "icon": "images-square",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/images-square-bold.svg"
+    },
+    "check": {
+      "icon": "check",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/check-bold.svg"
+    },
+    "plus": {
+      "icon": "plus",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/plus-bold.svg"
+    },
+    "settings-2": {
+      "icon": "gear-six",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/gear-six-bold.svg"
+    },
+    "download": {
+      "icon": "download-simple",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/download-simple-bold.svg"
+    },
+    "sliders-horizontal": {
+      "icon": "faders-horizontal",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/faders-horizontal-bold.svg"
+    },
+    "repeat-2": {
+      "icon": "arrows-clockwise",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/arrows-clockwise-bold.svg"
+    },
+    "x": {
+      "icon": "x",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/x-bold.svg"
+    },
+    "message-circle": {
+      "icon": "chat-circle-text",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/chat-circle-text-bold.svg"
+    },
+    "check-check": {
+      "icon": "checks",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/checks-bold.svg"
+    },
+    "list": {
+      "icon": "list",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/list-bold.svg"
+    },
+    "search": {
+      "icon": "magnifying-glass",
+      "weight": "bold",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/bold/magnifying-glass-bold.svg"
+    },
+    "library-active": {
+      "icon": "books",
+      "weight": "fill",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/fill/books-fill.svg"
+    },
+    "layers-active": {
+      "icon": "squares-four",
+      "weight": "fill",
+      "url": "https://raw.githubusercontent.com/phosphor-icons/core/2b75f3ad12b420c9504ef05df8d2564a28f8500e/assets/fill/squares-four-fill.svg"
+    }
+  }
+}

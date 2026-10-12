@@ -5,9 +5,11 @@ class PreviewBook {
     this.author,
     this.publisher,
     this.reason,
-    this.reasonType,
-  );
+    this.reasonType, {
+    this.demo = false,
+  });
   final String id, title, author, publisher, reason, reasonType;
+  final bool demo;
   String get cover => 'assets/design_preview/covers/$id.jpg';
 }
 
@@ -22,6 +24,21 @@ const previewBooks = [
   PreviewBook('kim', '82년생 김지영', '조남주', '민음사', '다음에 읽어보고 싶어서', 'WISH'),
   PreviewBook('demian', '데미안', '헤르만 헤세', '민음사', '선생님이 소개해준 책', '소개'),
 ];
+
+// Fictional titles for pagination review; collection samples keep their nine real covers.
+final shelfPreviewBooks = List<PreviewBook>.unmodifiable([
+  ...previewBooks,
+  for (var i = 0; i < 81; i++)
+    PreviewBook(
+      'shelf-demo-${i + 1}',
+      '${['느린', '고요한', '작은', '푸른', '오래된', '다정한', '낯선', '평범한', '새로운'][i ~/ 9]} ${['문장의 숲', '밤의 산책', '시간의 지도', '계절의 기록', '도시의 뒷면', '마음의 여백', '바람의 서랍', '기억의 온도', '여름의 편지'][i % 9]}',
+      ['김서연', '이도윤', '박지우', '최수현', '정하린', '강유진', '윤서우', '임나래', '한이솔'][i % 9],
+      '모아북 샘플',
+      ['친구가 추천해준 책', '다음 계절에 읽고 싶어서', '선물로 받은 이야기', '독서 모임에서 소개받음', ''][i % 5],
+      ['추천', 'WISH', '선물', '소개', ''][i % 5],
+      demo: true,
+    ),
+]);
 
 const previewScreens = <String, String>{
   'shelf': '기본 서가',

@@ -89,6 +89,7 @@ flutter:
     - assets/icon/
     - assets/design_preview/icons/
     - assets/design_preview/covers/
+    - assets/design_preview/reference/
 
   fonts:
     - family: PlexKR
