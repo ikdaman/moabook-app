@@ -1,6 +1,7 @@
 """Build an offline visual comparison of the former and current icon sets."""
 import html
 from pathlib import Path
+from design_asset_urls import version_links
 
 ROOT = Path(__file__).resolve().parents[1]
 LABELS = {
@@ -14,7 +15,7 @@ LABELS = {
 }
 
 
-def build_icon_preview(output):
+def build_icon_preview(output, version):
     rows = []
     for name, label in LABELS.items():
         previous_name = name.removesuffix('-active')
@@ -26,5 +27,5 @@ def build_icon_preview(output):
 </style></head><body><main><nav><a href="index.html">전체 화면 비교</a><a href="design-guide.html">디자인 가이드</a></nav><h1>아이콘 교체 비교</h1><p>기능과 의미를 유지하면서 아이콘의 형태를 Phosphor Bold 계열로 바꿨습니다. 작은 크기에서도 선이 또렷하도록 굵기를 맞췄습니다. 서가·컬렉션·독서·기록·촬영을 같은 세트로 맞추고, 활성 탭은 채워진 형태로 구분합니다. 실제 화면에 적용한 모습은 전체 화면 비교에서 확인할 수 있습니다.</p><section class="grid">'''+''.join(rows)+'''</section><footer>이전 Lucide · ISC / 현재 <a href="https://github.com/phosphor-icons/core">Phosphor Icons</a> · MIT</footer></main></body></html>'''
     notices = 'Lucide (comparison only)\n' + (ROOT / 'tools/design_gallery/previous-icons/LICENSE').read_text() + '\nPhosphor Icons\n' + (ROOT / 'assets/design_preview/icons/LICENSE').read_text()
     page = page.replace('<head>', '<head><!--\n' + notices.replace('--', '—') + '\n-->')
-    (output / 'icons-preview.html').write_text(page)
+    (output / 'icons-preview.html').write_text(version_links(page, version))
     (output / 'icon-licenses.txt').write_text(notices)

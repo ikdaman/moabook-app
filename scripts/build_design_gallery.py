@@ -4,10 +4,12 @@ import argparse
 import html
 import json
 from pathlib import Path
+from design_asset_urls import asset_url, gallery_version, version_links
 ROOT = Path(__file__).resolve().parents[1]
 
 def build(output):
     manifest = json.loads((output / 'manifest.json').read_text())
+    version = gallery_version(output, manifest)
     screens = [x for x in manifest['screens'] if x['style'] == 'A']
     def group(key):
         if key.startswith('shelf'): return '서가'
@@ -34,6 +36,7 @@ def build(output):
         for style in ['A','C']:
             f=next(v['file'] for v in manifest['screens'] if v['screen']==key and v['style']==style)
             if not (output/f).is_file(): raise FileNotFoundError(f)
+            f = html.escape(asset_url(output, f), quote=True)
             figures.append(f'''<figure data-style="{style}"><figcaption><span class="style-dot {style.lower()}"></span><strong>{style}</strong><span>{'종이와 기록' if style=='A' else '색과 대비'}</span><a href="{f}" download aria-label="{style} {name} PNG 다운로드">PNG ↓</a></figcaption><button class="shot" data-src="{f}" data-name="{style} · {name}" aria-label="{style} {name} 확대"><img src="{f}" width="1206" height="2622" loading="{'eager' if n==1 else 'lazy'}" alt="{style} 시안 · {name}"><span class="enlarge">확대 보기 ↗</span></button></figure>''')
         pagination = ''
         if key == 'shelf':
@@ -41,17 +44,22 @@ def build(output):
                 page_figures = []
                 for style in ['A', 'C']:
                     shot = next(item for item in manifest['shelfPages'] if item['page'] == page_number and item['style'] == style)
-                    f = html.escape(shot['file'], quote=True)
+                    f = html.escape(asset_url(output, shot['file']), quote=True)
                     caption = f'{style} · 서가 {page_number + 1} / {shot["pageCount"]}'
                     page_figures.append(f'<figure data-style="{style}"><figcaption><strong>{caption}</strong><a href="{f}" download>PNG ↓</a></figcaption><button class="shot" data-src="{f}" data-name="{caption}" aria-label="{caption} 확대"><img src="{f}" width="1206" height="2622" loading="lazy" alt="{caption}"><span class="enlarge">확대 보기 ↗</span></button></figure>')
                 pagination += f'<section style="margin-top:32px"><h3 style="font-size:16px">서가 · {page_number + 1}페이지</h3><div class="pair">{"".join(page_figures)}</div></section>'
         cards.append(f'''<article id="{key}" data-group="{g}" data-label="{name}"><div class="screen-heading"><div><p class="overline">{g} <span>/{n:02}</span></p><h2>{name}</h2><p class="description">{html.escape(notes.get(key,'입력, 선택, 빈 화면까지 같은 디자인 원칙으로 연결합니다.'))}</p></div><a class="permalink" href="#{key}" aria-label="{name} 바로가기">#</a></div><div class="pair">{''.join(figures)}</div>{pagination}</article>''')
     template=(ROOT/'tools/design_gallery/index.template.html').read_text()
     page=template.replace('<!-- SCREEN_LINKS -->','\n'.join(links)).replace('<!-- SCREEN_CARDS -->','\n'.join(cards))
-    (output/'index.html').write_text(page)
+    (output/'index.html').write_text(version_links(page, version))
     (output/'.nojekyll').touch()
     from build_design_guide import build_guide
-    build_guide(output, manifest)
+    build_guide(output, manifest, version)
+    if output.resolve() == ROOT / 'output/design-preview/2026-10-09':
+        landing = ROOT / 'index.html'
+        import re
+        target = f'output/design-preview/2026-10-09/index.html?v={version}'
+        landing.write_text(re.sub(r'output/design-preview/2026-10-09/(?:index\.html(?:\?v=[a-f0-9]+)?)?', target, landing.read_text()))
     print(f'Gallery ready: {output / "index.html"} ({len(screens)} screens / {len(manifest['screens']) + len(manifest.get('shelfPages', []))} images)')
 
 if __name__ == '__main__':
