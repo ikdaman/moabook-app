@@ -53,6 +53,35 @@ class DesignPreviewState extends State<DesignPreview> {
   final List<String> history = [];
   final ScrollController scroll = ScrollController();
   final PageController shelfPages = PageController();
+  late final PageController collectionPages = PageController(
+    initialPage: collectionPage,
+  );
+  late int collectionPage = switch (widget.initialScreen) {
+    'collection-next' => 1,
+    'collection-end' => collectionTitles.length,
+    _ => 0,
+  };
+  List<String> get collectionTitles => [
+    ...customCollections.reversed,
+    '인생 책 LIST',
+    '새드엔딩',
+    '한강의 문장들',
+    '올해 읽고 싶은 책',
+    '선물 받은 이야기',
+    '다시 펼칠 책',
+  ];
+  bool get isCollectionScreen => [
+    'collection',
+    'collection-next',
+    'collection-end',
+    'collection-create',
+  ].contains(screen);
+  bool get isRecordInput => [
+    'record-entry',
+    'record-quote',
+    'record-free',
+    'date-picker',
+  ].contains(screen);
   final GlobalKey<NavigatorState> previewNavigator =
       GlobalKey<NavigatorState>();
   int shelfPage = 0;
@@ -73,7 +102,16 @@ class DesignPreviewState extends State<DesignPreview> {
       shelfPage = page;
       screen = target;
       book = previewBooks.first;
-      collectionName = '인생 책 LIST';
+      collectionPage = switch (target) {
+        'collection-next' => 1,
+        'collection-end' => 6,
+        _ => 0,
+      };
+      collectionName =
+          collectionTitles[collectionPage.clamp(
+            0,
+            collectionTitles.length - 1,
+          )];
       readingStatus = '읽는 중';
       recordKind = switch (target) {
         'record-quote' => '마음에 든 문장',
@@ -86,6 +124,9 @@ class DesignPreviewState extends State<DesignPreview> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scroll.hasClients) scroll.jumpTo(0);
+      if (collectionPages.hasClients) {
+        collectionPages.jumpToPage(collectionPage);
+      }
       if (shelfPages.hasClients) {
         shelfPages.jumpToPage(page.clamp(0, shelfPageCount - 1));
       }
@@ -113,6 +154,9 @@ class DesignPreviewState extends State<DesignPreview> {
   void restoreShelfPage() {
     final page = shelfPage;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (isCollectionScreen && collectionPages.hasClients) {
+        collectionPages.jumpToPage(collectionPage);
+      }
       if (isShelfScreen && shelfPages.hasClients) {
         shelfPages.jumpToPage(page.clamp(0, shelfPageCount - 1));
       }
@@ -123,6 +167,7 @@ class DesignPreviewState extends State<DesignPreview> {
   void dispose() {
     scroll.dispose();
     shelfPages.dispose();
+    collectionPages.dispose();
     super.dispose();
   }
 
@@ -154,6 +199,16 @@ class DesignPreviewState extends State<DesignPreview> {
                                 12,
                               ),
                               child: shelf(empty: screen == 'shelf-empty'),
+                            )
+                          : isCollectionScreen
+                          ? Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                22,
+                                12,
+                                22,
+                                12,
+                              ),
+                              child: collectionPager(),
                             )
                           : SingleChildScrollView(
                               controller: scroll,
@@ -204,6 +259,8 @@ class DesignPreviewState extends State<DesignPreview> {
     'shelf',
     'shelf-empty',
     'collection',
+    'collection-next',
+    'collection-end',
     'collections',
     'collections-empty',
     'add-options',
@@ -437,7 +494,14 @@ class DesignPreviewState extends State<DesignPreview> {
               '주제 서가',
               'layers',
               !screen.startsWith('shelf') && screen != 'add-options',
-              () => go('collection'),
+              () {
+                collectionPage = 0;
+                collectionName = collectionTitles.first;
+                go('collection');
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (collectionPages.hasClients) collectionPages.jumpToPage(0);
+                });
+              },
               bottomInset: MediaQuery.paddingOf(context).bottom,
             ),
           ],
@@ -564,34 +628,32 @@ class DesignPreviewState extends State<DesignPreview> {
     ),
   );
   Widget obi(PreviewBook value, {bool short = false, bool front = false}) =>
-      Container(
-        width: double.infinity,
-        constraints: BoxConstraints(minHeight: p.dark ? 28 : 26),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-        decoration: BoxDecoration(
-          color: value.reason.isEmpty
-              ? (p.dark ? const Color(0xff2a2a2a) : Colors.transparent)
-              : reasonColor(value.reasonType),
-          border: p.dark ? null : Border.all(color: p.ink, width: 1.5),
-        ),
-        child: Text(
-          value.reason.isEmpty
-              ? (p.dark ? '—' : '저장 이유 없음')
-              : short
-              ? value.reasonType
-              : value.reason,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: p.text(
-            front ? 12 : 10.5,
-            height: 1.25,
-            weight: value.reason.isEmpty ? 400 : 600,
+      value.reason.isEmpty
+      ? const SizedBox.shrink()
+      : Container(
+          width: double.infinity,
+          constraints: BoxConstraints(minHeight: p.dark ? 28 : 26),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+          decoration: BoxDecoration(
             color: value.reason.isEmpty
-                ? p.muted
-                : reasonTextColor(value.reasonType),
+                ? (p.dark ? const Color(0xff2a2a2a) : Colors.transparent)
+                : reasonColor(value.reasonType),
+            border: p.dark ? null : Border.all(color: p.ink, width: 1.5),
           ),
-        ),
-      );
+          child: Text(
+            value.reason.isEmpty ? (p.dark ? '—' : '저장 이유 없음') : value.reason,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: p.text(
+              front ? 12 : 10.5,
+              height: 1.25,
+              weight: value.reason.isEmpty ? 400 : 600,
+              color: value.reason.isEmpty
+                  ? p.muted
+                  : reasonTextColor(value.reasonType),
+            ),
+          ),
+        );
 
   Widget shelfToolbar(String eyebrow, {String? count}) => Row(
     children: [
@@ -660,7 +722,7 @@ class DesignPreviewState extends State<DesignPreview> {
                   color: p.dark ? p.accent : p.ink,
                 ),
               ),
-              iconButton('plus', '책 추가', () => go('add-options')),
+              actionText('책 추가', 'plus', () => go('add-options')),
               iconButton(
                 'download',
                 '서가 이미지 저장',
@@ -818,29 +880,82 @@ class DesignPreviewState extends State<DesignPreview> {
         ],
       );
 
-  Widget collection() => Column(
+  Widget collectionPager() => Column(
+    children: [
+      Expanded(
+        child: PageView.builder(
+          key: const Key('collection-pager'),
+          controller: collectionPages,
+          itemCount: collectionTitles.length + 1,
+          onPageChanged: (index) => setState(() {
+            collectionPage = index;
+            if (index < collectionTitles.length) {
+              collectionName = collectionTitles[index];
+            }
+          }),
+          itemBuilder: (context, index) => SingleChildScrollView(
+            child: index == collectionTitles.length
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      shelfToolbar('COLLECTION'),
+                      Row(
+                        children: [
+                          Expanded(child: t('새 책장 만들기', 28, weight: 600)),
+                          iconButton(
+                            'list',
+                            '주제 서가 목록',
+                            () => go('collections'),
+                          ),
+                        ],
+                      ),
+                      gap(16),
+                      rule(color: p.ink),
+                      emptyState(
+                        'plus',
+                        '새로운 주제로 모아보세요',
+                        '나만의 책장을 하나 더 만들어보세요.',
+                        () => go('collection-create'),
+                        actionLabel: '새 책장 만들기',
+                      ),
+                    ],
+                  )
+                : collection(title: collectionTitles[index], index: index),
+          ),
+        ),
+      ),
+      gap(12),
+      Text(
+        '${collectionPage + 1} / ${collectionTitles.length + 1}',
+        key: const Key('collection-page-indicator'),
+        style: p.text(12, color: p.muted),
+      ),
+    ],
+  );
+
+  Widget collection({String? title, int index = 0}) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      shelfToolbar('COLLECTION / 01'),
-      InkWell(
-        key: const Key('collection-picker'),
-        onTap: () => go('collections'),
-        child: Row(
-          children: [
-            Flexible(
-              child: t(
-                collectionName,
-                p.dark ? 36 : 28,
-                serif: true,
-                weight: 700,
-                color: p.dark ? p.accent : p.ink,
-                lines: 2,
-              ),
+      shelfToolbar('COLLECTION / ${(index + 1).toString().padLeft(2, '0')}'),
+      Row(
+        children: [
+          Expanded(
+            child: t(
+              title ?? collectionName,
+              p.dark ? 36 : 28,
+              serif: true,
+              weight: 600,
+              color: p.dark ? p.accent : p.ink,
+              lines: 2,
             ),
-            const SizedBox(width: 8),
-            icon('chevron-down', size: 24, color: p.dark ? p.accent : p.ink),
-          ],
-        ),
+          ),
+          IconButton(
+            key: const Key('collection-picker'),
+            tooltip: '주제 서가 목록',
+            onPressed: () => go('collections'),
+            icon: icon('list', size: 24, color: p.dark ? p.accent : p.ink),
+          ),
+        ],
       ),
       gap(16),
       rule(color: p.ink, width: 1.5),
@@ -855,26 +970,24 @@ class DesignPreviewState extends State<DesignPreview> {
         ],
       ),
       gap(16),
-      booksGrid(previewBooks),
-      gap(10),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (final kind in ['추천', 'WISH', '선물', '소개'])
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5),
-              child: Row(
-                children: [
-                  Container(width: 7, height: 7, color: reasonColor(kind)),
-                  const SizedBox(width: 4),
-                  t(kind, 10, color: p.muted),
-                ],
-              ),
-            ),
-        ],
-      ),
+      booksGrid(collectionPreviewBooks(index)),
     ],
   );
+
+  List<PreviewBook> collectionPreviewBooks(int index) => [
+    for (var i = 0; i < previewBooks.length; i++)
+      if (i % 3 == index % 3)
+        previewBooks[(i + index) % previewBooks.length]
+      else
+        PreviewBook(
+          previewBooks[(i + index) % previewBooks.length].id,
+          previewBooks[(i + index) % previewBooks.length].title,
+          previewBooks[(i + index) % previewBooks.length].author,
+          previewBooks[(i + index) % previewBooks.length].publisher,
+          '',
+          '',
+        ),
+  ];
   Widget actionText(String title, String name, VoidCallback onTap) => InkWell(
     onTap: onTap,
     child: Padding(
@@ -954,7 +1067,7 @@ class DesignPreviewState extends State<DesignPreview> {
                             ),
                         ],
                       ),
-                      if (!editing) obi(value, short: p.dark),
+                      if (!editing && value.reason.isNotEmpty) obi(value),
                       if (editing) ...[gap(6), t(value.title, 11, lines: 2)],
                     ],
                   ),
@@ -1006,7 +1119,13 @@ class DesignPreviewState extends State<DesignPreview> {
   Widget collectionRow(String title, String subtitle, int index) => InkWell(
     onTap: () {
       collectionName = title;
+      collectionPage = collectionTitles.indexOf(title);
       go('collection');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (collectionPages.hasClients) {
+          collectionPages.jumpToPage(collectionPage);
+        }
+      });
     },
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 18),
@@ -1340,35 +1459,36 @@ class DesignPreviewState extends State<DesignPreview> {
                     ),
                   ),
                 ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    color: p.accent,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 11,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: t(
-                            book.reason,
-                            15,
-                            weight: 600,
-                            color: const Color(0xff121212),
+                if (book.reason.isNotEmpty)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      color: p.accent,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: t(
+                              book.reason,
+                              15,
+                              weight: 600,
+                              color: const Color(0xff121212),
+                            ),
                           ),
-                        ),
-                        icon(
-                          'arrow-right',
-                          color: const Color(0xff121212),
-                          size: 18,
-                        ),
-                      ],
+                          icon(
+                            'arrow-right',
+                            color: const Color(0xff121212),
+                            size: 18,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           )
@@ -1407,7 +1527,7 @@ class DesignPreviewState extends State<DesignPreview> {
                 border: p.dark ? null : Border.all(color: p.ink, width: 1.5),
               ),
               child: CustomPaint(
-                painter: p.dark ? null : RuledPaper(p.line),
+                painter: null,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
                   child: Column(
@@ -1419,7 +1539,7 @@ class DesignPreviewState extends State<DesignPreview> {
                           Expanded(
                             child: t(
                               book.title,
-                              p.dark ? 24 : 19,
+                              22,
                               weight: p.dark ? 600 : 700,
                               background: p.dark ? null : p.card,
                             ),
@@ -1433,16 +1553,14 @@ class DesignPreviewState extends State<DesignPreview> {
                             child: t(
                               '${book.author} · ${book.publisher}${p.dark ? ' · 2026.08.03 추가' : ''}',
                               12,
-                              mono: true,
                               background: p.dark ? null : p.card,
                               color: p.muted,
                             ),
                           ),
-                          if (!p.dark) const DateStamp(date: '2026.08.03'),
                         ],
                       ),
                       gap(16),
-                      statusChip(p.dark ? '독서 카드' : readingStatus),
+                      t(readingStatus, 14, weight: 500, color: p.muted),
                       gap(27),
                       Container(
                         padding: const EdgeInsets.only(
@@ -1583,7 +1701,6 @@ class DesignPreviewState extends State<DesignPreview> {
                     t(
                       '2026.08.03 추가',
                       11,
-                      mono: true,
                       color: p.dark ? p.background : p.muted,
                     ),
                     gap(7),
@@ -1667,13 +1784,7 @@ class DesignPreviewState extends State<DesignPreview> {
           width: p.dark ? 66 : 70,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              t('2026', 9, mono: true, color: p.muted),
-              gap(3),
-              t(day, 11, mono: true, color: p.dark ? p.accent : p.muted),
-              gap(12),
-              icon(name, size: 16, color: p.muted),
-            ],
+            children: [t(day, 12, color: p.muted)],
           ),
         ),
         Expanded(
@@ -1684,30 +1795,12 @@ class DesignPreviewState extends State<DesignPreview> {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: 7,
                 runSpacing: 5,
-                children: [
-                  t(title, 13, weight: p.dark ? 600 : 700),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: p.dark ? p.blue : null,
-                      border: Border.all(color: p.dark ? p.blue : p.ink),
-                      borderRadius: BorderRadius.circular(p.dark ? 20 : 0),
-                    ),
-                    child: t(
-                      category,
-                      9,
-                      color: p.dark ? Colors.white : p.muted,
-                    ),
-                  ),
-                ],
+                children: [t(title, 15, weight: 600)],
               ),
               gap(9),
               t(
                 memo,
-                12.5,
+                14,
                 color: p.dark
                     ? const Color(0xffcfcfcf)
                     : const Color(0xff333333),
@@ -1890,11 +1983,15 @@ class DesignPreviewState extends State<DesignPreview> {
           fillColor: p.card,
           contentPadding: const EdgeInsets.all(15),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: isRecordInput
+                ? BorderRadius.zero
+                : BorderRadius.circular(8),
             borderSide: BorderSide(color: p.line),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: isRecordInput
+                ? BorderRadius.zero
+                : BorderRadius.circular(8),
             borderSide: BorderSide(
               color: p.dark ? p.accent : p.ink,
               width: 1.4,
@@ -1920,6 +2017,7 @@ class DesignPreviewState extends State<DesignPreview> {
     footer: button('컬렉션 만들기', () {
       if (collectionName == '인생 책 LIST') collectionName = '가을에 읽고 싶은 책';
       customCollections.add(collectionName);
+      collectionPage = 0;
       go('collection-edit');
     }, icon: 'plus'),
   );
@@ -2026,7 +2124,9 @@ class DesignPreviewState extends State<DesignPreview> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
           decoration: BoxDecoration(
             color: p.card,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: isRecordInput
+                ? BorderRadius.zero
+                : BorderRadius.circular(8),
             border: Border.all(color: p.line),
           ),
           child: Row(
@@ -2347,32 +2447,20 @@ class DesignPreviewState extends State<DesignPreview> {
     String name,
     String title,
     String subtitle,
-    VoidCallback? action,
-  ) => Padding(
+    VoidCallback? action, {
+    String actionLabel = '첫 컬렉션 만들기',
+  }) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 65),
     child: Column(
       children: [
-        Center(
-          child: Container(
-            width: 76,
-            height: 76,
-            decoration: BoxDecoration(
-              color: p.card,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: p.line),
-            ),
-            child: Center(
-              child: icon(name, size: 34, color: p.dark ? p.accent : p.muted),
-            ),
-          ),
-        ),
+        Center(child: icon(name, size: 40, color: p.dark ? p.accent : p.muted)),
         gap(25),
         t(title, 20, weight: 600, serif: true, align: TextAlign.center),
         gap(13),
         t(subtitle, 13, color: p.muted, align: TextAlign.center),
         if (action != null) ...[
           gap(26),
-          button('첫 컬렉션 만들기', action, icon: 'plus'),
+          button(actionLabel, action, icon: 'plus'),
         ],
       ],
     ),

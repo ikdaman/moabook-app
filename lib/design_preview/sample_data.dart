@@ -44,6 +44,8 @@ const previewScreens = <String, String>{
   'shelf': '기본 서가',
   'shelf-empty': '기본 서가 · 빈 화면',
   'collection': '주제 서가',
+  'collection-next': '주제 서가 · 다음 책장',
+  'collection-end': '주제 서가 · 새 책장 만들기',
   'collections': '나의 컬렉션',
   'collections-empty': '나의 컬렉션 · 빈 화면',
   'collection-create': '컬렉션 만들기',

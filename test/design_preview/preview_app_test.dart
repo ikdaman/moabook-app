@@ -134,7 +134,7 @@ void main() {
           );
           await tester.pumpAndSettle();
           expect(find.text('90권'), findsOneWidget);
-          expect(find.text('책 추가'), findsNothing);
+          expect(find.text('책 추가'), findsOneWidget);
           for (var row = 0; row < 3; row++) {
             final rectangle = tester.getRect(
               find.byKey(ValueKey('shelf-0-row-$row')),
@@ -220,6 +220,60 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.text('디자인 시안'), findsOneWidget);
         }
+      }
+    },
+  );
+  testWidgets(
+    'topic shelves swipe to creation and tab entry resets to newest',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(402, 874);
+      addTearDown(tester.view.reset);
+      for (final mood in Mood.values) {
+        await tester.pumpWidget(
+          DesignPreviewApp(
+            key: UniqueKey(),
+            initialMood: mood,
+            initialScreen: 'collection',
+          ),
+        );
+        await tester.pumpAndSettle();
+        String indicator() => tester
+            .widget<Text>(find.byKey(const Key('collection-page-indicator')))
+            .data!;
+        expect(indicator(), '1 / 7');
+        expect(find.text('저장 이유 없음'), findsNothing);
+        for (var page = 2; page <= 7; page++) {
+          await tester.drag(
+            find.byKey(const Key('collection-pager')),
+            const Offset(-320, 0),
+          );
+          await tester.pumpAndSettle();
+          expect(indicator(), '$page / 7');
+        }
+        expect(find.text('새 책장 만들기'), findsNWidgets(2));
+        await tester.drag(
+          find.byKey(const Key('collection-pager')),
+          const Offset(-320, 0),
+        );
+        await tester.pumpAndSettle();
+        expect(indicator(), '7 / 7');
+        await tester.tap(find.text('기본 서가'));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('shelf-page-indicator')), findsOneWidget);
+        await tester.tap(find.text('주제 서가'));
+        await tester.pumpAndSettle();
+        expect(indicator(), '1 / 7');
+        await tester.tap(find.byKey(const Key('collection-picker')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('새드엔딩'));
+        await tester.pumpAndSettle();
+        expect(indicator(), '2 / 7');
+        await tester.tap(find.byType(Image).first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('서가로 돌아가기'));
+        await tester.pumpAndSettle();
+        expect(indicator(), '2 / 7');
       }
     },
   );

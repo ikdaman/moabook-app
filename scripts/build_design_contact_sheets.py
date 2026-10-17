@@ -27,7 +27,7 @@ if __name__ == '__main__':
     for style in ['A', 'C']:
         shots = [item for item in manifest['screens'] if item['style'] == style]
         for n in range(2):
-            sheet(shots[n * 13:(n + 1) * 13], OUTPUT / f'contact-{style}-{n + 1}.jpg', 4, 240)
+            sheet(shots[n * 14:(n + 1) * 14], OUTPUT / f'contact-{style}-{n + 1}.jpg', 4, 240)
     selected = [item for style in ['A', 'C'] for key in ['shelf', 'collection', 'card-front', 'record-options']
                 for item in manifest['screens'] if item['style'] == style and item['screen'] == key]
     sheet(selected, OUTPUT / 'comparison.png', 4, 300)
