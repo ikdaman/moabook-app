@@ -76,12 +76,6 @@ class DesignPreviewState extends State<DesignPreview> {
     'collection-end',
     'collection-create',
   ].contains(screen);
-  bool get isRecordInput => [
-    'record-entry',
-    'record-quote',
-    'record-free',
-    'date-picker',
-  ].contains(screen);
   final GlobalKey<NavigatorState> previewNavigator =
       GlobalKey<NavigatorState>();
   int shelfPage = 0;
@@ -388,7 +382,7 @@ class DesignPreviewState extends State<DesignPreview> {
     button: true,
     child: InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.zero,
       child: Container(
         constraints: BoxConstraints(minHeight: compact ? 44 : 54),
         padding: EdgeInsets.symmetric(
@@ -397,7 +391,7 @@ class DesignPreviewState extends State<DesignPreview> {
         ),
         decoration: BoxDecoration(
           color: secondary ? p.card : p.button,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.zero,
           border: Border.all(color: secondary ? p.ink : p.button, width: 1.3),
         ),
         child: Row(
@@ -1040,6 +1034,13 @@ class DesignPreviewState extends State<DesignPreview> {
                             width: itemWidth,
                             height: itemWidth * (editing ? 1.29 : 1.23),
                           ),
+                          if (!editing && value.reason.isNotEmpty)
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: itemWidth * .12,
+                              child: obi(value),
+                            ),
                           if (editing)
                             Positioned(
                               top: 7,
@@ -1052,7 +1053,7 @@ class DesignPreviewState extends State<DesignPreview> {
                                       ? p.button
                                       : p.background,
                                   border: Border.all(color: p.ink),
-                                  shape: BoxShape.circle,
+                                  shape: BoxShape.rectangle,
                                 ),
                                 child: selectedBooks.contains(value.id)
                                     ? Center(
@@ -1067,7 +1068,6 @@ class DesignPreviewState extends State<DesignPreview> {
                             ),
                         ],
                       ),
-                      if (!editing && value.reason.isNotEmpty) obi(value),
                       if (editing) ...[gap(6), t(value.title, 11, lines: 2)],
                     ],
                   ),
@@ -1654,7 +1654,7 @@ class DesignPreviewState extends State<DesignPreview> {
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
     decoration: BoxDecoration(
       color: p.dark ? p.blue : p.ink,
-      borderRadius: BorderRadius.circular(p.dark ? 30 : 8),
+      borderRadius: BorderRadius.zero,
     ),
     child: t(value, 11, weight: 600, color: Colors.white),
   );
@@ -1816,11 +1816,11 @@ class DesignPreviewState extends State<DesignPreview> {
     button: true,
     child: InkWell(
       onTap: () => go('record-options'),
-      customBorder: const CircleBorder(),
+      customBorder: const RoundedRectangleBorder(),
       child: Container(
         width: p.dark ? 68 : 70,
         height: p.dark ? 68 : 70,
-        decoration: BoxDecoration(color: p.button, shape: BoxShape.circle),
+        decoration: BoxDecoration(color: p.button, shape: BoxShape.rectangle),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1882,7 +1882,7 @@ class DesignPreviewState extends State<DesignPreview> {
                 height: 4,
                 decoration: BoxDecoration(
                   color: p.line,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.zero,
                 ),
               ),
             ),
@@ -1921,7 +1921,7 @@ class DesignPreviewState extends State<DesignPreview> {
             height: 45,
             decoration: BoxDecoration(
               color: p.card,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.zero,
               border: Border.all(color: p.line),
             ),
             child: Center(
@@ -1983,15 +1983,11 @@ class DesignPreviewState extends State<DesignPreview> {
           fillColor: p.card,
           contentPadding: const EdgeInsets.all(15),
           enabledBorder: OutlineInputBorder(
-            borderRadius: isRecordInput
-                ? BorderRadius.zero
-                : BorderRadius.circular(8),
+            borderRadius: BorderRadius.zero,
             borderSide: BorderSide(color: p.line),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: isRecordInput
-                ? BorderRadius.zero
-                : BorderRadius.circular(8),
+            borderRadius: BorderRadius.zero,
             borderSide: BorderSide(
               color: p.dark ? p.accent : p.ink,
               width: 1.4,
@@ -2101,7 +2097,7 @@ class DesignPreviewState extends State<DesignPreview> {
         decoration: BoxDecoration(
           color: screen == target ? p.button : p.card,
           border: Border.all(color: screen == target ? p.button : p.line),
-          borderRadius: BorderRadius.circular(p.dark ? 28 : 8),
+          borderRadius: BorderRadius.zero,
         ),
         child: t(
           title,
@@ -2124,9 +2120,7 @@ class DesignPreviewState extends State<DesignPreview> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
           decoration: BoxDecoration(
             color: p.card,
-            borderRadius: isRecordInput
-                ? BorderRadius.zero
-                : BorderRadius.circular(8),
+            borderRadius: BorderRadius.zero,
             border: Border.all(color: p.line),
           ),
           child: Row(
@@ -2237,7 +2231,7 @@ class DesignPreviewState extends State<DesignPreview> {
                       color: p.dark ? const Color(0xff555555) : p.ink,
                       width: 1.5,
                     ),
-                    borderRadius: BorderRadius.circular(p.dark ? 30 : 8),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -2371,7 +2365,7 @@ class DesignPreviewState extends State<DesignPreview> {
                 color: date.endsWith(day.toString().padLeft(2, '0'))
                     ? p.button
                     : null,
-                shape: BoxShape.circle,
+                shape: BoxShape.rectangle,
               ),
               child: Center(
                 child: t(
@@ -2396,7 +2390,7 @@ class DesignPreviewState extends State<DesignPreview> {
         child: Container(
           width: 66,
           height: 66,
-          decoration: BoxDecoration(color: p.button, shape: BoxShape.circle),
+          decoration: BoxDecoration(color: p.button, shape: BoxShape.rectangle),
           child: Center(
             child: icon('check-check', color: p.onButton, size: 29),
           ),
@@ -2560,7 +2554,7 @@ class DesignPreviewState extends State<DesignPreview> {
                               height: 23,
                               decoration: BoxDecoration(
                                 color: p.button,
-                                shape: BoxShape.circle,
+                                shape: BoxShape.rectangle,
                               ),
                               child: Center(
                                 child: icon(

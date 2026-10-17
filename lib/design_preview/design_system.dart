@@ -56,6 +56,12 @@ class DesignPalette {
       brightness: dark ? Brightness.dark : Brightness.light,
     ).copyWith(primary: accent, surface: background),
     splashFactory: NoSplash.splashFactory,
+    bottomSheetTheme: const BottomSheetThemeData(
+      shape: RoundedRectangleBorder(),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(shape: const RoundedRectangleBorder()),
+    ),
     textSelectionTheme: TextSelectionThemeData(
       cursorColor: accent,
       selectionColor: accent.withValues(alpha: .25),

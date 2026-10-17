@@ -1,7 +1,7 @@
 {
   "device": "iPhone 17",
   "deviceId": "242D3538-3472-49A4-8356-E412039855C4",
-  "capturedAt": "2026-10-17T13:08:48.630424+00:00",
+  "capturedAt": "2026-10-17T14:14:34.022209+00:00",
   "source": "xcrun simctl io screenshot; rendered by Flutter on iOS Simulator",
   "screens": [
     {
