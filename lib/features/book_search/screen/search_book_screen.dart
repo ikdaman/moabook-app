@@ -75,7 +75,7 @@ class _SearchBookScreenState extends ConsumerState<SearchBookScreen> {
 
     setState(() => _ocrRunning = true);
     try {
-      final aladin = ref.read(aladinDataSourceProvider);
+      final aladin = ref.read(bookCatalogProvider);
       final results = await searchBooksByCover(file.path, aladin);
       if (!mounted) return;
       context.push(

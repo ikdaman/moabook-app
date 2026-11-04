@@ -246,6 +246,8 @@ class ReadingRemoteDataSource {
       totalPage: info['totalPage'] == null ? null : _integer(info['totalPage']),
       publishDate: _nullableText(info['publishDate']),
       aladinId: _nullableText(info['aladinId']),
+      yes24Id: _nullableText(info['yes24Id']),
+      isbn13: _nullableText(info['isbn13'] ?? info['isbn']),
       link: _nullableText(info['link']),
     );
   }

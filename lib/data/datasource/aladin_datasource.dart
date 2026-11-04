@@ -1,8 +1,9 @@
 import 'package:dio/dio.dart';
 import '../../core/util/html_text.dart';
 import '../../domain/model/book_item.dart';
+import 'book_catalog_datasource.dart';
 
-class AladinDataSource {
+class AladinDataSource implements BookCatalogDataSource {
   static const _baseUrl = 'https://www.aladin.co.kr';
   static const _ttbKey = 'ttbgju060611831003';
 
@@ -12,6 +13,7 @@ class AladinDataSource {
   final Dio _dio;
 
   /// [byKeyword]면 제목+저자를 함께 훑는 Keyword 검색 — OCR 결합 쿼리용.
+  @override
   Future<List<BookItem>> searchByTitle(
     String query, {
     int page = 1,
@@ -33,6 +35,7 @@ class AladinDataSource {
     return _parseItems(response.data);
   }
 
+  @override
   Future<List<BookItem>> searchByIsbn(String isbn) async {
     final response = await _dio.get<Map<String, dynamic>>(
       '/ttb/api/ItemLookUp.aspx',

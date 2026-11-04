@@ -25,6 +25,8 @@ end
 
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
+require_relative 'scripts/mlkit_simulator/apple_silicon_simulator'
+
 flutter_ios_podfile_setup
 
 target 'Runner' do
@@ -41,6 +43,8 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
+      config.build_settings['VALID_ARCHS[sdk=iphonesimulator*]'] = 'arm64 x86_64'
     end
   end
+  mlkit_apple_silicon_simulator_patch(installer)
 end

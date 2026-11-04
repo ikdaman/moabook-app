@@ -14,6 +14,7 @@ import '../../book_search/provider/book_search_provider.dart';
 import '../../cover_ocr/screen/cover_ocr_result_screen.dart';
 import '../../cover_ocr/service/cover_ocr_search.dart';
 import '../provider/reading_gateway_provider.dart';
+import '../export/reading_export_screen.dart';
 
 class ReadingLibraryScreen extends ConsumerStatefulWidget {
   const ReadingLibraryScreen({
@@ -43,7 +44,7 @@ class _ReadingLibraryScreenState extends ConsumerState<ReadingLibraryScreen> {
     if (image == null || !mounted) return null;
     final results = await searchBooksByCover(
       image.path,
-      ref.read(aladinDataSourceProvider),
+      ref.read(bookCatalogProvider),
     );
     if (!mounted) return null;
     final selected = await context.push<BookItem>(
@@ -96,6 +97,11 @@ class _ReadingLibraryScreenState extends ConsumerState<ReadingLibraryScreen> {
                   onSettings: () => context.push(Routes.setting),
                   onCapture: capture,
                   onGallery: gallery,
+                  onExport: (request) => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => ReadingExportScreen(request: request),
+                    ),
+                  ),
                   onOpenLink: (url) async {
                     final uri = Uri.tryParse(url);
                     if (uri != null && ['http', 'https'].contains(uri.scheme)) {

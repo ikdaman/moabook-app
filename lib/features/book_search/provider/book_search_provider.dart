@@ -1,11 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/datasource/aladin_datasource.dart';
+import '../../../data/datasource/book_catalog_datasource.dart';
+import '../../../data/datasource/yes24_datasource.dart';
+import '../../../core/env/env.dart';
+import '../../auth/provider/auth_provider.dart';
 import '../../../data/datasource/mybook_datasource.dart';
 import '../../../domain/model/book_item.dart';
 import '../../../features/home/provider/home_provider.dart';
 import '../../home/screen/pending_book_consumer.dart';
 
-final aladinDataSourceProvider = Provider((_) => AladinDataSource());
+final bookCatalogProvider = Provider<BookCatalogDataSource>(
+  (ref) => Env.useNewReadingUi
+      ? Yes24DataSource(
+          ref.watch(dioProvider),
+          searchPath: Env.catalogSearchPath,
+          detailPath: Env.catalogDetailPath,
+        )
+      : AladinDataSource(),
+);
 
 // ── Search State ──────────────────────────────────────────────────────────
 
@@ -21,15 +33,15 @@ class BookSearchState {
   final bool isSaving;
 
   const BookSearchState({
-    this.results      = const [],
-    this.isLoading    = false,
+    this.results = const [],
+    this.isLoading = false,
     this.isLoadingMore = false,
     this.error,
-    this.hasMore      = false,
-    this.query        = '',
-    this.currentPage  = 1,
+    this.hasMore = false,
+    this.query = '',
+    this.currentPage = 1,
     this.selectedBook,
-    this.isSaving     = false,
+    this.isSaving = false,
   });
 
   BookSearchState copyWith({
@@ -44,15 +56,17 @@ class BookSearchState {
     bool clearSelectedBook = false,
     bool? isSaving,
   }) => BookSearchState(
-    results:       results       ?? this.results,
-    isLoading:     isLoading     ?? this.isLoading,
+    results: results ?? this.results,
+    isLoading: isLoading ?? this.isLoading,
     isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-    error:         error,
-    hasMore:       hasMore       ?? this.hasMore,
-    query:         query         ?? this.query,
-    currentPage:   currentPage   ?? this.currentPage,
-    selectedBook:  clearSelectedBook ? null : (selectedBook ?? this.selectedBook),
-    isSaving:      isSaving      ?? this.isSaving,
+    error: error,
+    hasMore: hasMore ?? this.hasMore,
+    query: query ?? this.query,
+    currentPage: currentPage ?? this.currentPage,
+    selectedBook: clearSelectedBook
+        ? null
+        : (selectedBook ?? this.selectedBook),
+    isSaving: isSaving ?? this.isSaving,
   );
 }
 
@@ -63,18 +77,18 @@ class BookSearchNotifier extends Notifier<BookSearchState>
   @override
   BookSearchState build() => const BookSearchState();
 
-  AladinDataSource get _aladin => ref.read(aladinDataSourceProvider);
+  BookCatalogDataSource get _catalog => ref.read(bookCatalogProvider);
   MyBookDataSource get _myBook => ref.read(myBookDataSourceProvider);
 
   Future<void> search(String query) async {
     if (query.trim().isEmpty) return;
     state = state.copyWith(isLoading: true, query: query, currentPage: 1);
     try {
-      final results = await _aladin.searchByTitle(query, page: 1);
+      final results = await _catalog.searchByTitle(query, page: 1);
       state = state.copyWith(
-        results:    results,
-        isLoading:  false,
-        hasMore:    results.length >= 50,
+        results: results,
+        isLoading: false,
+        hasMore: results.length >= 50,
         currentPage: 1,
       );
     } catch (e) {
@@ -94,15 +108,15 @@ class BookSearchNotifier extends Notifier<BookSearchState>
   Future<bool> searchByIsbn(String isbn) async {
     state = state.copyWith(isLoading: true);
     try {
-      final results = await _aladin.searchByIsbn(isbn);
+      final results = await _catalog.searchByIsbn(isbn);
       if (results.isEmpty) {
-        state = state.copyWith(isLoading: false, error: '해당 ISBN의 책을 찾을 수 없어요.');
+        state = state.copyWith(
+          isLoading: false,
+          error: '해당 ISBN의 책을 찾을 수 없어요.',
+        );
         return false;
       }
-      state = state.copyWith(
-        isLoading: false,
-        selectedBook: results.first,
-      );
+      state = state.copyWith(isLoading: false, selectedBook: results.first);
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -116,7 +130,7 @@ class BookSearchNotifier extends Notifier<BookSearchState>
   Future<BookItem?> lookupDetail(String isbn) async {
     if (isbn.isEmpty) return null;
     try {
-      final results = await _aladin.searchByIsbn(isbn);
+      final results = await _catalog.searchByIsbn(isbn);
       return results.isEmpty ? null : results.first;
     } catch (_) {
       return null;
@@ -128,12 +142,12 @@ class BookSearchNotifier extends Notifier<BookSearchState>
     state = state.copyWith(isLoadingMore: true);
     try {
       final nextPage = state.currentPage + 1;
-      final more = await _aladin.searchByTitle(state.query, page: nextPage);
+      final more = await _catalog.searchByTitle(state.query, page: nextPage);
       state = state.copyWith(
-        results:       [...state.results, ...more],
+        results: [...state.results, ...more],
         isLoadingMore: false,
-        hasMore:       more.length >= 50,
-        currentPage:   nextPage,
+        hasMore: more.length >= 50,
+        currentPage: nextPage,
       );
     } catch (_) {
       state = state.copyWith(isLoadingMore: false);
@@ -161,8 +175,8 @@ class BookSearchNotifier extends Notifier<BookSearchState>
         'bookInfo': book.toSaveRequestBookInfo(),
         if (startedDate != null || finishedDate != null)
           'historyInfo': {
-            'startedDate':   startedDate,
-            'finishedDate':  finishedDate,
+            'startedDate': startedDate,
+            'finishedDate': finishedDate,
           },
         if (reason != null && reason.isNotEmpty) 'reason': reason,
       });
@@ -184,11 +198,7 @@ class BookSearchNotifier extends Notifier<BookSearchState>
     state = state.copyWith(isSaving: true);
     try {
       await _myBook.saveMyBook({
-        'bookInfo': {
-          'source': 'CUSTOM',
-          'title':  title,
-          'author': author,
-        },
+        'bookInfo': {'source': 'CUSTOM', 'title': title, 'author': author},
         if (reason != null && reason.isNotEmpty) 'reason': reason,
       });
       state = state.copyWith(isSaving: false);
@@ -202,4 +212,6 @@ class BookSearchNotifier extends Notifier<BookSearchState>
 }
 
 final bookSearchProvider =
-    NotifierProvider<BookSearchNotifier, BookSearchState>(BookSearchNotifier.new);
+    NotifierProvider<BookSearchNotifier, BookSearchState>(
+      BookSearchNotifier.new,
+    );

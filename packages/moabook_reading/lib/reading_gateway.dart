@@ -13,12 +13,14 @@ class ReadingBook {
     this.publishDate,
     this.coverUrl,
     this.aladinId,
+    this.yes24Id,
+    this.isbn13,
     this.link,
   });
   final String id, title, author, publisher, reason, reasonType;
   final bool demo;
   final int? totalPage;
-  final String? publishDate, coverUrl, aladinId, link;
+  final String? publishDate, coverUrl, aladinId, yes24Id, isbn13, link;
   String get cover => 'assets/design_preview/covers/$id.jpg';
   ReadingBook withReason(String value) => ReadingBook(
     id,
@@ -32,6 +34,8 @@ class ReadingBook {
     publishDate: publishDate,
     coverUrl: coverUrl,
     aladinId: aladinId,
+    yes24Id: yes24Id,
+    isbn13: isbn13,
     link: link,
   );
 }
@@ -103,4 +107,19 @@ class ReadingWriteUncertain implements Exception {
 class CollectionCreatedNeedsReload implements Exception {
   const CollectionCreatedNeedsReload(this.id, this.name);
   final String id, name;
+}
+
+class ReadingImageExport {
+  ReadingImageExport({
+    required this.title,
+    required Iterable<ReadingBook> books,
+  }) : books = List.unmodifiable(books);
+  final String title;
+  final List<ReadingBook> books;
+  static const pageSize = 9;
+  int get pageCount => (books.length / pageSize).ceil();
+  List<ReadingBook> page(int index) {
+    if (index < 0 || index >= pageCount) throw RangeError.index(index, books);
+    return books.skip(index * pageSize).take(pageSize).toList();
+  }
 }

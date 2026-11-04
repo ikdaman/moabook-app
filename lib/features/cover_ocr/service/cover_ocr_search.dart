@@ -4,7 +4,7 @@
 // (실시간 아님 — 촬영 1장당 OCR 1회 + 알라딘 최대 [maxQueries]콜)
 
 import '../../../domain/model/book_item.dart';
-import '../../../data/datasource/aladin_datasource.dart';
+import '../../../data/datasource/book_catalog_datasource.dart';
 import 'book_cover_ocr.dart';
 
 /// 쿼리 생성에 사용할 상위 후보 개수. (오버레이 자막이 상위를 차지해도
@@ -28,33 +28,46 @@ class OcrQuery {
 /// 텍스트를 못 읽으면 빈 리스트.
 Future<List<BookItem>> searchBooksByCover(
   String imagePath,
-  AladinDataSource aladin,
+  BookCatalogDataSource catalog,
 ) async {
   final candidates = await recognizeBookCover(imagePath);
   if (candidates.isEmpty) return [];
 
   final queries = buildOcrQueries(candidates.map((c) => c.text).toList());
+  var failedQueries = 0;
   final resultLists = await Future.wait(
     queries.map(
-      (q) => aladin
-          .searchByTitle(q.text, byKeyword: q.byKeyword)
-          .catchError((Object _) => <BookItem>[]),
+      (q) => catalog.searchByTitle(q.text, byKeyword: q.byKeyword).catchError((
+        Object _,
+      ) {
+        failedQueries++;
+        return <BookItem>[];
+      }),
     ),
   );
 
+  if (queries.isNotEmpty && failedQueries == queries.length) {
+    throw StateError('Catalog search failed');
+  }
   return mergeCoverSearchResults(resultLists);
 }
 
 /// "손원평 지음", "베르나르 베르베르 옮김" — 작가명 라인 확정 패턴(접미형).
 /// 이런 라인은 제목일 수 없으므로 제목 쿼리에서 제외한다.
-final _strongAuthorLine = RegExp(r'^([가-힣][가-힣·\s]{0,12}[가-힣])\s*(지음|지은이|옮김|엮음|그림|글|저)$');
+final _strongAuthorLine = RegExp(
+  r'^([가-힣][가-힣·\s]{0,12}[가-힣])\s*(지음|지은이|옮김|엮음|그림|글|저)$',
+);
 
 /// "지은이 에이핫", "옮긴이 장소미" — 접두형 작가 라인. 접미형과 동급 확정.
-final _prefixAuthorLine = RegExp(r'^(지은이|지음|글|그림|옮긴이|엮은이)\s+([가-힣][가-힣·\s]{0,12}[가-힣])$');
+final _prefixAuthorLine = RegExp(
+  r'^(지은이|지음|글|그림|옮긴이|엮은이)\s+([가-힣][가-힣·\s]{0,12}[가-힣])$',
+);
 
 /// "김호연 장편소설" — 작가명+장르 패턴. 작가는 추출하되,
 /// 드물게 제목 일부일 수도 있어 제목 쿼리로도 유지한다.
-final _genreAuthorLine = RegExp(r'^([가-힣][가-힣·\s]{0,12}[가-힣])\s+(장편소설|소설|산문집|시집|에세이)$');
+final _genreAuthorLine = RegExp(
+  r'^([가-힣][가-힣·\s]{0,12}[가-힣])\s+(장편소설|소설|산문집|시집|에세이)$',
+);
 
 bool _isAuthorOnlyLine(String trimmed) =>
     _strongAuthorLine.hasMatch(trimmed) || _prefixAuthorLine.hasMatch(trimmed);
@@ -165,10 +178,10 @@ List<String> _variantsOf(String raw) {
 /// 결과를 한 바퀴씩 돌며 뽑으면(1위끼리 → 2위끼리 …) 어느 쿼리든 정확히
 /// 맞은 책이 상단에 노출된다.
 List<BookItem> mergeCoverSearchResults(List<List<BookItem>> resultLists) {
-  final capped =
-      resultLists.map((l) => l.take(_perQueryLimit).toList()).toList();
-  final maxLen =
-      capped.fold<int>(0, (m, l) => l.length > m ? l.length : m);
+  final capped = resultLists
+      .map((l) => l.take(_perQueryLimit).toList())
+      .toList();
+  final maxLen = capped.fold<int>(0, (m, l) => l.length > m ? l.length : m);
 
   final seen = <int>{};
   final merged = <BookItem>[];

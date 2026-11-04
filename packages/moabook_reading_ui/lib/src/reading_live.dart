@@ -224,9 +224,13 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
         catalog.values
             .where(
               (b) =>
-                  selectedBook.aladinId != null &&
-                  b.aladinId == selectedBook.aladinId &&
-                  !b.id.startsWith('aladin:'),
+                  ((selectedBook.aladinId != null &&
+                          b.aladinId == selectedBook.aladinId) ||
+                      (selectedBook.yes24Id != null &&
+                          b.yes24Id == selectedBook.yes24Id) ||
+                      (selectedBook.isbn13?.isNotEmpty == true &&
+                          b.isbn13 == selectedBook.isbn13)) &&
+                  !b.id.contains(':'),
             )
             .firstOrNull;
     if (exact == null) {

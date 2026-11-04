@@ -240,7 +240,7 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
   /// OCR + 알라딘 검색을 돌리고 결과 화면으로 이동.
   /// 결과 화면에서 "다시 찍기"로 pop 하면 이 화면으로 돌아온다.
   Future<void> _searchCover(String imagePath) async {
-    final aladin = ref.read(aladinDataSourceProvider);
+    final aladin = ref.read(bookCatalogProvider);
     final results = await searchBooksByCover(imagePath, aladin);
 
     if (!mounted) return;

@@ -40,6 +40,7 @@ class ReadingWorkspace extends StatefulWidget {
     this.onCapture,
     this.onGallery,
     this.onOpenLink,
+    this.onExport,
   });
   final Mood initialMood;
   final String initialScreen;
@@ -49,6 +50,7 @@ class ReadingWorkspace extends StatefulWidget {
   final VoidCallback? onSettings;
   final Future<ReadingBook?> Function()? onCapture, onGallery;
   final Future<void> Function(String url)? onOpenLink;
+  final Future<void> Function(ReadingImageExport request)? onExport;
   @override
   State<ReadingWorkspace> createState() => ReadingWorkspaceState();
 }
@@ -68,6 +70,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       searchError,
       operationError;
   bool creationWriteUncertain = false, selectingMedia = false;
+  bool exporting = false;
   int collectionsRequest = 0;
   void _update(VoidCallback action) {
     if (mounted) setState(action);
@@ -1152,7 +1155,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
               iconButton(
                 'download',
                 '서가 이미지 저장',
-                () => notice('서가 이미지 저장 시안입니다.'),
+                () => unawaited(exportImages()),
               ),
             ],
           ),
@@ -1392,7 +1395,11 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
           children: [
             actionText('편집', 'pencil', beginEditCollection),
             const SizedBox(width: 16),
-            actionText('이미지 저장', 'download', () => notice('컬렉션 이미지 저장 시안입니다.')),
+            actionText(
+              '이미지 저장',
+              'download',
+              () => unawaited(exportImages(collection: value)),
+            ),
           ],
         ),
         gap(16),
@@ -1756,13 +1763,17 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         ],
       ),
       gap(18),
-      actionText('알라딘에서 더보기', 'arrow-right', () {
-        if (isLive) {
-          openRemoteLink();
-        } else {
-          notice('도서 정보 출처: 알라딘');
-        }
-      }),
+      actionText(
+        isLive && book.yes24Id != null ? 'YES24에서 더보기' : '알라딘에서 더보기',
+        'arrow-right',
+        () {
+          if (isLive) {
+            openRemoteLink();
+          } else {
+            notice('도서 정보 출처: 알라딘');
+          }
+        },
+      ),
       gap(12),
     ],
   );
@@ -2975,6 +2986,35 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       ),
     ],
   );
+
+  Future<void> exportImages({ReadingCollection? collection}) async {
+    if (exporting) return;
+    if (widget.onExport == null) {
+      notice('이미지 저장은 본앱에서 사용할 수 있어요.');
+      return;
+    }
+    if (collection != null && !loadedCollections.contains(collection.id)) {
+      notice('컬렉션을 먼저 불러와주세요.');
+      return;
+    }
+    final books = collection == null
+        ? shelfBooks
+        : [for (final id in collection.slots.whereType<String>()) catalog[id]!];
+    if (books.isEmpty) {
+      notice('저장할 책이 없어요.');
+      return;
+    }
+    exporting = true;
+    try {
+      await widget.onExport!(
+        ReadingImageExport(title: collection?.name ?? '나의 서가', books: books),
+      );
+    } catch (_) {
+      if (mounted) notice('이미지를 만들지 못했어요. 다시 시도해주세요.');
+    } finally {
+      exporting = false;
+    }
+  }
 
   void notice(String message) {
     // Product-only actions without a backend remain local in this offline preview.

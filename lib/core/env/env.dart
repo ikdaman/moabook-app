@@ -9,6 +9,8 @@ abstract final class Env {
     'BASE_URL',
     defaultValue: 'https://moabook.shop',
   );
+  static const catalogSearchPath = String.fromEnvironment('YES24_SEARCH_PATH');
+  static const catalogDetailPath = String.fromEnvironment('YES24_DETAIL_PATH');
   static const useNewReadingUi = bool.fromEnvironment(
     'USE_NEW_READING_UI',
     defaultValue: true,

@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moabook_reading/moabook_reading.dart';
 import '../../../core/env/env.dart';
-import '../../../data/datasource/aladin_datasource.dart';
+import '../../../data/datasource/book_catalog_datasource.dart';
+import '../../book_search/provider/book_search_provider.dart';
 import '../../../data/datasource/reading_remote_datasource.dart';
 import '../../../domain/model/book_item.dart';
 import '../../auth/provider/auth_provider.dart';
@@ -17,12 +18,12 @@ final readingGatewayProvider = Provider<ReadingGateway>(
         pageSizeKey: Env.readingPageSizeKey,
       ),
     ),
-    AladinDataSource(),
+    ref.watch(bookCatalogProvider),
   ),
 );
 
 ReadingBook readingBookFromSearch(BookItem item) => ReadingBook(
-  'aladin:${item.itemId}',
+  '${item.source.name}:${item.itemId}',
   item.title,
   item.author,
   item.publisher,
@@ -31,14 +32,16 @@ ReadingBook readingBookFromSearch(BookItem item) => ReadingBook(
   coverUrl: item.cover,
   totalPage: item.totalPage,
   publishDate: item.pubDate,
-  aladinId: item.itemId.toString(),
+  aladinId: item.source == BookSource.aladin ? item.itemId.toString() : null,
+  yes24Id: item.source == BookSource.yes24 ? item.itemId.toString() : null,
+  isbn13: item.isbn,
   link: item.link,
 );
 
 class AppReadingGateway implements ReadingGateway {
-  AppReadingGateway(this.remote, this.aladin);
+  AppReadingGateway(this.remote, this.catalog);
   final ReadingRemoteDataSource remote;
-  final AladinDataSource aladin;
+  final BookCatalogDataSource catalog;
   @override
   Future<ReadingShelf> loadShelf() => remote.loadShelf();
   @override
@@ -68,7 +71,7 @@ class AppReadingGateway implements ReadingGateway {
   }) => remote.addRecord(bookId, category: category, date: date, memo: memo);
   @override
   Future<List<ReadingBook>> searchBooks(String keyword) async =>
-      (await aladin.searchByTitle(
+      (await catalog.searchByTitle(
         keyword,
         byKeyword: true,
       )).where((item) => item.itemId > 0).map(readingBookFromSearch).toList();

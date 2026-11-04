@@ -4,6 +4,8 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>서가와 컬렉션 이미지를 사진에 저장합니다.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>책의 바코드를 스캔하기 위해 카메라가 필요합니다.</string>
 	<key>CFBundleDevelopmentRegion</key>

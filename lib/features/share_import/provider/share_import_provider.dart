@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/network/dio_client.dart';
-import '../../../data/datasource/aladin_datasource.dart';
+import '../../book_search/provider/book_search_provider.dart';
 import '../../../data/datasource/mybook_datasource.dart';
 import '../../../domain/model/book_item.dart';
 import '../../cover_ocr/service/book_cover_ocr.dart';
@@ -63,11 +63,11 @@ class ShareImportState {
     bool? isSaving,
     String? imagePath,
   }) => ShareImportState(
-    step:      step      ?? this.step,
-    error:     error     ?? this.error,
-    results:   results   ?? this.results,
+    step: step ?? this.step,
+    error: error ?? this.error,
+    results: results ?? this.results,
     savedBook: savedBook ?? this.savedBook,
-    isSaving:  isSaving  ?? this.isSaving,
+    isSaving: isSaving ?? this.isSaving,
     imagePath: imagePath ?? this.imagePath,
   );
 }
@@ -90,8 +90,7 @@ class ShareImportNotifier extends Notifier<ShareImportState> {
   Future<void> start() async {
     state = const ShareImportState();
 
-    final token =
-        await const FlutterSecureStorage().read(key: 'access_token');
+    final token = await const FlutterSecureStorage().read(key: 'access_token');
     if (token == null || token.isEmpty) {
       _fail(ShareImportError.notLoggedIn);
       return;
@@ -122,25 +121,27 @@ class ShareImportNotifier extends Notifier<ShareImportState> {
     }
 
     final queries = buildOcrQueries(candidates.map((c) => c.text).toList());
-    final aladin = AladinDataSource();
+    final catalog = ref.read(bookCatalogProvider);
     var failedQueries = 0;
     final resultLists = await Future.wait(
       queries.map(
-        (q) => aladin
-            .searchByTitle(q.text, byKeyword: q.byKeyword)
-            .catchError((Object _) {
-          failedQueries++;
-          return <BookItem>[];
-        }),
+        (q) => catalog.searchByTitle(q.text, byKeyword: q.byKeyword).catchError(
+          (Object _) {
+            failedQueries++;
+            return <BookItem>[];
+          },
+        ),
       ),
     );
     final merged = mergeCoverSearchResults(resultLists);
 
     if (merged.isEmpty) {
       // 전 쿼리가 실패했으면 결과 없음이 아니라 네트워크 문제로 안내.
-      _fail(queries.isNotEmpty && failedQueries == queries.length
-          ? ShareImportError.network
-          : ShareImportError.noResult);
+      _fail(
+        queries.isNotEmpty && failedQueries == queries.length
+            ? ShareImportError.network
+            : ShareImportError.noResult,
+      );
       return;
     }
 
@@ -157,17 +158,20 @@ class ShareImportNotifier extends Notifier<ShareImportState> {
     state = state.copyWith(isSaving: true);
     try {
       final dio = createDioClient(const FlutterSecureStorage());
-      await MyBookDataSourceImpl(dio)
-          .saveMyBook({'bookInfo': book.toSaveRequestBookInfo()});
+      await MyBookDataSourceImpl(
+        dio,
+      ).saveMyBook({'bookInfo': book.toSaveRequestBookInfo()});
       state = ShareImportState(
         step: ShareImportStep.saved,
         savedBook: book,
         imagePath: state.imagePath,
       );
     } on DioException catch (e) {
-      _fail(e.response?.statusCode == 401
-          ? ShareImportError.notLoggedIn
-          : ShareImportError.network);
+      _fail(
+        e.response?.statusCode == 401
+            ? ShareImportError.notLoggedIn
+            : ShareImportError.network,
+      );
     } catch (_) {
       _fail(ShareImportError.network);
     }
@@ -193,4 +197,5 @@ class ShareImportNotifier extends Notifier<ShareImportState> {
 
 final shareImportProvider =
     NotifierProvider<ShareImportNotifier, ShareImportState>(
-        ShareImportNotifier.new);
+      ShareImportNotifier.new,
+    );
