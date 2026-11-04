@@ -15,6 +15,7 @@ import 'core/env/env.dart';
 import 'core/network/auth_event.dart';
 import 'features/auth/provider/auth_provider.dart';
 import 'features/home/provider/home_provider.dart';
+import 'features/reading/provider/reading_gateway_provider.dart';
 import 'features/notification/provider/notification_providers.dart';
 import 'features/notification/provider/push_settings_provider.dart';
 import 'features/notification/service/fcm_service.dart';
@@ -48,9 +49,7 @@ void main() async {
   tzdata.initializeTimeZones();
   tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   // 종료 상태에서 데이터 메시지 도착 시 별도 isolate 가 열린다.
   // runApp 전에 등록 필수.
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -103,7 +102,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _rescheduleCIfEnabled();
       if (ref.read(isLoggedInProvider).valueOrNull == true) {
-        ref.read(homeProvider.notifier).load();
+        if (Env.useNewReadingUi) {
+          ref.read(readingRefreshProvider.notifier).state++;
+        } else {
+          ref.read(homeProvider.notifier).load();
+        }
       }
     }
   }

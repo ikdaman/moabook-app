@@ -17,6 +17,7 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 import 'package:image_picker/image_picker.dart';
 
 import '../../../app/router/routes.dart';
+import '../../../domain/model/book_item.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../book_search/provider/book_search_provider.dart';
@@ -24,7 +25,8 @@ import '../../cover_ocr/screen/cover_ocr_result_screen.dart';
 import '../../cover_ocr/service/cover_ocr_search.dart';
 
 class BookCaptureScreen extends ConsumerStatefulWidget {
-  const BookCaptureScreen({super.key});
+  const BookCaptureScreen({super.key, this.selectionOnly = false});
+  final bool selectionOnly;
 
   @override
   ConsumerState<BookCaptureScreen> createState() => _BookCaptureScreenState();
@@ -153,7 +155,11 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
     if (!mounted) return;
 
     if (ok) {
-      context.pushReplacement(Routes.addBook);
+      if (widget.selectionOnly) {
+        context.pop<BookItem>(ref.read(bookSearchProvider).selectedBook);
+      } else {
+        context.pushReplacement(Routes.addBook);
+      }
     } else {
       final msg = ref.read(bookSearchProvider).error ?? '검색에 실패했어요.';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -239,16 +245,25 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
 
     if (!mounted) return;
     HapticFeedback.mediumImpact();
-    await context.push(
+    final selected = await context.push<BookItem>(
       Routes.coverOcrResult,
-      extra: CoverOcrResultArgs(imagePath: imagePath, results: results),
+      extra: CoverOcrResultArgs(
+        imagePath: imagePath,
+        results: results,
+        selectionOnly: widget.selectionOnly,
+      ),
     );
+    if (mounted && widget.selectionOnly && selected != null) {
+      _handled = true;
+      context.pop<BookItem>(selected);
+    }
   }
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _toggleTorch() async {
@@ -314,8 +329,7 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isLoading =
-        ref.watch(bookSearchProvider.select((s) => s.isLoading));
+    final isLoading = ref.watch(bookSearchProvider.select((s) => s.isLoading));
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -396,8 +410,7 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
           const SizedBox(width: 8),
           Text(
             '사진 검색',
-            style:
-                AppTypography.dungGeunMoHeader.copyWith(color: Colors.white),
+            style: AppTypography.dungGeunMoHeader.copyWith(color: Colors.white),
           ),
         ],
       ),
@@ -509,8 +522,9 @@ class _CameraErrorView extends StatelessWidget {
         children: [
           Text(
             permissionDenied ? '카메라 권한이 필요해요' : '카메라를 사용할 수 없어요',
-            style: AppTypography.dungGeunMoHeader
-                .copyWith(color: AppColors.textPrimary),
+            style: AppTypography.dungGeunMoHeader.copyWith(
+              color: AppColors.textPrimary,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
@@ -518,8 +532,9 @@ class _CameraErrorView extends StatelessWidget {
             permissionDenied
                 ? '책 촬영 기능을 사용하려면\n설정 → 모아북 → 카메라 권한을 허용해 주세요.'
                 : '잠시 후 다시 시도해주세요.',
-            style: AppTypography.dungGeunMoBody
-                .copyWith(color: AppColors.textGray),
+            style: AppTypography.dungGeunMoBody.copyWith(
+              color: AppColors.textGray,
+            ),
             textAlign: TextAlign.center,
           ),
         ],

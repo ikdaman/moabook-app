@@ -1,0 +1,233 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:moabook/design_preview/preview_app.dart';
+import 'package:moabook/design_preview/widgets/policy_widgets.dart';
+import 'package:moabook_reading/moabook_reading.dart';
+
+void main() {
+  Future<DesignPreviewState> open(WidgetTester tester, String screen) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(402, 874);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(DesignPreviewApp(initialScreen: screen));
+    await tester.pumpAndSettle();
+    return tester.state<DesignPreviewState>(find.byType(DesignPreview));
+  }
+
+  Future<void> tap(WidgetTester tester, Finder finder) async {
+    await tester.ensureVisible(finder);
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> enter(WidgetTester tester, String text) async {
+    await tester.enterText(find.byType(TextFormField).first, text);
+    tester.testTextInput.hide();
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+    'creation requires a name and opens a new collection with nine empty slots',
+    (tester) async {
+      final state = await open(tester, 'collections');
+      await tap(tester, find.text('새 컬렉션'));
+      await tap(tester, find.text('컬렉션 만들기'));
+      expect(state.collectionData.length, 6);
+      await enter(tester, '  가을의 책  ');
+      await tap(tester, find.text('컬렉션 만들기'));
+      expect(state.currentCollection.name, '가을의 책');
+      expect(state.currentCollection.slots, List<String?>.filled(9, null));
+      expect(state.screen, 'collection');
+      expect(find.byType(CollectionSlotGrid), findsWidgets);
+      expect(find.text('한 줄 소개 · 선택'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'editing removes one book without moving others or changing the library',
+    (tester) async {
+      final state = await open(tester, 'collection');
+      final before = state.currentCollection.slots.toList();
+      final bookCount = state.library.length;
+      final originalName = state.currentCollection.name;
+      await tap(tester, find.text('편집'));
+      await enter(tester, '바꾼 이름');
+      await tap(tester, find.byKey(const ValueKey('remove-slot-0')));
+      expect(state.currentCollection.name, originalName);
+      expect(state.currentCollection.slots, before);
+      await tap(tester, find.text('편집 완료'));
+      expect(state.currentCollection.name, '바꾼 이름');
+      expect(state.currentCollection.slots.first, isNull);
+      expect(state.currentCollection.slots.skip(1), before.skip(1));
+      expect(state.library.length, bookCount);
+      expect(state.library.containsKey(before.first), isTrue);
+    },
+  );
+
+  testWidgets(
+    'collection add reuses a saved book and repeated add shows collection-specific duplicate',
+    (tester) async {
+      final state = await open(tester, 'collection-empty');
+      final bookCount = state.library.length;
+      Future<void> chooseFirstBook() async {
+        await tap(
+          tester,
+          find.bySemanticsLabel(RegExp('번 빈 칸, 책 추가')).hitTestable().first,
+        );
+        await tap(tester, find.text('책 제목으로 검색'));
+        await tap(tester, find.text('소년과 두더지와 여우와 말'));
+        await tap(tester, find.text('컬렉션에 담기'));
+      }
+
+      await chooseFirstBook();
+      expect(state.screen, 'collection');
+      expect(state.currentCollection.slots.first, 'boy');
+      expect(state.library.length, bookCount);
+      await chooseFirstBook();
+      expect(find.text('이미 이 컬렉션에 담긴 책이에요'), findsOneWidget);
+      await tap(tester, find.text('확인'));
+      expect(state.screen, 'book-info');
+      expect(state.currentCollection.slots.whereType<String>(), ['boy']);
+    },
+  );
+
+  testWidgets(
+    'new collection book goes through saving once and creates exactly one first record',
+    (tester) async {
+      final state = await open(tester, 'collection-empty');
+      await tap(tester, find.bySemanticsLabel('1번 빈 칸, 책 추가').hitTestable());
+      await tap(tester, find.text('책 제목으로 검색'));
+      await enter(tester, '다음 계절');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      await tap(tester, find.text('다음 계절에 읽을 책').last);
+      await tap(tester, find.text('컬렉션에 담기'));
+      expect(state.screen, 'save-wish');
+      await tap(tester, find.text('읽은 책'));
+      expect(find.text('읽기 시작한 날'), findsNothing);
+      await tap(tester, find.text('저장하기'));
+      expect(state.screen, 'collection');
+      expect(state.currentCollection.slots.first, 'new-book');
+      final journal = state.journals['new-book']!;
+      expect(journal.records.length, 1);
+      expect(journal.status, ReadingCategory.done);
+      expect(journal.records.single.date, readingDay(DateTime.now()));
+    },
+  );
+
+  testWidgets(
+    'FREE validates whitespace and completed record retains actual content and date',
+    (tester) async {
+      final state = await open(tester, 'record-free');
+      await enter(tester, '  ');
+      await tap(tester, find.text('기록 완료'));
+      expect(state.screen, 'record-free');
+      await enter(tester, '기억할 문장');
+      final chosen = state.recordDate;
+      await tap(tester, find.text('기록 완료'));
+      expect(state.screen, 'record-complete');
+      expect(find.text('기억할 문장'), findsOneWidget);
+      expect(find.text(DesignPreviewState.formatDate(chosen)), findsOneWidget);
+      expect(state.journal.records.last.memo, '기억할 문장');
+      expect(state.journal.status, ReadingCategory.inProgress);
+      await tap(tester, find.text('독서카드로 돌아가기'));
+      expect(state.screen, 'card-back');
+      expect(find.text('기억할 문장'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'TODO and quote use one content field; categories exclude pause',
+    (tester) async {
+      await open(tester, 'record-options');
+      expect(find.text('쉬고 있음'), findsNothing);
+      await tap(tester, find.byKey(const ValueKey('category-TODO')));
+      expect(find.text('읽고 싶은 이유 · 선택'), findsOneWidget);
+      expect(find.byType(TextFormField), findsOneWidget);
+      await tap(tester, find.text('카테고리 바꾸기'));
+      await tap(tester, find.byKey(const ValueKey('category-SENTENCE')));
+      expect(find.byType(TextFormField), findsOneWidget);
+      expect(find.text('페이지 · 선택'), findsNothing);
+      expect(find.text('어떤 기억을 남기고 싶나요? · 선택'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'calendar supports month navigation and cancel preserves original date',
+    (tester) async {
+      final state = await open(tester, 'record-entry');
+      final original = state.recordDate;
+      await tap(tester, find.text(DesignPreviewState.formatDate(original)));
+      await tap(tester, find.byTooltip('이전 달'));
+      final previous = DateTime(original.year, original.month - 1, 1);
+      await tap(
+        tester,
+        find.byKey(
+          ValueKey('calendar-day-${previous.year}-${previous.month}-1'),
+        ),
+      );
+      await tap(tester, find.bySemanticsLabel('닫기').last);
+      expect(state.recordDate, original);
+      await tap(tester, find.text(DesignPreviewState.formatDate(original)));
+      await tap(tester, find.byTooltip('이전 달'));
+      await tap(
+        tester,
+        find.byKey(
+          ValueKey('calendar-day-${previous.year}-${previous.month}-1'),
+        ),
+      );
+      await tap(
+        tester,
+        find.text('${DesignPreviewState.formatDate(previous)} 선택'),
+      );
+      expect(state.recordDate, previous);
+      expect(
+        find.text(DesignPreviewState.formatDate(previous)),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('records and state are isolated between books', (tester) async {
+    final state = await open(tester, 'card-front');
+    await tap(tester, find.text('추가하기'));
+    await tap(tester, find.byKey(const ValueKey('category-DONE')));
+    await tap(tester, find.text('기록 완료'));
+    expect(state.journals['boy']!.status, ReadingCategory.done);
+    state.openBook(state.library['human']!);
+    await tester.pumpAndSettle();
+    expect(state.readingStatus, '읽는 중');
+    expect(state.journal.records.length, 3);
+  });
+
+  testWidgets('cancelled edits preserve collection name and slot assignments', (
+    tester,
+  ) async {
+    final state = await open(tester, 'collection');
+    final original = state.currentCollection;
+    await tap(tester, find.text('편집'));
+    await enter(tester, '취소할 이름');
+    await tap(tester, find.byKey(const ValueKey('remove-slot-0')));
+    state.back();
+    await tester.pumpAndSettle();
+    expect(state.currentCollection.name, original.name);
+    expect(state.currentCollection.slots, original.slots);
+  });
+
+  testWidgets(
+    'long record can be completed on a narrow screen with keyboard space',
+    (tester) async {
+      final state = await open(tester, 'record-free');
+      tester.view.physicalSize = const Size(320, 740);
+      tester.view.padding = const FakeViewPadding(top: 59, bottom: 34);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pumpAndSettle();
+      final text = List.filled(400, '글').join();
+      await enter(tester, text);
+      await tap(tester, find.text('기록 완료'));
+      expect(state.completedRecord!.memo, text);
+      expect(tester.takeException(), isNull);
+    },
+  );
+}

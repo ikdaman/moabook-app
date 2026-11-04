@@ -8,6 +8,10 @@ environment:
   sdk: ^3.12.0
 
 dependencies:
+  moabook_reading_ui:
+    path: packages/moabook_reading_ui
+  moabook_reading:
+    path: packages/moabook_reading
   flutter:
     sdk: flutter
 

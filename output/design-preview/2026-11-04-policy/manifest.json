@@ -1,0 +1,72 @@
+{
+  "date": "2026-11-04",
+  "source": "iPhone 17 Simulator; Flutter offline preview",
+  "style": "A",
+  "screens": [
+    {
+      "screen": "shelf",
+      "label": "페이지 수에 맞춘 책등",
+      "file": "shelf.png"
+    },
+    {
+      "screen": "collection",
+      "label": "빈 칸이 있는 9칸 컬렉션",
+      "file": "collection.png"
+    },
+    {
+      "screen": "collection-empty",
+      "label": "새로 만든 빈 컬렉션",
+      "file": "collection-empty.png"
+    },
+    {
+      "screen": "collection-edit",
+      "label": "이름 수정과 책 빼기",
+      "file": "collection-edit.png"
+    },
+    {
+      "screen": "collections",
+      "label": "정리한 컬렉션 목록",
+      "file": "collections.png"
+    },
+    {
+      "screen": "collection-duplicate",
+      "label": "같은 컬렉션 중복 안내",
+      "file": "collection-duplicate.png"
+    },
+    {
+      "screen": "book-info",
+      "label": "간결해진 책 정보",
+      "file": "book-info.png"
+    },
+    {
+      "screen": "save-read",
+      "label": "완료일만 받는 완독 저장",
+      "file": "save-read.png"
+    },
+    {
+      "screen": "card-back",
+      "label": "날짜 최신순 기록",
+      "file": "card-back.png"
+    },
+    {
+      "screen": "record-options",
+      "label": "14가지 기록 카테고리",
+      "file": "record-options.png"
+    },
+    {
+      "screen": "record-wish",
+      "label": "읽고 싶은 이유 입력",
+      "file": "record-wish.png"
+    },
+    {
+      "screen": "record-quote",
+      "label": "내용 한 칸으로 통일한 문장 기록",
+      "file": "record-quote.png"
+    },
+    {
+      "screen": "date-picker",
+      "label": "실제 월 이동이 되는 달력",
+      "file": "date-picker.png"
+    }
+  ]
+}

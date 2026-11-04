@@ -984,6 +984,20 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  moabook_reading:
+    dependency: "direct main"
+    description:
+      path: "packages/moabook_reading"
+      relative: true
+    source: path
+    version: "0.1.0"
+  moabook_reading_ui:
+    dependency: "direct main"
+    description:
+      path: "packages/moabook_reading_ui"
+      relative: true
+    source: path
+    version: "0.1.0"
   mobile_scanner:
     dependency: "direct main"
     description:

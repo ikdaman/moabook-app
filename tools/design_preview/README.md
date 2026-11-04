@@ -1,3 +1,22 @@
+# 최신 진행 상황 · 2026-11-04
+
+밝은 테마의 정책 UI를 반영했습니다. [최신 주요 화면 13장](../../output/design-preview/2026-11-04-policy/index.html), [전체 작업계획](../../docs/plans/2026-11-04-plan-overview.html).
+
+- 컬렉션은 고정 9칸이며 빈 칸에서 책을 찾습니다. 생성 후 빈 컬렉션으로 이동하고 편집은 이름 수정/책 빼기입니다. 생성순은 오래된 것부터입니다.
+- 검색은 로컬 샘플에서 제목/저자를 찾습니다. 빈 검색어는 샘플 전체를 보여주며 `다음 계절`을 검색하면 신규 저장용 샘플 책을 찾을 수 있습니다.
+- 기존 책은 컬렉션에 바로 연결하고, 신규 책은 세 상태 저장 후 최초 기록 하나를 만듭니다. 서가 중복과 컬렉션 중복 안내는 구분합니다.
+- 14종 기록, 내용 한 칸, TODO 이유 선택, FREE 내용 필수, 400자 제한, 실제 월 이동과 날짜 취소/복원을 지원합니다.
+- 현재 상태는 마지막으로 추가한 상태 기록을 따릅니다. 기록 목록과 띠지 이유는 별도의 날짜 기준을 사용합니다.
+- 이 앱은 오프라인 프리뷰입니다. 실제 검색/촬영/서버 저장/이미지 내보내기는 아직 연결하지 않았고 입력 데이터는 재시작 시 초기화됩니다.
+- `packages/moabook_reading`의 공통 규칙을 본앱과 프리뷰가 함께 참조합니다. 프리뷰 전용 iOS 호스트는 현재 SDK 호환을 위해 iOS 15.0 이상입니다.
+- 루트에서 `flutter test test --no-pub` 결과 132개 통과. 최신 위젯 검증은 `test/design_preview/policy_flows_test.dart`에 있습니다.
+
+본앱은 현재 같은 공통 UI 패키지에 인증된 API gateway를 주입해 실행합니다. 위의 검색·서버 미연결 설명은 이 오프라인 프리뷰 호스트에만 해당합니다. 본앱 연결 상태는 [최신 계획](../../docs/plans/2026-11-04-policy-api-implementation-plan.md)에 기록합니다.
+
+아래 A/C 설명과 과거 캡처 경로는 작업 이력입니다. 현재 구현 기준은 위의 최신 설명을 우선합니다.
+
+---
+
 # 모아북 A/C 디자인 프리뷰
 
 백엔드 없이 실행하는 Flutter iOS 디자인 검토 앱입니다. 앱 코드는 `../../lib/design_preview`, 리소스는 `../../assets/design_preview`를 심볼릭 링크로 공유합니다.
@@ -30,7 +49,7 @@ xcrun simctl list devices booted
 python3 scripts/capture_design_previews.py --vm-url '<Dart VM Service URL>' --device '<시뮬레이터 UDID>'
 ```
 
-실제 `simctl io screenshot`으로 52개의 원본 PNG(현재 iPhone 17: 1206×2622)를 저장하고 비교 갤러리와 manifest를 생성합니다. 화면 레지스트리는 `lib/design_preview/sample_data.dart`에 있습니다.
+실제 `simctl io screenshot`으로 52개의 원본 PNG(현재 iPhone 17: 1206×2622)를 저장하고 비교 갤러리와 manifest를 생성합니다. 화면 레지스트리는 `packages/moabook_reading_ui/lib/src/sample_data.dart`에 있습니다.
 
 ## 확인 범위
 

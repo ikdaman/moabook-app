@@ -1,0 +1,12 @@
+name: moabook_reading_ui
+description: Shared reading workspace for the live app and offline previews.
+publish_to: none
+version: 0.1.0
+environment:
+  sdk: ^3.12.0
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_svg: ^2.0.10+1
+  moabook_reading:
+    path: ../moabook_reading

@@ -1,0 +1,8 @@
+name: moabook_reading
+description: Shared reading record and collection policies for Moabook.
+publish_to: none
+version: 0.1.0
+environment:
+  sdk: ^3.12.0
+dependencies:
+  characters: ^1.4.0

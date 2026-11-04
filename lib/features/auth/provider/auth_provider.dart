@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/env/env.dart';
 import '../../../data/datasource/auth_remote_datasource.dart';
 import '../../../data/datasource/social_auth_datasource.dart';
 import '../../../data/repository/auth_repository_impl.dart';
@@ -31,7 +32,7 @@ final dioProvider = Provider((ref) {
 // ── Repository providers ──────────────────────────────────────────────────
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final dio     = ref.watch(dioProvider);
+  final dio = ref.watch(dioProvider);
   final storage = ref.watch(secureStorageProvider);
   return AuthRepositoryImpl(
     AuthRemoteDataSourceImpl(dio),
@@ -42,11 +43,13 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 // ── State providers ───────────────────────────────────────────────────────
 
-final loginStateProvider =
-    StateProvider<LoginState>((ref) => const LoginInitial());
+final loginStateProvider = StateProvider<LoginState>(
+  (ref) => const LoginInitial(),
+);
 
-final signupStateProvider =
-    StateProvider<SignupState>((ref) => const SignupSuccess());
+final signupStateProvider = StateProvider<SignupState>(
+  (ref) => const SignupSuccess(),
+);
 
 final isLoggedInProvider = FutureProvider<bool>((ref) async {
   final repo = ref.watch(authRepositoryProvider);
@@ -79,10 +82,10 @@ class AuthNotifier extends Notifier<void> {
     }
   }
 
-  Future<void> kakaoLogin()  => _consumeLogin(_repo.kakaoLogin());
-  Future<void> naverLogin()  => _consumeLogin(_repo.naverLogin());
+  Future<void> kakaoLogin() => _consumeLogin(_repo.kakaoLogin());
+  Future<void> naverLogin() => _consumeLogin(_repo.naverLogin());
   Future<void> googleLogin() => _consumeLogin(_repo.googleLogin());
-  Future<void> appleLogin()  => _consumeLogin(_repo.appleLogin());
+  Future<void> appleLogin() => _consumeLogin(_repo.appleLogin());
 
   Future<void> signup({
     required String socialToken,
@@ -114,6 +117,9 @@ class AuthNotifier extends Notifier<void> {
   /// 호출해 홈 첫 진입에서 바로 보이게 한다. 실패해도 로그인 흐름은 막지 않고,
   /// 보류책은 유지되어 Home 첫 진입의 fallback 에서 재시도된다.
   Future<void> _consumePendingBook() async {
+    // The new save flow awaits a returned mybookId and exact duplicate lookup.
+    // Preserve the pending selection instead of issuing the deprecated save body.
+    if (Env.useNewReadingUi) return;
     final pending = ref.read(pendingBookProvider);
     if (pending == null) return;
     try {
@@ -164,11 +170,11 @@ class AuthNotifier extends Notifier<void> {
     await _cleanupPushOnLogout();
     final provider = await _repo.getProvider();
     final stream = switch (provider?.toUpperCase()) {
-      'KAKAO'  => _repo.kakaoLogout(),
-      'NAVER'  => _repo.naverLogout(),
+      'KAKAO' => _repo.kakaoLogout(),
+      'NAVER' => _repo.naverLogout(),
       'GOOGLE' => _repo.googleLogout(),
-      'APPLE'  => _repo.appleLogout(),
-      _        => _repo.kakaoLogout(),
+      'APPLE' => _repo.appleLogout(),
+      _ => _repo.kakaoLogout(),
     };
     await for (final state in stream) {
       if (state is LogoutError) break;
@@ -178,4 +184,6 @@ class AuthNotifier extends Notifier<void> {
   }
 }
 
-final authNotifierProvider = NotifierProvider<AuthNotifier, void>(AuthNotifier.new);
+final authNotifierProvider = NotifierProvider<AuthNotifier, void>(
+  AuthNotifier.new,
+);

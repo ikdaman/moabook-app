@@ -19,10 +19,15 @@ import '../../book_search/provider/book_search_provider.dart';
 
 /// 촬영 화면 → 결과 화면으로 넘기는 인자 묶음.
 class CoverOcrResultArgs {
-  const CoverOcrResultArgs({required this.imagePath, required this.results});
+  const CoverOcrResultArgs({
+    required this.imagePath,
+    required this.results,
+    this.selectionOnly = false,
+  });
 
   final String imagePath;
   final List<BookItem> results;
+  final bool selectionOnly;
 }
 
 class CoverOcrResultScreen extends ConsumerWidget {
@@ -30,10 +35,12 @@ class CoverOcrResultScreen extends ConsumerWidget {
     super.key,
     required this.imagePath,
     required this.results,
+    this.selectionOnly = false,
   });
 
   final String imagePath;
   final List<BookItem> results;
+  final bool selectionOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -45,8 +52,9 @@ class CoverOcrResultScreen extends ConsumerWidget {
         backgroundColor: AppColors.backgroundDefault,
         title: Text(
           '사진 검색',
-          style: AppTypography.dungGeunMoHeader
-              .copyWith(color: AppColors.textPrimary),
+          style: AppTypography.dungGeunMoHeader.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
       ),
       body: ListView(
@@ -58,21 +66,24 @@ class CoverOcrResultScreen extends ConsumerWidget {
             isEmpty
                 ? '※ 책 제목이 명확하게 보이는 사진을 업로드해 주세요.'
                 : '※ 사진에 텍스트가 많은 경우, 알맞은 결과가 하단에 보일 수 있어요.',
-            style: AppTypography.dungGeunMoSubtitle
-                .copyWith(color: AppColors.primary),
+            style: AppTypography.dungGeunMoSubtitle.copyWith(
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
             '검색 결과',
-            style: AppTypography.dungGeunMoSubtitle
-                .copyWith(color: AppColors.textPrimary),
+            style: AppTypography.dungGeunMoSubtitle.copyWith(
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 8),
           if (isEmpty)
             Text(
               '없음',
-              style: AppTypography.dungGeunMoBody
-                  .copyWith(color: AppColors.textGray),
+              style: AppTypography.dungGeunMoBody.copyWith(
+                color: AppColors.textGray,
+              ),
             )
           else
             ...results.map((book) => _bookCard(context, ref, book)),
@@ -117,17 +128,23 @@ class CoverOcrResultScreen extends ConsumerWidget {
               ),
         title: Text(
           book.title,
-          style: AppTypography.wantedSansBookTitle
-              .copyWith(color: AppColors.textPrimary),
+          style: AppTypography.wantedSansBookTitle.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         subtitle: Text(
           book.author,
-          style: AppTypography.wantedSansCaption
-              .copyWith(color: AppColors.textGray),
+          style: AppTypography.wantedSansCaption.copyWith(
+            color: AppColors.textGray,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         onTap: () {
+          if (selectionOnly) {
+            context.pop<BookItem>(book);
+            return;
+          }
           ref.read(bookSearchProvider.notifier).selectBook(book);
           context.push(Routes.addBook);
         },

@@ -61,7 +61,7 @@ void main() {
       const DesignPreviewApp(initialScreen: 'collection-edit'),
     );
     await tester.pumpAndSettle();
-    final save = find.text('3권으로 컬렉션 저장');
+    final save = find.text('편집 완료');
     expect(save, findsOneWidget);
     await tester.tap(save);
     await tester.pumpAndSettle();
@@ -74,7 +74,7 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(const DesignPreviewApp(initialScreen: 'save-wish'));
     await tester.pumpAndSettle();
-    expect(find.text('읽고 싶은 이유'), findsOneWidget);
+    expect(find.text('읽고 싶은 이유 · 선택'), findsOneWidget);
     await tester.tap(find.text('읽고 있는 책'));
     await tester.pumpAndSettle();
     expect(find.text('읽기 시작한 날'), findsOneWidget);
@@ -82,6 +82,7 @@ void main() {
     await tester.tap(find.text('읽은 책'));
     await tester.pumpAndSettle();
     expect(find.text('다 읽은 날'), findsOneWidget);
+    expect(find.text('읽기 시작한 날'), findsNothing);
   });
 
   testWidgets('card tap and swipe flip without trapping back navigation', (
@@ -224,7 +225,7 @@ void main() {
     },
   );
   testWidgets(
-    'topic shelves swipe to creation and tab entry resets to newest',
+    'topic shelves swipe to creation and tab entry resets to first collection',
     (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(402, 874);
@@ -251,7 +252,7 @@ void main() {
           await tester.pumpAndSettle();
           expect(indicator(), '$page / 7');
         }
-        expect(find.text('새 책장 만들기'), findsNWidgets(2));
+        expect(find.text('새 컬렉션 만들기'), findsNWidgets(2));
         await tester.drag(
           find.byKey(const Key('collection-pager')),
           const Offset(-320, 0),

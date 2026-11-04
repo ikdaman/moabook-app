@@ -35,7 +35,7 @@ def main():
 
     isolates = rpc('getVM')['isolates']
     isolate = next(item['id'] for item in isolates if item['name'] == 'main')
-    registry = (ROOT / 'lib/design_preview/sample_data.dart').read_text().split('const previewScreens', 1)[1]
+    registry = (ROOT / 'packages/moabook_reading_ui/lib/src/sample_data.dart').read_text().split('const previewScreens', 1)[1]
     screens = re.findall(r"^\s*'([^']+)': '([^']+)',", registry, re.M)
     if not screens:
         raise RuntimeError('Screen registry is empty')
