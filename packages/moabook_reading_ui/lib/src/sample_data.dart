@@ -86,8 +86,7 @@ const previewScreens = <String, String>{
   'record-wish': '기록 추가 · 읽고 싶은 이유',
   'record-complete': '기록 추가 · 완료',
   'date-picker': '날짜 선택',
-  'capture': '표지·바코드 촬영',
-  'gallery': '갤러리에서 추가',
+  'capture': '바코드 스캔',
 };
 
 const newPreviewBook = PreviewBook(

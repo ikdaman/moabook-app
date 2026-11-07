@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:moabook_reading/moabook_reading.dart';
+import '../../../data/datasource/reading_remote_datasource.dart';
 import '../../../data/datasource/aladin_datasource.dart';
 import '../../../data/datasource/book_catalog_datasource.dart';
 import '../../../data/datasource/yes24_datasource.dart';
@@ -101,9 +103,10 @@ class BookSearchNotifier extends Notifier<BookSearchState>
     state = const BookSearchState();
   }
 
-  /// ISBN으로 알라딘 단건 조회. 결과를 [selectedBook]에 세팅.
+  /// ISBN 상세 조회.
+  /// 결과를 [selectedBook]에 세팅한다.
   /// 성공 시 true, 결과가 없거나 실패 시 false.
-  /// 검색 목록([results]/[query])은 건드리지 않는다 — 바코드/표지 플로우가
+  /// 검색 목록([results]/[query])은 건드리지 않는다 — 바코드 플로우가
   /// 아래에 깔린 검색 화면의 목록을 덮어쓰면 안 되기 때문.
   Future<bool> searchByIsbn(String isbn) async {
     state = state.copyWith(isLoading: true);
@@ -169,6 +172,10 @@ class BookSearchNotifier extends Notifier<BookSearchState>
     String? startedDate,
     String? finishedDate,
   }) async {
+    if (state.isSaving) return false;
+    if (Env.useNewReadingUi) {
+      return _saveNewBook(book, reason: reason);
+    }
     state = state.copyWith(isSaving: true);
     try {
       await _myBook.saveMyBook({
@@ -186,6 +193,58 @@ class BookSearchNotifier extends Notifier<BookSearchState>
       return true;
     } catch (e) {
       state = state.copyWith(isSaving: false, error: e.toString());
+      return false;
+    }
+  }
+
+  final Set<String> _uncertainBookWrites = {};
+  late final ReadingRemoteDataSource _readingRemote = ReadingRemoteDataSource(
+    ref.read(dioProvider),
+  );
+
+  Future<bool> _saveNewBook(BookItem item, {String? reason}) async {
+    final key = '${item.source.name}:${item.itemId}';
+    final book = ReadingBook(
+      key,
+      item.title,
+      item.author,
+      item.publisher,
+      '',
+      '',
+      yes24Id: item.source == BookSource.yes24 ? '${item.itemId}' : null,
+      aladinId: item.source == BookSource.aladin ? '${item.itemId}' : null,
+      totalPage: item.totalPage,
+      coverUrl: item.cover,
+      link: item.link,
+    );
+    state = state.copyWith(isSaving: true);
+    var creatingBook = false;
+    try {
+      final check = await _readingRemote.checkBook(book);
+      if (check.bookId == null) {
+        if (_uncertainBookWrites.contains(key)) {
+          throw const ReadingWriteUncertain();
+        }
+        creatingBook = true;
+        await _readingRemote.saveBook(book, reason: reason?.trim() ?? '');
+      }
+      // Registering a book does not create a reading record. The empty card
+      // invites the user to write their first record separately.
+      _uncertainBookWrites.remove(key);
+      state = state.copyWith(isSaving: false, clearSelectedBook: true);
+      return true;
+    } on ReadingWriteUncertain {
+      if (creatingBook) _uncertainBookWrites.add(key);
+      state = state.copyWith(
+        isSaving: false,
+        error: '저장 결과를 확인하지 못했어요. 다시 시도하면 저장 여부부터 확인해요.',
+      );
+      return false;
+    } catch (_) {
+      state = state.copyWith(
+        isSaving: false,
+        error: '책을 저장하지 못했어요. 다시 시도해주세요.',
+      );
       return false;
     }
   }

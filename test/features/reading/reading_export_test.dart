@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,9 +27,12 @@ final tinyPng = base64Decode(
 );
 
 class PreviewRenderer extends ReadingImageRenderer {
+  int calls = 0;
   @override
-  Future<Uint8List> render(ReadingImageExport request, int page) async =>
-      tinyPng;
+  Future<Uint8List> render(ReadingImageExport request, int page) async {
+    calls++;
+    return tinyPng;
+  }
 }
 
 void main() {
@@ -58,11 +60,88 @@ void main() {
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
       expect(frame.image.width, 1080);
-      expect(frame.image.height, 1720);
+      expect(frame.image.height, 812);
       frame.image.dispose();
       codec.dispose();
     },
   );
+  test(
+    'PNG height follows occupied rows, including the last page, with real covers and long text',
+    () async {
+      var covers = 0;
+      final renderer = ReadingImageRenderer(
+        loadCover: (url) async {
+          covers++;
+          final data = await rootBundle.load(
+            'assets/design_preview/covers/human.jpg',
+          );
+          final codec = await ui.instantiateImageCodec(
+            data.buffer.asUint8List(),
+            targetWidth: 228,
+          );
+          try {
+            return (await codec.getNextFrame()).image;
+          } finally {
+            codec.dispose();
+          }
+        },
+      );
+      for (final count in [1, 4, 9, 10]) {
+        final value = ReadingImageExport(
+          title: '여러 줄에 걸쳐 표시되는 아주 긴 컬렉션 제목을 가진 나의 책장',
+          books: [
+            for (var i = 0; i < count; i++)
+              ReadingBook(
+                '$i',
+                '길고 긴 책 제목과 부제목이 여러 줄을 넘으면 말줄임으로 표시해요',
+                '긴 작가 이름, 공동 저자, 번역가 이름',
+                '',
+                '여러 줄에 걸쳐 표시할 읽고 싶은 이유와 기억',
+                '',
+                coverUrl: 'local-test-cover',
+              ),
+          ],
+        );
+        final last = value.pageCount - 1;
+        final bytes = await renderer.render(value, last);
+        final codec = await ui.instantiateImageCodec(bytes);
+        try {
+          final image = (await codec.getNextFrame()).image;
+          expect(image.width, 1080);
+          expect(
+            image.height,
+            count == 4
+                ? 1266
+                : count == 9
+                ? 1720
+                : 812,
+          );
+          image.dispose();
+        } finally {
+          codec.dispose();
+        }
+      }
+      expect(covers, 15);
+    },
+  );
+
+  testWidgets(
+    'empty export shows an empty state without rendering or offering save',
+    (tester) async {
+      final renderer = PreviewRenderer();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReadingExportScreen(request: request(0), renderer: renderer),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('저장할 책이 없어요.'), findsOneWidget);
+      expect(find.text('사진에 저장'), findsNothing);
+      expect(find.text('저장 완료'), findsNothing);
+      expect(renderer.calls, 0);
+    },
+  );
+
   testWidgets('failed second save resumes only remaining images', (
     tester,
   ) async {

@@ -5,7 +5,6 @@ import '../../features/onboarding/screen/onboarding_screen.dart';
 import '../../features/auth/screen/signup_screen.dart';
 import '../../features/book_info/screen/book_info_screen.dart';
 import '../../features/capture/screen/book_capture_screen.dart';
-import '../../features/cover_ocr/screen/cover_ocr_result_screen.dart';
 import '../../features/book_search/screen/add_book_screen.dart';
 import '../../features/book_search/screen/manual_book_input_screen.dart';
 import '../../features/book_search/screen/search_book_screen.dart';
@@ -56,17 +55,6 @@ final appRouter = GoRouter(
             Env.useNewReadingUi ||
             state.uri.queryParameters['selection'] == 'true',
       ),
-    ),
-    GoRoute(
-      path: Routes.coverOcrResult,
-      builder: (context, state) {
-        final args = state.extra as CoverOcrResultArgs?;
-        return CoverOcrResultScreen(
-          imagePath: args?.imagePath ?? '',
-          results: args?.results ?? const [],
-          selectionOnly: Env.useNewReadingUi || (args?.selectionOnly ?? false),
-        );
-      },
     ),
     // ── Main shell with BottomNavBar ──────────────────────────────────
     ShellRoute(

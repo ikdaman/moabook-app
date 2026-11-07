@@ -93,7 +93,7 @@ void main() {
   );
 
   testWidgets(
-    'new collection book goes through saving once and creates exactly one first record',
+    'new collection book is saved without an automatic first record',
     (tester) async {
       final state = await open(tester, 'collection-empty');
       await tap(tester, find.bySemanticsLabel('1번 빈 칸, 책 추가').hitTestable());
@@ -104,15 +104,33 @@ void main() {
       await tap(tester, find.text('다음 계절에 읽을 책').last);
       await tap(tester, find.text('컬렉션에 담기'));
       expect(state.screen, 'save-wish');
-      await tap(tester, find.text('읽은 책'));
       expect(find.text('읽기 시작한 날'), findsNothing);
       await tap(tester, find.text('저장하기'));
       expect(state.screen, 'collection');
       expect(state.currentCollection.slots.first, 'new-book');
       final journal = state.journals['new-book']!;
-      expect(journal.records.length, 1);
-      expect(journal.status, ReadingCategory.done);
-      expect(journal.records.single.date, readingDay(DateTime.now()));
+      expect(journal.records, isEmpty);
+      expect(journal.status, isNull);
+    },
+  );
+
+  testWidgets(
+    'saved reason exists independently of records and an explicit TODO can clear it',
+    (tester) async {
+      final state = await open(tester, 'save-wish');
+      state.reasonDraft = '서점에서 만난 책';
+      state.saveBookLocally();
+      await tester.pumpAndSettle();
+      expect(state.screen, 'card-back');
+      expect(state.journal.records, isEmpty);
+      expect(state.book.reason, '서점에서 만난 책');
+      expect(find.text('첫 기록 남기기'), findsOneWidget);
+      state.chooseCategory(ReadingCategory.todo);
+      state.memoDraft = '';
+      state.saveRecordLocally();
+      await tester.pumpAndSettle();
+      expect(state.journal.records.length, 1);
+      expect(state.book.reason, isEmpty);
     },
   );
 

@@ -30,7 +30,15 @@ class BookItem {
   /// `POST /mybooks` 요청 바디의 `bookInfo` 형태로 변환.
   Map<String, dynamic> toSaveRequestBookInfo() {
     if (source != BookSource.aladin) {
-      throw StateError('YES24 save contract is not available yet');
+      return {
+        // The backend intentionally retains this name for YES24 goods IDs.
+        'aladinId': itemId,
+        'title': title,
+        'author': author,
+        'publisher': publisher,
+        'totalPage': totalPage,
+        'coverImage': cover,
+      };
     }
     return {
       'source': 'ALADIN',

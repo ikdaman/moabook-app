@@ -10,7 +10,8 @@ The installed commons 0.11.1 does not include this helper yet. Podfile opts in
 explicitly. It modifies only generated Pods build artifacts. Each build relabels
 the arm64 Mach-O platform for the selected simulator/device SDK; it restores the
 device label automatically for device builds. This does not add missing camera
-hardware to the simulator. Test scanning/OCR on physical devices as well.
+hardware to the simulator. The retained ML Kit barcode scanner still needs this helper. OCR has been removed.
+Test barcode scanning on physical devices as well.
 
 To remove: delete the Podfile require and invocation, remove Pods, then reinstall
 pods so the original upstream binaries are downloaded again. Do not remove

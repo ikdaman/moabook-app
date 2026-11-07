@@ -18,10 +18,13 @@ class ServerAdapter implements HttpClientAdapter {
     Stream<Uint8List>? body,
     Future<void>? cancel,
   ) async {
-    expectSync(options.headers['Authorization'], 'Bearer integration-test-only');
+    expectSync(
+      options.headers['Authorization'],
+      'Bearer integration-test-only',
+    );
     requests.add(options.path);
     final Object result = switch (options.path) {
-      '/mybooks/store' => {
+      '/mybooks' => {
         'totalPages': 1,
         'totalElements': 1,
         'books': [
@@ -87,7 +90,7 @@ void main() {
       );
       expect(state.isLive, isTrue);
       expect(state.library.keys, ['71']);
-      expect(adapter.requests, containsAll(['/mybooks/store', '/collections']));
+      expect(adapter.requests, containsAll(['/mybooks', '/collections']));
       state.openBook(state.library['71']!);
       await tester.pumpAndSettle();
       expect(

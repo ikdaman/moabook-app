@@ -69,11 +69,109 @@ void main() {
     return ReadingRemoteDataSource(dio, config: config);
   }
 
+  const candidate = ReadingBook(
+    'yes24:123',
+    '새 책',
+    '저자',
+    '출판사',
+    '',
+    '',
+    yes24Id: '123',
+    totalPage: 192,
+    coverUrl: 'https://example.com/cover.jpg',
+  );
+
+  test(
+    'shelf check sends YES24 goods ID with the documented legacy key',
+    () async {
+      var existing = false;
+      final remote = setup((request) {
+        expect(request.method, 'GET');
+        expect(request.path, '/mybooks/check');
+        expect(request.queryParameters, {'aladinId': 123});
+        return jsonBody({'mybookId': existing ? 7 : null});
+      });
+      expect((await remote.checkBook(candidate)).bookId, isNull);
+      existing = true;
+      expect((await remote.checkBook(candidate)).bookId, '7');
+    },
+  );
+
+  test(
+    'collection check distinguishes existing shelf and collection books',
+    () async {
+      var inCollection = false;
+      final remote = setup((request) {
+        expect(request.path, '/collections/8/books/check');
+        expect(request.queryParameters, {'aladinId': 123});
+        return jsonBody({
+          'onShelf': true,
+          'mybookId': 7,
+          'alreadyInCollection': inCollection,
+        });
+      });
+      expect(
+        (await remote.checkBook(
+          candidate,
+          collectionId: '8',
+        )).alreadyInCollection,
+        isFalse,
+      );
+      inCollection = true;
+      final check = await remote.checkBook(candidate, collectionId: '8');
+      expect(check.bookId, '7');
+      expect(check.alreadyInCollection, isTrue);
+    },
+  );
+
+  test('malformed check never becomes a new-book decision', () async {
+    final remote = setup((_) => jsonBody({'status': 500}));
+    await expectLater(remote.checkBook(candidate), throwsFormatException);
+  });
+
+  test(
+    'save sends current bookInfo only and accepts documented 200 or 201',
+    () async {
+      var status = 200;
+      final remote = setup((request) {
+        expect(request.method, 'POST');
+        expect(request.path, '/mybooks');
+        expect(request.data, {
+          'bookInfo': {
+            'aladinId': 123,
+            'title': '새 책',
+            'author': '저자',
+            'publisher': '출판사',
+            'totalPage': 192,
+            'coverImage': 'https://example.com/cover.jpg',
+          },
+          'reason': '읽고 싶어요',
+        });
+        return jsonBody({'mybookId': 41}, status: status);
+      });
+      expect(await remote.saveBook(candidate, reason: ' 읽고 싶어요 '), '41');
+      status = 201;
+      expect(await remote.saveBook(candidate, reason: '읽고 싶어요'), '41');
+    },
+  );
+
+  test(
+    'successful book write without an ID is uncertain, not retryable rejection',
+    () async {
+      final remote = setup((_) => jsonBody({}, status: 201));
+      await expectLater(
+        remote.saveBook(candidate, reason: ''),
+        throwsA(isA<ReadingWriteUncertain>()),
+      );
+      expect((dio.httpClientAdapter as _Adapter).requests.length, 1);
+    },
+  );
+
   test(
     'shelf fetches every server page and preserves ID, pages and authorization',
     () async {
       final remote = setup((request) {
-        expect(request.path, '/mybooks/store');
+        expect(request.path, '/mybooks');
         expect(request.queryParameters['limit'], 100);
         expect(request.headers['Authorization'], 'Bearer test-only');
         final page = request.queryParameters['page'] as int;
@@ -145,7 +243,9 @@ void main() {
       expect(card.book.id, '7');
       expect(card.status, ReadingCategory.done);
       expect(card.recordCount, 3);
-      expect(card.book.aladinId, '123');
+      expect(card.book.aladinId, isNull);
+      expect(card.book.yes24Id, '123');
+      expect(card.book.link, 'https://www.yes24.com/product/goods/123');
     },
   );
 

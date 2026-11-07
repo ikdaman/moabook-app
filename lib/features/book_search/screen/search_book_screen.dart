@@ -2,11 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../../app/router/routes.dart';
-import '../../cover_ocr/screen/cover_ocr_result_screen.dart';
-import '../../cover_ocr/service/cover_ocr_search.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../domain/model/book_item.dart';
@@ -27,10 +24,6 @@ class _SearchBookScreenState extends ConsumerState<SearchBookScreen> {
   final _queryCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   final _focusNode = FocusNode();
-  final _picker = ImagePicker();
-
-  /// 갤러리 사진 → OCR 검색 진행 중
-  bool _ocrRunning = false;
 
   @override
   void initState() {
@@ -63,34 +56,6 @@ class _SearchBookScreenState extends ConsumerState<SearchBookScreen> {
   void _runSearch() {
     _focusNode.unfocus();
     ref.read(bookSearchProvider.notifier).search(_queryCtrl.text);
-  }
-
-  /// 갤러리에서 표지 사진을 골라 OCR 검색 → 결과 화면으로 이동.
-  Future<void> _onGallery() async {
-    if (_ocrRunning) return;
-    _focusNode.unfocus();
-    final file =
-        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
-    if (file == null) return;
-
-    setState(() => _ocrRunning = true);
-    try {
-      final aladin = ref.read(bookCatalogProvider);
-      final results = await searchBooksByCover(file.path, aladin);
-      if (!mounted) return;
-      context.push(
-        Routes.coverOcrResult,
-        extra: CoverOcrResultArgs(imagePath: file.path, results: results),
-      );
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('표지 인식에 실패했어요.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _ocrRunning = false);
-    }
   }
 
   Future<void> _onBookTap(BookItem book) async {
@@ -153,14 +118,8 @@ class _SearchBookScreenState extends ConsumerState<SearchBookScreen> {
                     if (showCaptureEntries) ...[
                       _CaptureEntryButton(
                         icon: Icons.photo_camera_outlined,
-                        label: '책 표지나 바코드 촬영',
+                        label: '바코드 스캔',
                         onTap: () => context.push(Routes.capture),
-                      ),
-                      const SizedBox(height: 12),
-                      _CaptureEntryButton(
-                        icon: Icons.photo_library_outlined,
-                        label: '갤러리 사진 불러오기',
-                        onTap: _onGallery,
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -175,7 +134,6 @@ class _SearchBookScreenState extends ConsumerState<SearchBookScreen> {
                   ],
                 ),
               ),
-              if (_ocrRunning) const RetroLoading(),
             ],
           ),
         ),
@@ -214,8 +172,9 @@ class _CaptureEntryButton extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 label,
-                style: AppTypography.dungGeunMoBody
-                    .copyWith(color: AppColors.textPrimary),
+                style: AppTypography.dungGeunMoBody.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
             ],
           ),

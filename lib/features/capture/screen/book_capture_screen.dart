@@ -1,10 +1,4 @@
-// 통합 촬영 화면 — 인앱 카메라 프리뷰 + 셔터.
-//
-// 한 화면에서 두 입력을 동시에 처리한다:
-// - 바코드: 프리뷰 스트림을 ML Kit 바코드 스캐너에 실시간으로 흘려
-//   ISBN(EAN-13/8)이 잡히면 즉시 알라딘 조회 → 책 추가 화면으로 이동.
-// - 표지: 하단 가운데 셔터로 촬영 → OCR → 알라딘 검색 → 결과 화면.
-// 갤러리 버튼은 사진을 골라 표지 파이프라인으로 보낸다.
+// ISBN 바코드 전용 스캔 화면. 표지 촬영·갤러리·OCR 입력은 제공하지 않는다.
 
 import 'dart:io';
 
@@ -14,15 +8,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../../app/router/routes.dart';
+import '../../../core/util/isbn.dart';
 import '../../../domain/model/book_item.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../book_search/provider/book_search_provider.dart';
-import '../../cover_ocr/screen/cover_ocr_result_screen.dart';
-import '../../cover_ocr/service/cover_ocr_search.dart';
 
 class BookCaptureScreen extends ConsumerStatefulWidget {
   const BookCaptureScreen({super.key, this.selectionOnly = false});
@@ -35,22 +27,17 @@ class BookCaptureScreen extends ConsumerStatefulWidget {
 class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
     with WidgetsBindingObserver {
   CameraController? _controller;
-  final _barcodeScanner = BarcodeScanner(
-    formats: [BarcodeFormat.ean13, BarcodeFormat.ean8],
-  );
-  final _picker = ImagePicker();
+  final _barcodeScanner = BarcodeScanner(formats: [BarcodeFormat.ean13]);
 
   bool _initFailed = false;
   bool _permissionDenied = false;
 
   /// 바코드가 잡혀 화면 전환이 시작됨 — 이후 모든 입력 무시.
   bool _handled = false;
+  String? _lastIsbn;
 
   /// ML Kit 프레임 분석 중 (프레임 드랍용 가드)
   bool _analyzing = false;
-
-  /// 셔터/갤러리 → OCR 검색 진행 중
-  bool _searching = false;
 
   bool _torchOn = false;
 
@@ -70,8 +57,7 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
       );
       final controller = CameraController(
         back,
-        // OCR용 촬영 화질이 인식률을 좌우 — high(720p)는 표지 글자가 뭉개진다.
-        ResolutionPreset.max,
+        ResolutionPreset.high,
         enableAudio: false,
         imageFormatGroup: Platform.isAndroid
             ? ImageFormatGroup.nv21
@@ -125,7 +111,7 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
   // ── 바코드 실시간 감지 ────────────────────────────────────────────────
 
   Future<void> _onFrame(CameraImage image) async {
-    if (_analyzing || _handled || _searching) return;
+    if (_analyzing || _handled) return;
     _analyzing = true;
     try {
       final inputImage = _inputImageFromCameraImage(image);
@@ -133,8 +119,12 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
       final barcodes = await _barcodeScanner.processImage(inputImage);
       final isbn = barcodes
           .map((b) => b.rawValue)
-          .firstWhere(_isIsbn13, orElse: () => null);
-      if (isbn != null) await _onIsbnDetected(isbn);
+          .firstWhere(isBookIsbn13, orElse: () => null);
+      if (isbn != null) {
+        await _onIsbnDetected(isbn);
+      } else {
+        _lastIsbn = null;
+      }
     } catch (_) {
       // 프레임 단위 분석 실패는 무시 — 다음 프레임에서 재시도
     } finally {
@@ -143,7 +133,8 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
   }
 
   Future<void> _onIsbnDetected(String isbn) async {
-    if (_handled) return;
+    if (_handled || isbn == _lastIsbn) return;
+    _lastIsbn = isbn;
     _handled = true;
     await _stopStream();
 
@@ -170,12 +161,6 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
     }
   }
 
-  static bool _isIsbn13(String? value) {
-    if (value == null) return false;
-    if (!RegExp(r'^\d{13}$').hasMatch(value)) return false;
-    return value.startsWith('978') || value.startsWith('979');
-  }
-
   Future<void> _stopStream() async {
     final controller = _controller;
     if (controller != null && controller.value.isStreamingImages) {
@@ -190,80 +175,6 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
         !controller.value.isStreamingImages) {
       await controller.startImageStream(_onFrame);
     }
-  }
-
-  // ── 표지 촬영 / 갤러리 → OCR 검색 ────────────────────────────────────
-
-  Future<void> _onShutter() async {
-    final controller = _controller;
-    if (controller == null || !controller.value.isInitialized) return;
-    if (_searching || _handled) return;
-
-    setState(() => _searching = true);
-    try {
-      await _stopStream();
-      final file = await controller.takePicture();
-      if (_torchOn) {
-        _torchOn = false;
-        await controller.setFlashMode(FlashMode.off);
-      }
-      await _searchCover(file.path);
-    } catch (_) {
-      _showError('촬영에 실패했어요.');
-    } finally {
-      if (mounted) {
-        setState(() => _searching = false);
-        if (!_handled) await _resumeStream();
-      }
-    }
-  }
-
-  Future<void> _onGallery() async {
-    if (_searching || _handled) return;
-
-    setState(() => _searching = true);
-    try {
-      await _stopStream();
-      // 재압축 없이 원본 그대로 — 공유 경로와 동일 조건으로 OCR에 넘긴다.
-      final file = await _picker.pickImage(source: ImageSource.gallery);
-      if (file != null) await _searchCover(file.path);
-    } catch (_) {
-      _showError('사진을 불러오지 못했어요.');
-    } finally {
-      if (mounted) {
-        setState(() => _searching = false);
-        if (!_handled) await _resumeStream();
-      }
-    }
-  }
-
-  /// OCR + 알라딘 검색을 돌리고 결과 화면으로 이동.
-  /// 결과 화면에서 "다시 찍기"로 pop 하면 이 화면으로 돌아온다.
-  Future<void> _searchCover(String imagePath) async {
-    final aladin = ref.read(bookCatalogProvider);
-    final results = await searchBooksByCover(imagePath, aladin);
-
-    if (!mounted) return;
-    HapticFeedback.mediumImpact();
-    final selected = await context.push<BookItem>(
-      Routes.coverOcrResult,
-      extra: CoverOcrResultArgs(
-        imagePath: imagePath,
-        results: results,
-        selectionOnly: widget.selectionOnly,
-      ),
-    );
-    if (mounted && widget.selectionOnly && selected != null) {
-      _handled = true;
-      context.pop<BookItem>(selected);
-    }
-  }
-
-  void _showError(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _toggleTorch() async {
@@ -350,7 +261,7 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
               ],
             ),
           ),
-          if (isLoading || _searching)
+          if (isLoading)
             const ColoredBox(
               color: Color(0x88000000),
               child: SizedBox.expand(
@@ -409,7 +320,7 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
           ),
           const SizedBox(width: 8),
           Text(
-            '사진 검색',
+            '바코드 스캔',
             style: AppTypography.dungGeunMoHeader.copyWith(color: Colors.white),
           ),
         ],
@@ -425,7 +336,7 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        '책 표지나 바코드를 찍어주세요',
+        '책 뒷면의 ISBN 바코드를 비춰주세요',
         style: AppTypography.dungGeunMoSubtitle.copyWith(color: Colors.white),
       ),
     );
@@ -438,48 +349,10 @@ class _BookCaptureScreenState extends ConsumerState<BookCaptureScreen>
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _RoundIconButton(
-            icon: Icons.photo_library_outlined,
-            onTap: _searching ? null : _onGallery,
-          ),
-          _ShutterButton(onTap: _searching ? null : _onShutter),
-          _RoundIconButton(
             icon: _torchOn ? Icons.flash_on : Icons.flash_off,
             onTap: _toggleTorch,
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// 하단 가운데 셔터 버튼 — 흰 링 + 흰 원.
-class _ShutterButton extends StatelessWidget {
-  const _ShutterButton({required this.onTap});
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 76,
-        height: 76,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 4),
-        ),
-        child: Center(
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: onTap == null
-                  ? Colors.white.withValues(alpha: 0.5)
-                  : Colors.white,
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -530,7 +403,7 @@ class _CameraErrorView extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             permissionDenied
-                ? '책 촬영 기능을 사용하려면\n설정 → 모아북 → 카메라 권한을 허용해 주세요.'
+                ? '바코드를 스캔하려면\n설정 → 모아북 → 카메라 권한을 허용해 주세요.'
                 : '잠시 후 다시 시도해주세요.',
             style: AppTypography.dungGeunMoBody.copyWith(
               color: AppColors.textGray,

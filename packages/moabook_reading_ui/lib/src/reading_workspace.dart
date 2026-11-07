@@ -38,7 +38,6 @@ class ReadingWorkspace extends StatefulWidget {
     this.initialBookId,
     this.onSettings,
     this.onCapture,
-    this.onGallery,
     this.onOpenLink,
     this.onExport,
   });
@@ -48,7 +47,7 @@ class ReadingWorkspace extends StatefulWidget {
   final bool embedded;
   final String? initialBookId;
   final VoidCallback? onSettings;
-  final Future<ReadingBook?> Function()? onCapture, onGallery;
+  final Future<ReadingBook?> Function()? onCapture;
   final Future<void> Function(String url)? onOpenLink;
   final Future<void> Function(ReadingImageExport request)? onExport;
   @override
@@ -71,6 +70,10 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       operationError;
   bool creationWriteUncertain = false, selectingMedia = false;
   bool exporting = false;
+  // Checkpoints survive navigation so partial writes are not repeated.
+  final Map<String, String> pendingSavedBooks = {};
+  final Set<String> uncertainBookWrites = {};
+
   int collectionsRequest = 0;
   void _update(VoidCallback action) {
     if (mounted) setState(action);
@@ -85,6 +88,11 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   final Map<String, String> collectionErrors = {};
   final Set<String> loadedRecordBooks = {};
   List<ReadingBook> remoteSearchResults = [];
+  int remoteSearchPage = 0;
+  int? remoteSearchTotalCount;
+  bool remoteSearchHasMore = false, loadingMoreSearch = false;
+  String activeSearchQuery = '';
+  String? searchMoreError;
   Future<void> reloadFromServer() => refreshRemote();
   PreviewBook selectedBook = previewBooks.first;
   final Map<String, PreviewBook> library = {
@@ -134,17 +142,22 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   int? get recordCount => !isLive || loadedRecordBooks.contains(selectedBook.id)
       ? journal.records.length
       : cards[selectedBook.id]?.recordCount;
-  PreviewBook get book =>
-      isLive ? selectedBook : selectedBook.withReason(journal.reason ?? '');
+  PreviewBook get book => isLive
+      ? selectedBook
+      : selectedBook.withReason(displayedReason(selectedBook));
   set book(PreviewBook value) => selectedBook = value;
   ReadingJournal get journal => journalFor(selectedBook);
   String get date => formatDate(recordDate);
   List<PreviewBook> get shelfBooks => library.values
-      .map(
-        (value) =>
-            isLive ? value : value.withReason(journalFor(value).reason ?? ''),
-      )
+      .map((value) => isLive ? value : value.withReason(displayedReason(value)))
       .toList();
+
+  String displayedReason(PreviewBook value) {
+    final records = journalFor(value);
+    return records.records.any((r) => r.category == ReadingCategory.todo)
+        ? records.reason ?? ''
+        : value.reason;
+  }
 
   static String formatDate(DateTime value) =>
       '${value.year}.${value.month.toString().padLeft(2, '0')}.${value.day.toString().padLeft(2, '0')}';
@@ -196,6 +209,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   @override
   void initState() {
     super.initState();
+    scroll.addListener(_loadSearchNearEnd);
     if (isLive) {
       library.clear();
       collectionData = [];
@@ -215,6 +229,23 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     } else {
       configureScreen(screen);
     }
+  }
+
+  void _loadSearchNearEnd() {
+    if (!isLive ||
+        screen != 'search' ||
+        searchMoreError != null ||
+        !scroll.hasClients ||
+        scroll.position.extentAfter > 320) {
+      return;
+    }
+    unawaited(loadMoreRemoteBooks());
+  }
+
+  void _checkSearchAfterLayout() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadSearchNearEnd();
+    });
   }
 
   @override
@@ -312,7 +343,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
 
   void confirmBook() {
     if (isLive) {
-      confirmRemoteBook();
+      unawaited(confirmRemoteBook());
       return;
     }
     if (targetCollectionId != null) {
@@ -359,33 +390,18 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
 
   void saveBookLocally() {
     if (isLive) {
-      notice('새 책 저장은 아직 지원하지 않아요.');
+      unawaited(saveRemoteBook());
       return;
     }
     if (library.containsKey(selectedBook.id)) {
       go('duplicate');
       return;
     }
-    final category = switch (screen) {
-      'save-reading' => ReadingCategory.inProgress,
-      'save-read' => ReadingCategory.done,
-      _ => ReadingCategory.todo,
-    };
-    final selectedDate = switch (category) {
-      ReadingCategory.inProgress => startedDate,
-      ReadingCategory.done => finishedDate,
-      _ => readingDay(DateTime.now()),
-    };
-    final record = ReadingRecord(
-      id: 'local-${localRecordId++}',
-      category: category,
-      date: selectedDate,
-      memo: category == ReadingCategory.todo ? reasonDraft.trim() : '',
-    );
     setState(() {
+      selectedBook = selectedBook.withReason(reasonDraft.trim());
       library[selectedBook.id] = selectedBook;
       bookAddedDates[selectedBook.id] = readingDay(DateTime.now());
-      journals[selectedBook.id] = ReadingJournal([record]);
+      journals[selectedBook.id] = ReadingJournal();
     });
     if (targetCollectionId != null) {
       addBookToCollection();
@@ -394,7 +410,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         history
           ..clear()
           ..add('shelf');
-        screen = 'card-front';
+        screen = 'card-back';
       });
     }
   }
@@ -499,9 +515,10 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       cardError = null;
       recordsError = null;
     }
-    if (isLive && isSearching && target != 'search') {
+    if (isLive && (isSearching || loadingMoreSearch) && target != 'search') {
       searchRequest++;
       isSearching = false;
+      loadingMoreSearch = false;
     }
     FocusManager.instance.primaryFocus?.unfocus();
     if (target == 'collection-create') {
@@ -541,6 +558,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     if (isLive && isSearching) {
       searchRequest++;
       isSearching = false;
+      loadingMoreSearch = false;
     }
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => screen = history.isEmpty ? 'shelf' : history.removeLast());
@@ -608,15 +626,23 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                                   ),
                                   child: collectionPager(),
                                 )
-                              : SingleChildScrollView(
-                                  controller: scroll,
-                                  padding: EdgeInsets.fromLTRB(
-                                    22,
-                                    12,
-                                    22,
-                                    hasNav ? 12 : 28,
+                              : NotificationListener<ScrollMetricsNotification>(
+                                  onNotification: (_) {
+                                    // Layout changes also cover short pages and
+                                    // resizing without requiring another swipe.
+                                    _checkSearchAfterLayout();
+                                    return false;
+                                  },
+                                  child: SingleChildScrollView(
+                                    controller: scroll,
+                                    padding: EdgeInsets.fromLTRB(
+                                      22,
+                                      12,
+                                      22,
+                                      hasNav ? 12 : 28,
+                                    ),
+                                    child: page(),
                                   ),
-                                  child: page(),
                                 )),
                     ),
                     if (hasNav) navigation(),
@@ -723,11 +749,6 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       () => go('book-info'),
       icon: 'scan-barcode',
     ),
-    'gallery' => button(
-      '선택한 사진으로 책 찾기',
-      () => go('book-info'),
-      icon: 'arrow-right',
-    ),
     _ => null,
   };
 
@@ -772,7 +793,6 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     'date-picker' => dateTarget == 'record' ? cardBack() : bookInfo(),
     'record-complete' => complete(),
     'capture' => capture(),
-    'gallery' => gallery(),
     _ => shelf(),
   };
 
@@ -932,6 +952,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                   (screen == 'add-options' && targetCollectionId == null),
               () => go('shelf'),
               bottomInset: MediaQuery.paddingOf(context).bottom,
+              textHeight: MediaQuery.textScalerOf(context).scale(13) * 1.5,
             ),
             navItem(
               '주제 서가',
@@ -947,6 +968,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                 });
               },
               bottomInset: MediaQuery.paddingOf(context).bottom,
+              textHeight: MediaQuery.textScalerOf(context).scale(13) * 1.5,
             ),
           ],
         ),
@@ -959,11 +981,12 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     bool active,
     VoidCallback onTap, {
     double bottomInset = 0,
+    double textHeight = 19.5,
   }) => Expanded(
     child: InkWell(
       onTap: onTap,
       child: Container(
-        height: 78 + bottomInset,
+        height: math.max(78, textHeight + 51) + bottomInset,
         padding: EdgeInsets.only(bottom: bottomInset),
         decoration: BoxDecoration(
           color: p.dark ? (active ? p.background : p.accent) : p.background,
@@ -1107,19 +1130,22 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   );
 
   static const spineHeights = [1.0, .90, .96, .86, .93, .98, .89, .95, .91];
-  List<List<PreviewBook>> shelfRows(double width) {
+  double spineWidth(PreviewBook book, TextScaler scaler) =>
+      math.max(bookSpineWidth(book.totalPage), scaler.scale(11) + 12);
+
+  List<List<PreviewBook>> shelfRows(double width, TextScaler scaler) {
     final books = shelfBooks;
     final rows = <List<PreviewBook>>[];
     var row = <PreviewBook>[];
     var used = 0.0;
     for (var i = 0; i < books.length; i++) {
-      final needed = bookSpineWidth(books[i].totalPage) + (row.isEmpty ? 0 : 5);
+      final needed = spineWidth(books[i], scaler) + (row.isEmpty ? 0 : 5);
       if (row.isNotEmpty && used + needed > width) {
         rows.add(row);
         row = [];
         used = 0;
       }
-      used += bookSpineWidth(books[i].totalPage) + (row.isEmpty ? 0 : 5);
+      used += spineWidth(books[i], scaler) + (row.isEmpty ? 0 : 5);
       row.add(books[i]);
     }
     if (row.isNotEmpty) rows.add(row);
@@ -1128,7 +1154,8 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
 
   Widget shelf({bool empty = false}) => LayoutBuilder(
     builder: (context, constraints) {
-      final rows = shelfRows(constraints.maxWidth);
+      final scaler = MediaQuery.textScalerOf(context);
+      final rows = shelfRows(constraints.maxWidth, scaler);
       final count = math.max(1, (rows.length / 3).ceil());
       shelfPageCount = count;
       return Column(
@@ -1190,6 +1217,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                                 ? rows[page * 3 + row]
                                 : [],
                             space.maxHeight,
+                            scaler: scaler,
                             key: ValueKey('shelf-$page-row-$row'),
                           ),
                         ),
@@ -1214,99 +1242,101 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     },
   );
 
-  Widget bookShelf(List<PreviewBook> books, double height, {Key? key}) =>
-      Column(
-        key: key,
-        children: [
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                for (var i = 0; i < books.length; i++) ...[
-                  if (i != 0) const SizedBox(width: 5),
-                  Builder(
-                    builder: (context) {
-                      final value = books[i];
-                      final n = library.keys.toList().indexOf(value.id);
-                      final foreground = p.dark
-                          ? const Color(0xffdddddd)
-                          : p.ink;
-                      return Semantics(
-                        label: '${value.title}, 독서카드 열기',
-                        button: true,
-                        child: InkWell(
-                          key: ValueKey('spine-${value.id}'),
-                          onTap: () {
-                            openBook(value);
-                          },
-                          child: Container(
-                            width: bookSpineWidth(value.totalPage),
-                            height:
-                                (height - (p.dark ? 4 : 3)) *
-                                spineHeights[n % spineHeights.length],
-                            clipBehavior: Clip.antiAlias,
-                            decoration: BoxDecoration(
-                              color: p.dark
-                                  ? [
-                                      const Color(0xff2e2e2e),
-                                      const Color(0xff3a3a3a),
-                                      const Color(0xff262626),
-                                    ][n % 3]
-                                  : const Color(0xffe3ded1),
-                              border: Border.all(
-                                color: p.dark ? Colors.transparent : p.ink,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                gap(8),
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                    ),
-                                    child: VerticalSpineTitle(
-                                      value.title,
-                                      style: p.text(
-                                        11,
-                                        weight: p.dark ? 500 : 600,
-                                        height: 1,
-                                        color: foreground,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                gap(8),
-                                if (value.reason.isNotEmpty)
-                                  Container(
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: reasonColor(value.reasonType),
-                                      border: p.dark
-                                          ? null
-                                          : Border(
-                                              top: BorderSide(
-                                                color: p.ink,
-                                                width: 1.5,
-                                              ),
-                                            ),
-                                    ),
-                                  ),
-                              ],
-                            ),
+  Widget bookShelf(
+    List<PreviewBook> books,
+    double height, {
+    Key? key,
+    required TextScaler scaler,
+  }) => Column(
+    key: key,
+    children: [
+      Expanded(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (var i = 0; i < books.length; i++) ...[
+              if (i != 0) const SizedBox(width: 5),
+              Builder(
+                builder: (context) {
+                  final value = books[i];
+                  final n = library.keys.toList().indexOf(value.id);
+                  final foreground = p.dark ? const Color(0xffdddddd) : p.ink;
+                  return Semantics(
+                    label: '${value.title}, 독서카드 열기',
+                    button: true,
+                    child: InkWell(
+                      key: ValueKey('spine-${value.id}'),
+                      onTap: () {
+                        openBook(value);
+                      },
+                      child: Container(
+                        width: spineWidth(value, scaler),
+                        height:
+                            (height - (p.dark ? 4 : 3)) *
+                            spineHeights[n % spineHeights.length],
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: p.dark
+                              ? [
+                                  const Color(0xff2e2e2e),
+                                  const Color(0xff3a3a3a),
+                                  const Color(0xff262626),
+                                ][n % 3]
+                              : const Color(0xffe3ded1),
+                          border: Border.all(
+                            color: p.dark ? Colors.transparent : p.ink,
+                            width: 1.5,
                           ),
                         ),
-                      );
-                    },
-                  ),
-                ],
-              ],
-            ),
-          ),
-          Container(height: p.dark ? 4 : 3, color: p.dark ? p.accent : p.ink),
-        ],
-      );
+                        child: Column(
+                          children: [
+                            gap(8),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: VerticalSpineTitle(
+                                  value.title,
+                                  style: p.text(
+                                    11,
+                                    weight: p.dark ? 500 : 600,
+                                    height: 1,
+                                    color: foreground,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            gap(8),
+                            if (value.reason.isNotEmpty)
+                              Container(
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: reasonColor(value.reasonType),
+                                  border: p.dark
+                                      ? null
+                                      : Border(
+                                          top: BorderSide(
+                                            color: p.ink,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+      Container(height: p.dark ? 4 : 3, color: p.dark ? p.accent : p.ink),
+    ],
+  );
 
   Widget collectionPager() => Column(
     children: [
@@ -1650,6 +1680,12 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
               searchQuery = '';
               searchQueryRevision++;
               remoteSearchResults = [];
+              remoteSearchPage = 0;
+              remoteSearchHasMore = false;
+              remoteSearchTotalCount = null;
+              loadingMoreSearch = false;
+              searchMoreError = null;
+              activeSearchQuery = '';
               searchRequest++;
               isSearching = false;
               searchError = null;
@@ -1687,7 +1723,14 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
           children: [
             t('검색 결과', 13, weight: 600),
             const Spacer(),
-            t('${searchResults.length}권', 11, mono: true, color: p.muted),
+            t(
+              isLive && remoteSearchTotalCount != null
+                  ? '${searchResults.length} / $remoteSearchTotalCount권'
+                  : '${searchResults.length}권',
+              11,
+              mono: true,
+              color: p.muted,
+            ),
           ],
         ),
         gap(10),
@@ -1728,6 +1771,22 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
               ),
             ),
           ),
+        if (isLive && searchMoreError != null) ...[
+          gap(12),
+          t(searchMoreError!, 13, color: p.orange),
+        ],
+        if (isLive && remoteSearchHasMore) ...[
+          gap(16),
+          if (loadingMoreSearch)
+            Center(
+              child: Semantics(
+                label: '다음 책 불러오는 중',
+                child: const CircularProgressIndicator(),
+              ),
+            )
+          else if (searchMoreError != null)
+            button('다시 불러오기', () => unawaited(loadMoreRemoteBooks())),
+        ],
         gap(16),
         Center(child: t('찾던 책을 선택하면 저장할 수 있어요.', 12, color: p.muted)),
       ],
@@ -1976,6 +2035,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                       t(readingStatus, 14, weight: 500, color: p.muted),
                       gap(27),
                       Container(
+                        width: double.infinity,
                         padding: const EdgeInsets.only(
                           top: 8,
                           bottom: 8,
@@ -1989,27 +2049,28 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                                   top: BorderSide(color: p.ink, width: 1.5),
                                 ),
                         ),
-                        child: Row(
+                        child: Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 12,
+                          runSpacing: 8,
                           children: [
-                            Expanded(
-                              child: InkWell(
-                                onTap: () => flipCard('card-back'),
-                                child: Row(
+                            InkWell(
+                              onTap: () => flipCard('card-back'),
+                              child: Text.rich(
+                                TextSpan(
+                                  style: p.text(12, weight: 500),
                                   children: [
-                                    t('독서 카드 기록 ', 12, weight: 500),
-                                    Container(
-                                      color: p.dark ? p.accent : null,
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: p.dark ? 8 : 0,
-                                        vertical: p.dark ? 2 : 0,
-                                      ),
-                                      child: t(
-                                        recordCount == null
-                                            ? '—'
-                                            : '$recordCount개',
+                                    const TextSpan(text: '독서 카드 기록 '),
+                                    TextSpan(
+                                      text: recordCount == null
+                                          ? '—'
+                                          : '$recordCount개',
+                                      style: p.text(
                                         13,
                                         weight: 600,
                                         color: p.dark ? p.background : p.orange,
+                                        background: p.dark ? p.accent : null,
                                       ),
                                     ),
                                   ],
@@ -2023,8 +2084,13 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                                   vertical: 8,
                                 ),
                                 child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    t('추가하기', 12, weight: 600),
+                                    t(
+                                      recordCount == 0 ? '첫 기록 남기기' : '추가하기',
+                                      12,
+                                      weight: 600,
+                                    ),
                                     const SizedBox(width: 6),
                                     icon('arrow-right', size: 16),
                                   ],
@@ -2139,6 +2205,8 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                     align: TextAlign.center,
                   ),
                 ),
+                gap(24),
+                button('첫 기록 남기기', () => go('record-options'), icon: 'pencil'),
               ] else ...[
                 t('책과의 시간은 계속됩니다.', 11, color: p.muted),
                 gap(18),
@@ -2208,30 +2276,38 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       ],
     ),
   );
-  Widget circularRecordButton() => Semantics(
-    label: '기록 추가',
-    button: true,
-    child: InkWell(
-      onTap: () => go('record-options'),
-      customBorder: const RoundedRectangleBorder(),
-      child: Container(
-        width: p.dark ? 68 : 70,
-        height: p.dark ? 68 : 70,
-        decoration: BoxDecoration(color: p.button, shape: BoxShape.rectangle),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            t(
-              '기록\n추가',
-              13,
-              weight: 600,
-              color: p.onButton,
-              align: TextAlign.center,
+  Widget circularRecordButton() => Builder(
+    builder: (context) {
+      final size = math.max(
+        p.dark ? 68.0 : 70.0,
+        MediaQuery.textScalerOf(context).scale(13) * 3 + 24,
+      );
+      return Semantics(
+        label: '기록 추가',
+        button: true,
+        child: InkWell(
+          onTap: () => go('record-options'),
+          customBorder: const RoundedRectangleBorder(),
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: p.button,
+              shape: BoxShape.rectangle,
             ),
-          ],
+            child: Center(
+              child: t(
+                '기록\n추가',
+                13,
+                weight: 600,
+                color: p.onButton,
+                align: TextAlign.center,
+              ),
+            ),
+          ),
         ),
-      ),
-    ),
+      );
+    },
   );
 
   Widget sheet(
@@ -2354,22 +2430,14 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   Widget addSheet() => sheet('책 추가', [
     sheetRow('책 제목으로 검색', '제목이나 저자 이름으로 찾아보세요', 'search', () => go('search')),
     sheetRow(
-      '책 표지나 바코드 촬영',
-      '눈앞의 책을 서가에 담아보세요',
+      '바코드 스캔',
+      '책 뒷면의 ISBN 바코드로 찾아보세요',
       'scan-barcode',
       () => isLive
           ? unawaited(selectRemoteMedia(widget.onCapture))
           : go('capture'),
     ),
-    sheetRow(
-      '갤러리 사진 불러오기',
-      '찍어둔 표지에서 책을 찾아드려요',
-      'image',
-      () => isLive
-          ? unawaited(selectRemoteMedia(widget.onGallery))
-          : go('gallery'),
-    ),
-  ], subtitle: '책을 만나는 세 가지 방법');
+  ], subtitle: '책을 검색하거나 바코드로 찾아보세요');
 
   Widget field(
     String title,
@@ -2481,68 +2549,31 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     ),
     rule(),
     gap(19),
-    t('지금 이 책과 어떤 사이인가요?', 16, weight: 600),
-    gap(13),
-    Row(
-      children: [
-        saveTab('읽고 싶은 책', 'save-wish'),
-        const SizedBox(width: 6),
-        saveTab('읽고 있는 책', 'save-reading'),
-        const SizedBox(width: 6),
-        saveTab('읽은 책', 'save-read'),
-      ],
+    field(
+      '읽고 싶은 이유 · 선택',
+      reasonDraft,
+      hint: '어디서 만났나요? 무엇이 마음에 남았나요?',
+      lines: 4,
+      maxLength: 400,
+      onChanged: (value) => setState(() => reasonDraft = value),
     ),
-    gap(24),
-    if (screen == 'save-wish') ...[
-      field(
-        '읽고 싶은 이유 · 선택',
-        reasonDraft,
-        hint: '어디서 만났나요? 무엇이 마음에 남았나요?',
-        lines: 4,
-        maxLength: 400,
-        onChanged: (value) {
-          setState(() => reasonDraft = value);
-        },
+    gap(7),
+    Align(
+      alignment: Alignment.centerRight,
+      child: t(
+        '${reasonDraft.characters.length}/400',
+        10,
+        mono: true,
+        color: p.muted,
       ),
-      gap(7),
-      Align(
-        alignment: Alignment.centerRight,
-        child: t(
-          '${reasonDraft.characters.length}/400',
-          10,
-          mono: true,
-          color: p.muted,
-        ),
-      ),
-    ] else ...[
-      if (screen == 'save-reading')
-        dateField('읽기 시작한 날', startedDate, target: 'start')
-      else
-        dateField('다 읽은 날', finishedDate, target: 'finish'),
-      gap(18),
-      t('책과 함께한 시간을 독서카드에 남겨요.', 13, color: p.muted),
+    ),
+    gap(18),
+    t('저장한 뒤 독서카드에서 첫 기록을 남겨보세요.', 13, color: p.muted),
+    if (operationError != null) ...[
+      gap(12),
+      t(operationError!, 13, color: p.orange),
     ],
   ], footer: button('저장하기', saveBookLocally, icon: 'bookmark'));
-  Widget saveTab(String title, String target) => Expanded(
-    child: InkWell(
-      onTap: () => setState(() => screen = target),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 12),
-        decoration: BoxDecoration(
-          color: screen == target ? p.button : p.card,
-          border: Border.all(color: screen == target ? p.button : p.line),
-          borderRadius: BorderRadius.zero,
-        ),
-        child: t(
-          title,
-          11,
-          weight: 500,
-          color: screen == target ? p.onButton : p.muted,
-          align: TextAlign.center,
-        ),
-      ),
-    ),
-  );
   Widget dateField(String title, DateTime value, {String target = 'record'}) =>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2875,7 +2906,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       header('책을 비춰주세요', eyebrow: 'ADD / SCAN', previous: true),
-      t('표지 또는 ISBN 바코드를 화면 안에 맞춰주세요.', 12, color: p.muted),
+      t('책 뒷면의 ISBN 바코드를 화면 안에 맞춰주세요.', 12, color: p.muted),
       gap(24),
       Container(
         height: 405,
@@ -2884,9 +2915,13 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Transform.rotate(
-              angle: -.09,
-              child: cover(book, width: 171, height: 238),
+            Container(
+              width: 200,
+              height: 130,
+              color: Colors.white,
+              child: Center(
+                child: icon('scan-barcode', size: 110, color: Colors.black),
+              ),
             ),
             Container(
               width: 235,
@@ -2903,7 +2938,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                   vertical: 8,
                 ),
                 color: const Color(0xff121212),
-                child: t('표지를 찾았어요', 12, color: Colors.white),
+                child: t('ISBN 바코드를 인식하고 있어요', 12, color: Colors.white),
               ),
             ),
           ],
@@ -2912,81 +2947,9 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       gap(24),
       Center(child: icon('scan-barcode', size: 28, color: p.muted)),
       gap(10),
-      Center(child: t('사진을 찍거나 바코드를 인식해 책을 찾아요.', 11, color: p.muted)),
+      Center(child: t('바코드가 인식되면 책을 찾아요.', 11, color: p.muted)),
     ],
   );
-  Widget gallery() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      header('사진에서 책 찾기', eyebrow: 'ADD / PHOTO', previous: true),
-      t('책 표지가 잘 보이는 사진을 선택해주세요.', 12, color: p.muted),
-      gap(24),
-      Container(
-        height: 245,
-        width: double.infinity,
-        color: p.card,
-        child: Center(
-          child: Transform.rotate(
-            angle: -.04,
-            child: cover(book, width: 145, height: 198),
-          ),
-        ),
-      ),
-      gap(22),
-      Row(
-        children: [
-          t('최근 사진', 13, weight: 600),
-          const Spacer(),
-          t('1장 선택', 11, color: p.dark ? p.accent : p.orange),
-        ],
-      ),
-      gap(12),
-      LayoutBuilder(
-        builder: (context, constraints) => Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: previewBooks
-              .take(6)
-              .map(
-                (value) => SizedBox(
-                  width: (constraints.maxWidth - 16) / 3,
-                  height: 98,
-                  child: InkWell(
-                    onTap: () => setState(() => book = value),
-                    child: Stack(
-                      children: [
-                        Positioned.fill(child: cover(value)),
-                        if (value == book)
-                          Positioned(
-                            top: 6,
-                            right: 6,
-                            child: Container(
-                              width: 23,
-                              height: 23,
-                              decoration: BoxDecoration(
-                                color: p.button,
-                                shape: BoxShape.rectangle,
-                              ),
-                              child: Center(
-                                child: icon(
-                                  'check',
-                                  size: 14,
-                                  color: p.onButton,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-      ),
-    ],
-  );
-
   Future<void> exportImages({ReadingCollection? collection}) async {
     if (exporting) return;
     if (widget.onExport == null) {

@@ -28,7 +28,7 @@ class _ReadingExportScreenState extends State<ReadingExportScreen> {
   String? message;
 
   Future<void> save() async {
-    if (saving) return;
+    if (saving || widget.request.books.isEmpty) return;
     setState(() {
       saving = true;
       message = null;
@@ -68,107 +68,117 @@ class _ReadingExportScreenState extends State<ReadingExportScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !saving,
-    child: Scaffold(
-      backgroundColor: ReadingImageRenderer.paper,
-      appBar: AppBar(
-        title: const Text('이미지 저장'),
-        automaticallyImplyLeading: !saving,
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Text(
-                '${widget.request.books.length}권을 ${widget.request.pageCount}장의 이미지로 저장합니다.',
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: FutureBuilder<Uint8List>(
-                  future: preview,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: TextButton(
-                          onPressed: saving
-                              ? null
-                              : () => setState(
-                                  () => preview = renderer.render(
-                                    widget.request,
-                                    page,
+  Widget build(BuildContext context) {
+    if (widget.request.books.isEmpty) {
+      return Scaffold(
+        backgroundColor: ReadingImageRenderer.paper,
+        appBar: AppBar(title: const Text('이미지 저장')),
+        body: const Center(child: Text('저장할 책이 없어요.')),
+      );
+    }
+    return PopScope(
+      canPop: !saving,
+      child: Scaffold(
+        backgroundColor: ReadingImageRenderer.paper,
+        appBar: AppBar(
+          title: const Text('이미지 저장'),
+          automaticallyImplyLeading: !saving,
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Text(
+                  '${widget.request.books.length}권을 ${widget.request.pageCount}장의 이미지로 저장합니다.',
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: FutureBuilder<Uint8List>(
+                    future: preview,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: TextButton(
+                            onPressed: saving
+                                ? null
+                                : () => setState(
+                                    () => preview = renderer.render(
+                                      widget.request,
+                                      page,
+                                    ),
                                   ),
-                                ),
-                          child: const Text('미리보기 다시 만들기'),
-                        ),
+                            child: const Text('미리보기 다시 만들기'),
+                          ),
+                        );
+                      }
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return Image.memory(
+                        snapshot.data!,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
                       );
-                    }
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    return Image.memory(
-                      snapshot.data!,
-                      fit: BoxFit.contain,
-                      gaplessPlayback: true,
-                    );
-                  },
+                    },
+                  ),
                 ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    tooltip: '이전 이미지',
-                    onPressed: saving || page == 0
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      tooltip: '이전 이미지',
+                      onPressed: saving || page == 0
+                          ? null
+                          : () => setState(() {
+                              --page;
+                              preview = renderer.render(widget.request, page);
+                            }),
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    Text('${page + 1} / ${widget.request.pageCount}'),
+                    IconButton(
+                      tooltip: '다음 이미지',
+                      onPressed: saving || page + 1 == widget.request.pageCount
+                          ? null
+                          : () => setState(() {
+                              ++page;
+                              preview = renderer.render(widget.request, page);
+                            }),
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
+                ),
+                if (message != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(message!, textAlign: TextAlign.center),
+                  ),
+                if (saved.isNotEmpty && saved.length < widget.request.pageCount)
+                  Text('${saved.length}장 저장됨 · 다시 시도하면 남은 이미지만 저장해요.'),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed:
+                        saving || saved.length == widget.request.pageCount
                         ? null
-                        : () => setState(() {
-                            --page;
-                            preview = renderer.render(widget.request, page);
-                          }),
-                    icon: const Icon(Icons.chevron_left),
-                  ),
-                  Text('${page + 1} / ${widget.request.pageCount}'),
-                  IconButton(
-                    tooltip: '다음 이미지',
-                    onPressed: saving || page + 1 == widget.request.pageCount
-                        ? null
-                        : () => setState(() {
-                            ++page;
-                            preview = renderer.render(widget.request, page);
-                          }),
-                    icon: const Icon(Icons.chevron_right),
-                  ),
-                ],
-              ),
-              if (message != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(message!, textAlign: TextAlign.center),
-                ),
-              if (saved.isNotEmpty && saved.length < widget.request.pageCount)
-                Text('${saved.length}장 저장됨 · 다시 시도하면 남은 이미지만 저장해요.'),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: saving || saved.length == widget.request.pageCount
-                      ? null
-                      : save,
-                  child: Text(
-                    saving
-                        ? '저장 중 ${saved.length}/${widget.request.pageCount}'
-                        : saved.length == widget.request.pageCount
-                        ? '저장 완료'
-                        : saved.isEmpty
-                        ? '사진에 저장'
-                        : '남은 이미지 저장',
+                        : save,
+                    child: Text(
+                      saving
+                          ? '저장 중 ${saved.length}/${widget.request.pageCount}'
+                          : saved.length == widget.request.pageCount
+                          ? '저장 완료'
+                          : saved.isEmpty
+                          ? '사진에 저장'
+                          : '남은 이미지 저장',
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

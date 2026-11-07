@@ -143,23 +143,50 @@ class VerticalSpineTitle extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final glyphs = title.characters
-          .where((c) => c.trim().isNotEmpty)
+          .map((glyph) => glyph.trim().isEmpty ? ' ' : glyph)
           .toList();
-      final step = (style.fontSize ?? 11) + 2;
-      final count = (constraints.maxHeight / step).floor();
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < count && i < glyphs.length; i++)
-            SizedBox(
-              height: step,
-              child: Text(
-                i == count - 1 && glyphs.length > count ? '⋮' : glyphs[i],
-                style: style,
-                textAlign: TextAlign.center,
-              ),
-            ),
-        ],
+      if (glyphs.isEmpty) return const SizedBox.shrink();
+      // One paragraph keeps the vertical letters compact. Preserve the natural
+      // first/last font metrics instead of clipping each glyph into its own cell.
+      final glyphStyle = style.copyWith(height: 1);
+      const heightBehavior = TextHeightBehavior(
+        applyHeightToFirstAscent: false,
+        applyHeightToLastDescent: false,
+      );
+      final scaler = MediaQuery.textScalerOf(context);
+      final step = scaler.scale(style.fontSize ?? 11);
+      var count = (constraints.maxHeight / step)
+          .floor()
+          .clamp(0, glyphs.length)
+          .toInt();
+      final painter = TextPainter(
+        textDirection: Directionality.of(context),
+        textScaler: scaler,
+        textHeightBehavior: heightBehavior,
+      );
+      var visibleTitle = '';
+      while (count > 0) {
+        visibleTitle = [
+          for (var i = 0; i < count; i++)
+            i == count - 1 && glyphs.length > count ? '⋮' : glyphs[i],
+        ].join('\n');
+        painter.text = TextSpan(text: visibleTitle, style: glyphStyle);
+        painter.layout(maxWidth: constraints.maxWidth);
+        if (painter.height <= constraints.maxHeight) break;
+        count--;
+      }
+      painter.dispose();
+      if (count == 0) return const SizedBox.shrink();
+      return Align(
+        alignment: Alignment.topCenter,
+        child: Text(
+          visibleTitle,
+          style: glyphStyle,
+          textHeightBehavior: heightBehavior,
+          maxLines: count,
+          softWrap: false,
+          textAlign: TextAlign.center,
+        ),
       );
     },
   );

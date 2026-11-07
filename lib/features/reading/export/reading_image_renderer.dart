@@ -10,11 +10,20 @@ class ReadingImageRenderer {
   ReadingImageRenderer({ReadingCoverLoader? loadCover})
     : loadCover = loadCover ?? loadPublicCover;
   final ReadingCoverLoader loadCover;
-  static const width = 1080, height = 1720;
+  static const width = 1080, rowHeight = 454;
+  static int heightForBooks(int count) {
+    if (count < 1 || count > ReadingImageExport.pageSize) {
+      throw RangeError.range(count, 1, ReadingImageExport.pageSize, 'count');
+    }
+    final rows = (count / 3).ceil();
+    return 1720 - (3 - rows) * rowHeight;
+  }
+
   static const ink = Color(0xff232c28), paper = Color(0xfff6f4ef);
 
   Future<Uint8List> render(ReadingImageExport request, int page) async {
     final books = request.page(page);
+    final height = heightForBooks(books.length);
     final images = await Future.wait(
       books.map((b) async {
         try {
@@ -119,7 +128,7 @@ class ReadingImageRenderer {
       }
       text(
         '${request.books.length}권 · ${page + 1} / ${request.pageCount}',
-        const Offset(54, 1645),
+        Offset(54, height - 75.0),
         22,
         972,
       );

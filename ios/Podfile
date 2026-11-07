@@ -1,4 +1,4 @@
-# google_mlkit_commons(OCR)가 iOS 15.5 이상을 요구한다.
+# 바코드 스캔의 google_mlkit_commons가 iOS 15.5 이상을 요구한다.
 platform :ios, '15.5'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.

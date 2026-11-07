@@ -68,21 +68,19 @@ void main() {
     expect(find.byKey(const Key('collection-picker')), findsOneWidget);
   });
 
-  testWidgets('saving retains the three reading state choices', (tester) async {
+  testWidgets('book saving leaves status and dates to the first record', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(402, 874);
     addTearDown(tester.view.reset);
     await tester.pumpWidget(const DesignPreviewApp(initialScreen: 'save-wish'));
     await tester.pumpAndSettle();
     expect(find.text('읽고 싶은 이유 · 선택'), findsOneWidget);
-    await tester.tap(find.text('읽고 있는 책'));
-    await tester.pumpAndSettle();
-    expect(find.text('읽기 시작한 날'), findsOneWidget);
-    expect(find.text('다 읽은 날'), findsNothing);
-    await tester.tap(find.text('읽은 책'));
-    await tester.pumpAndSettle();
-    expect(find.text('다 읽은 날'), findsOneWidget);
+    expect(find.text('읽고 있는 책'), findsNothing);
     expect(find.text('읽기 시작한 날'), findsNothing);
+    expect(find.text('다 읽은 날'), findsNothing);
+    expect(find.text('저장한 뒤 독서카드에서 첫 기록을 남겨보세요.'), findsOneWidget);
   });
 
   testWidgets('card tap and swipe flip without trapping back navigation', (

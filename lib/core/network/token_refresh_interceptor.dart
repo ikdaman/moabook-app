@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../auth/shared_token_store.dart';
 import 'auth_event.dart';
 
 /// 401 응답 → /auth/reissue 로 토큰 갱신 → 원 요청 재시도.
@@ -39,7 +38,8 @@ class TokenRefreshInterceptor extends Interceptor {
 
     // (3) 빠른 경로 — 다른 요청 처리 중 이미 reissue 가 끝나 access_token 이 바뀌었으면
     //     reissue 생략하고 그 토큰으로 바로 재시도.
-    final requestAuthHeader = err.requestOptions.headers['Authorization']?.toString();
+    final requestAuthHeader = err.requestOptions.headers['Authorization']
+        ?.toString();
     final storedAccess = await _storage.read(key: 'access_token');
     if (storedAccess != null &&
         requestAuthHeader != null &&
@@ -123,7 +123,7 @@ class TokenRefreshInterceptor extends Interceptor {
       if (newAccess != null && newRefresh != null) {
         await _storage.write(key: 'access_token', value: newAccess);
         await _storage.write(key: 'refresh_token', value: newRefresh);
-        await SharedTokenStore.mirror(newAccess, newRefresh);
+
         return true;
       }
       return false;
@@ -144,17 +144,14 @@ class TokenRefreshInterceptor extends Interceptor {
     String accessToken,
   ) {
     final retryOptions = original.copyWith(
-      headers: {
-        ...original.headers,
-        'Authorization': 'Bearer $accessToken',
-      },
+      headers: {...original.headers, 'Authorization': 'Bearer $accessToken'},
     );
     return _refreshDio.fetch<dynamic>(retryOptions);
   }
 
   Future<void> _clearTokens() async {
     await _storage.deleteAll();
-    await SharedTokenStore.clear();
+
     notifyAuthExpired();
     if (kDebugMode) debugPrint('TokenRefreshInterceptor: tokens cleared');
   }

@@ -43,6 +43,14 @@ class AppReadingGateway implements ReadingGateway {
   final ReadingRemoteDataSource remote;
   final BookCatalogDataSource catalog;
   @override
+  Future<ReadingBookCheck> checkBook(
+    ReadingBook book, {
+    String? collectionId,
+  }) => remote.checkBook(book, collectionId: collectionId);
+  @override
+  Future<String> saveBook(ReadingBook book, {required String reason}) =>
+      remote.saveBook(book, reason: reason);
+  @override
   Future<ReadingShelf> loadShelf() => remote.loadShelf();
   @override
   Future<ReadingCard> loadCard(String bookId) => remote.loadCard(bookId);
@@ -70,9 +78,26 @@ class AppReadingGateway implements ReadingGateway {
     required String memo,
   }) => remote.addRecord(bookId, category: category, date: date, memo: memo);
   @override
-  Future<List<ReadingBook>> searchBooks(String keyword) async =>
-      (await catalog.searchByTitle(
-        keyword,
-        byKeyword: true,
-      )).where((item) => item.itemId > 0).map(readingBookFromSearch).toList();
+  Future<ReadingSearchPage> searchBooks(String keyword, {int page = 1}) async {
+    final source = catalog;
+    if (source is PagedBookCatalogDataSource) {
+      final result = await source.searchPage(keyword, page: page);
+      return ReadingSearchPage(
+        books: result.books.map(readingBookFromSearch),
+        page: result.page,
+        hasMore: result.hasMore,
+        totalCount: result.totalCount,
+      );
+    }
+    final books = await source.searchByTitle(
+      keyword,
+      page: page,
+      byKeyword: true,
+    );
+    return ReadingSearchPage(
+      books: books.map(readingBookFromSearch),
+      page: page,
+      hasMore: books.length >= 50,
+    );
+  }
 }

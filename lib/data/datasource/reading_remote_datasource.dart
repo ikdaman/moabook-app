@@ -7,7 +7,7 @@ import '../../core/util/html_text.dart';
 /// Choose explicitly per environment; never probe other endpoints after failure.
 class ReadingApiConfig {
   const ReadingApiConfig({
-    this.shelfPath = '/mybooks/store',
+    this.shelfPath = '/mybooks',
     this.pageSizeKey = 'limit',
   });
   final String shelfPath, pageSizeKey;
@@ -17,6 +17,91 @@ class ReadingRemoteDataSource {
   ReadingRemoteDataSource(this.dio, {this.config = const ReadingApiConfig()});
   final Dio dio;
   final ReadingApiConfig config;
+  final Map<String, ReadingBook> _knownCatalogBooks = {};
+
+  Future<ReadingBookCheck> checkBook(
+    ReadingBook book, {
+    String? collectionId,
+  }) async {
+    // All current server books use YES24; aladinId is the legacy wire name.
+    if (book.yes24Id == null) {
+      if (!book.id.contains(':')) {
+        final id = _id(book.id);
+        if (collectionId == null) return ReadingBookCheck(bookId: id);
+        final collection = await loadCollection(collectionId);
+        return ReadingBookCheck(
+          bookId: id,
+          alreadyInCollection: collection.collection.contains(id),
+        );
+      }
+      throw const FormatException('Missing YES24 identity');
+    }
+    final path = collectionId == null
+        ? '/mybooks/check'
+        : '/collections/${_id(collectionId)}/books/check';
+    final response = await dio.get<Object?>(
+      path,
+      queryParameters: {'aladinId': int.parse(_id(book.yes24Id))},
+    );
+    final data = _map(response.data);
+    if (!data.containsKey('mybookId')) {
+      throw const FormatException('Missing shelf check result');
+    }
+    final id = data['mybookId'] == null ? null : _id(data['mybookId']);
+    if (collectionId != null &&
+        (data['onShelf'] is! bool ||
+            data['alreadyInCollection'] is! bool ||
+            data['onShelf'] != (id != null) ||
+            (data['alreadyInCollection'] == true && id == null))) {
+      throw const FormatException('Invalid collection check result');
+    }
+    if (id != null) _knownCatalogBooks[id] = book;
+    return ReadingBookCheck(
+      bookId: id,
+      alreadyInCollection: data['alreadyInCollection'] == true,
+    );
+  }
+
+  Future<String> saveBook(ReadingBook book, {required String reason}) async {
+    if (book.yes24Id == null) {
+      throw const FormatException('Missing YES24 identity');
+    }
+    // Apply the same memo limit before creating any server data.
+    ReadingRecord(
+      id: 'validation',
+      category: ReadingCategory.todo,
+      date: DateTime.now(),
+      memo: reason,
+    );
+    try {
+      final response = await dio.post<Object?>(
+        '/mybooks',
+        data: {
+          'bookInfo': {
+            'aladinId': int.parse(_id(book.yes24Id)),
+            'title': book.title,
+            'author': book.author,
+            'publisher': book.publisher,
+            'totalPage': book.totalPage,
+            'coverImage': book.coverUrl,
+          },
+          if (reason.trim().isNotEmpty) 'reason': reason.trim(),
+        },
+      );
+      try {
+        final id = _id(_map(response.data)['mybookId']);
+        _knownCatalogBooks[id] = book;
+        return id;
+      } on FormatException {
+        throw const ReadingWriteUncertain();
+      }
+    } on DioException catch (error) {
+      if (error.response == null || (error.response?.statusCode ?? 0) >= 500) {
+        throw const ReadingWriteUncertain();
+      }
+      rethrow;
+    }
+  }
 
   Future<ReadingShelf> loadShelf() async {
     final books = <String, ReadingBook>{};
@@ -233,6 +318,11 @@ class ReadingRemoteDataSource {
     }
     final info = data['bookInfo'] is Map ? _map(data['bookInfo']) : data;
     final authors = info['author'];
+    final known = _knownCatalogBooks[id];
+    // Existing Aladin data has been removed; the current contract uses this
+    // legacy field for YES24 goods IDs in both catalog and saved-book responses.
+    final yes24Id =
+        _nullableText(info['yes24Id'] ?? info['aladinId']) ?? known?.yes24Id;
     return ReadingBook(
       id,
       _text(_requiredText(info['title'])),
@@ -245,10 +335,14 @@ class ReadingRemoteDataSource {
       coverUrl: _nullableText(info['coverImage']),
       totalPage: info['totalPage'] == null ? null : _integer(info['totalPage']),
       publishDate: _nullableText(info['publishDate']),
-      aladinId: _nullableText(info['aladinId']),
-      yes24Id: _nullableText(info['yes24Id']),
+      yes24Id: yes24Id,
       isbn13: _nullableText(info['isbn13'] ?? info['isbn']),
-      link: _nullableText(info['link']),
+      link:
+          _nullableText(info['link']) ??
+          known?.link ??
+          (yes24Id == null
+              ? null
+              : 'https://www.yes24.com/product/goods/${Uri.encodeComponent(yes24Id)}'),
     );
   }
 

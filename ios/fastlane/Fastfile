@@ -43,23 +43,7 @@ platform :ios do
       targets: ["Runner"],
     )
 
-    update_code_signing_settings(
-      use_automatic_signing: false,
-      path: "Runner.xcodeproj",
-      team_id: "T583WJWNAK",
-      code_sign_identity: "Apple Distribution",
-      profile_name: "match AppStore com.Ikdaman.MoabookWidget",
-      targets: ["MoabookWidgetExtension"],
-    )
 
-    update_code_signing_settings(
-      use_automatic_signing: false,
-      path: "Runner.xcodeproj",
-      team_id: "T583WJWNAK",
-      code_sign_identity: "Apple Distribution",
-      profile_name: "match AppStore com.Ikdaman.ShareExtension",
-      targets: ["MoabookShareExtension"],
-    )
 
     build_app(
       workspace: "Runner.xcworkspace",
@@ -71,8 +55,6 @@ platform :ios do
       export_options: {
         provisioningProfiles: {
           "com.Ikdaman" => "match AppStore com.Ikdaman",
-          "com.Ikdaman.MoabookWidget" => "match AppStore com.Ikdaman.MoabookWidget",
-          "com.Ikdaman.ShareExtension" => "match AppStore com.Ikdaman.ShareExtension",
         }
       }
     )
@@ -108,23 +90,7 @@ platform :ios do
       targets: ["Runner"],
     )
 
-    update_code_signing_settings(
-      use_automatic_signing: false,
-      path: "Runner.xcodeproj",
-      team_id: "T583WJWNAK",
-      code_sign_identity: "Apple Distribution",
-      profile_name: "match AppStore com.Ikdaman.MoabookWidget",
-      targets: ["MoabookWidgetExtension"],
-    )
 
-    update_code_signing_settings(
-      use_automatic_signing: false,
-      path: "Runner.xcodeproj",
-      team_id: "T583WJWNAK",
-      code_sign_identity: "Apple Distribution",
-      profile_name: "match AppStore com.Ikdaman.ShareExtension",
-      targets: ["MoabookShareExtension"],
-    )
 
     build_app(
       workspace: "Runner.xcworkspace",
@@ -136,8 +102,6 @@ platform :ios do
       export_options: {
         provisioningProfiles: {
           "com.Ikdaman" => "match AppStore com.Ikdaman",
-          "com.Ikdaman.MoabookWidget" => "match AppStore com.Ikdaman.MoabookWidget",
-          "com.Ikdaman.ShareExtension" => "match AppStore com.Ikdaman.ShareExtension",
         }
       }
     )

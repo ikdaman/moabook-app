@@ -7,13 +7,29 @@ import 'package:moabook_reading_ui/moabook_reading_ui.dart';
 const serverBook = ReadingBook('71', '서버에서 받은 책', '작가', '출판사', '', '');
 
 class Gateway implements ReadingGateway {
-  bool shelfFails = false;
+  bool shelfFails = false, cardFails = false;
+  String? savedBookId;
+  Object? bookSaveError;
+  int bookPosts = 0;
+  ReadingBookCheck? checkResult;
+  @override
+  Future<ReadingBookCheck> checkBook(
+    ReadingBook book, {
+    String? collectionId,
+  }) async => checkResult ?? ReadingBookCheck(bookId: savedBookId);
+  @override
+  Future<String> saveBook(ReadingBook book, {required String reason}) async {
+    bookPosts++;
+    if (bookSaveError != null) throw bookSaveError!;
+    return savedBookId = '71';
+  }
+
   Completer<String>? recordWrite;
   Completer<ReadingCollectionDetail>? collectionWrite;
   Object? recordError;
   int recordPosts = 0;
   final records = <ReadingRecord>[];
-  ReadingCategory status = ReadingCategory.done;
+  ReadingCategory? status = ReadingCategory.done;
   @override
   Future<ReadingShelf> loadShelf() async {
     if (shelfFails) throw StateError('server unavailable');
@@ -21,12 +37,16 @@ class Gateway implements ReadingGateway {
   }
 
   @override
-  Future<ReadingCard> loadCard(String bookId) async => ReadingCard(
-    book: serverBook,
-    createdDate: DateTime(2026, 11, 1),
-    status: status,
-    recordCount: records.length,
-  );
+  Future<ReadingCard> loadCard(String bookId) async {
+    if (cardFails) throw StateError('card unavailable');
+    return ReadingCard(
+      book: serverBook,
+      createdDate: DateTime(2026, 11, 1),
+      status: status,
+      recordCount: records.length,
+    );
+  }
+
   @override
   Future<List<ReadingRecord>> loadRecords(String bookId) async => records;
   @override
@@ -44,8 +64,17 @@ class Gateway implements ReadingGateway {
   Future<ReadingCollectionDetail> updateCollection(
     ReadingCollection collection,
   ) async => ReadingCollectionDetail(collection: collection, books: []);
+  Future<ReadingSearchPage> Function(String, int)? search;
   @override
-  Future<List<ReadingBook>> searchBooks(String keyword) async => [serverBook];
+  Future<ReadingSearchPage> searchBooks(String keyword, {int page = 1}) async =>
+      search != null
+      ? await search!(keyword, page)
+      : ReadingSearchPage(
+          books: [serverBook],
+          page: page,
+          hasMore: false,
+          totalCount: 1,
+        );
   @override
   Future<String> addRecord(
     String bookId, {
@@ -102,6 +131,297 @@ void main() {
     tester.testTextInput.hide();
     await tester.pumpAndSettle();
   }
+
+  ReadingBook resultBook(int id) =>
+      ReadingBook('yes24:$id', '검색 책 $id', '저자', '출판사', '', '', yes24Id: '$id');
+  Future<void> submitSearch(
+    WidgetTester tester,
+    ReadingWorkspaceState state,
+    String query,
+  ) async {
+    if (state.screen != 'search') state.go('search');
+    // A previous page may still be loading while the user submits a new query.
+    await tester.pump();
+    await tester.enterText(find.byType(TextFormField).first, query);
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    tester.testTextInput.hide();
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+    'scrolling appends pages, reuses submitted query and removes duplicates',
+    (tester) async {
+      final calls = <String>[];
+      final gateway = Gateway()
+        ..search = (query, page) async {
+          calls.add('$query:$page');
+          return ReadingSearchPage(
+            books: page == 1
+                ? [for (var id = 1; id <= 8; id++) resultBook(id)]
+                : [resultBook(8), resultBook(9)],
+            page: page,
+            hasMore: page == 1,
+            totalCount: 9,
+          );
+        };
+      final state = await open(tester, gateway);
+      await submitSearch(tester, state, '첫 검색');
+      expect(find.text('8 / 9권'), findsOneWidget);
+      await tester.enterText(
+        find.byType(TextFormField).first,
+        '아직 제출하지 않은 검색어',
+      );
+      tester.testTextInput.hide();
+      state.scroll.jumpTo(state.scroll.position.maxScrollExtent - 250);
+      await tester.pumpAndSettle();
+      expect(calls, ['첫 검색:1', '첫 검색:2']);
+      expect(state.remoteSearchResults.map((b) => b.id), [
+        for (var id = 1; id <= 9; id++) 'yes24:$id',
+      ]);
+      expect(find.text('더 불러오기'), findsNothing);
+      expect(find.text('9 / 9권'), findsOneWidget);
+    },
+  );
+
+  testWidgets('failed next page preserves results and retries the same page', (
+    tester,
+  ) async {
+    var fail = true;
+    final pages = <int>[];
+    final gateway = Gateway()
+      ..search = (query, page) async {
+        pages.add(page);
+        if (page == 2 && fail) throw StateError('offline');
+        return ReadingSearchPage(
+          books: page == 1
+              ? [for (var id = 1; id <= 6; id++) resultBook(id)]
+              : [resultBook(7)],
+          page: page,
+          hasMore: page == 1,
+          totalCount: 7,
+        );
+      };
+    final state = await open(tester, gateway);
+    await submitSearch(tester, state, '책');
+    state.scroll.jumpTo(state.scroll.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    expect(state.remoteSearchResults.length, 6);
+    expect(state.remoteSearchPage, 1);
+    expect(find.text('다시 불러오기'), findsOneWidget);
+    state.scroll.jumpTo(state.scroll.position.maxScrollExtent - 10);
+    await tester.pumpAndSettle();
+    expect(pages, [1, 2]);
+    fail = false;
+    await tap(tester, '다시 불러오기');
+    await tester.pumpAndSettle();
+    expect(pages, [1, 2, 2]);
+    expect(state.remoteSearchResults.length, 7);
+  });
+
+  testWidgets(
+    'short search pages fill the viewport and stop at the last page',
+    (tester) async {
+      final pages = <int>[];
+      final gateway = Gateway()
+        ..search = (query, page) async {
+          pages.add(page);
+          return ReadingSearchPage(
+            books: [resultBook(page)],
+            page: page,
+            hasMore: page < 3,
+            totalCount: 3,
+          );
+        };
+      final state = await open(tester, gateway);
+      await submitSearch(tester, state, '책');
+      expect(pages, [1, 2, 3]);
+      expect(state.remoteSearchResults.length, 3);
+      expect(find.text('더 불러오기'), findsNothing);
+      state.scroll.jumpTo(state.scroll.position.maxScrollExtent);
+      await tester.pumpAndSettle();
+      expect(pages, [1, 2, 3]);
+    },
+  );
+
+  testWidgets('late next page cannot overwrite a new search', (tester) async {
+    final delayed = Completer<ReadingSearchPage>();
+    var moreCalls = 0;
+    final gateway = Gateway()
+      ..search = (query, page) async {
+        if (page == 2) {
+          moreCalls++;
+          return delayed.future;
+        }
+        return ReadingSearchPage(
+          books: query == '이전'
+              ? [for (var id = 1; id <= 6; id++) resultBook(id)]
+              : [resultBook(9)],
+          page: 1,
+          hasMore: query == '이전',
+          totalCount: query == '이전' ? 7 : 1,
+        );
+      };
+    final state = await open(tester, gateway);
+    await submitSearch(tester, state, '이전');
+    state.scroll.jumpTo(state.scroll.position.maxScrollExtent);
+    await tester.pump();
+    state.scroll.jumpTo(state.scroll.position.maxScrollExtent - 1);
+    await tester.pump();
+    expect(moreCalls, 1);
+    await submitSearch(tester, state, '새 검색');
+    delayed.complete(
+      ReadingSearchPage(
+        books: [resultBook(2)],
+        page: 2,
+        hasMore: false,
+        totalCount: 2,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(state.remoteSearchResults.single.id, 'yes24:9');
+    expect(state.remoteSearchPage, 1);
+    expect(state.loadingMoreSearch, isFalse);
+    expect(state.remoteSearchTotalCount, 1);
+  });
+
+  testWidgets('add options keep barcode scanning and remove photo inputs', (
+    tester,
+  ) async {
+    final state = await open(tester, Gateway());
+    state.go('add-options');
+    await tester.pumpAndSettle();
+    expect(find.text('바코드 스캔'), findsOneWidget);
+    expect(find.text('갤러리 사진 불러오기'), findsNothing);
+    expect(find.text('책 표지나 바코드 촬영'), findsNothing);
+  });
+
+  const searchBook = ReadingBook(
+    'yes24:123',
+    '새 책',
+    '작가',
+    '출판사',
+    '',
+    '',
+    yes24Id: '123',
+  );
+
+  testWidgets(
+    'new book opens an empty card and only the explicit first-record action writes a record',
+    (tester) async {
+      final gateway = Gateway()
+        ..status = null
+        ..recordWrite = (Completer<String>()..complete('5'));
+      final state = await open(tester, gateway);
+      state.selectedBook = searchBook;
+      state.confirmBook();
+      await tester.pumpAndSettle();
+      expect(state.screen, 'save-wish');
+      expect(find.text('읽기 시작한 날'), findsNothing);
+      state.reasonDraft = '읽고 싶은 이유';
+      state.saveBookLocally();
+      await tester.pumpAndSettle();
+      expect(gateway.bookPosts, 1);
+      expect(gateway.recordPosts, 0);
+      expect(gateway.records, isEmpty);
+      expect(state.screen, 'card-back');
+      expect(state.selectedBook.id, '71');
+      expect(find.text('첫 기록 남기기'), findsOneWidget);
+      await tap(tester, '첫 기록 남기기');
+      await tester.pumpAndSettle();
+      expect(state.screen, 'record-options');
+      expect(gateway.recordPosts, 0);
+      await tap(tester, '자유 기록');
+      await tester.pumpAndSettle();
+      expect(state.screen, 'record-free');
+      await tester.enterText(find.byType(TextFormField).first, '첫 기억');
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
+      await tap(tester, '기록 완료');
+      await tester.pumpAndSettle();
+      expect(gateway.bookPosts, 1);
+      expect(gateway.recordPosts, 1);
+      expect(gateway.records.single.memo, '첫 기억');
+      expect(state.screen, 'record-complete');
+    },
+  );
+
+  testWidgets('uncertain book write checks before any retry', (tester) async {
+    final gateway = Gateway()..bookSaveError = const ReadingWriteUncertain();
+    final state = await open(tester, gateway);
+    state.selectedBook = searchBook;
+    state.confirmBook();
+    await tester.pumpAndSettle();
+    state.saveBookLocally();
+    await tester.pumpAndSettle();
+    state.saveBookLocally();
+    await tester.pumpAndSettle();
+    expect(gateway.bookPosts, 1);
+    expect(gateway.recordPosts, 0);
+    expect(state.operationError, contains('저장 결과를 아직 확인하지 못했어요'));
+    gateway.savedBookId = '71';
+    state.saveBookLocally();
+    await tester.pumpAndSettle();
+    expect(gateway.bookPosts, 1);
+    expect(gateway.recordPosts, 0);
+    expect(state.screen, 'card-back');
+  });
+
+  testWidgets('duplicate check opens existing book without a write', (
+    tester,
+  ) async {
+    final gateway = Gateway()
+      ..checkResult = const ReadingBookCheck(bookId: '71');
+    final state = await open(tester, gateway);
+    state.selectedBook = searchBook;
+    state.confirmBook();
+    await tester.pumpAndSettle();
+    expect(state.screen, 'duplicate');
+    expect(state.selectedBook.id, '71');
+    expect(gateway.bookPosts, 0);
+    expect(gateway.recordPosts, 0);
+  });
+
+  testWidgets(
+    'card refresh failure preserves saved book and never repeats its writes',
+    (tester) async {
+      final gateway = Gateway()
+        ..cardFails = true
+        ..recordWrite = (Completer<String>()..complete('8'));
+      final state = await open(tester, gateway);
+      state.selectedBook = searchBook;
+      state.confirmBook();
+      await tester.pumpAndSettle();
+      state.saveBookLocally();
+      await tester.pumpAndSettle();
+      expect(state.operationError, contains('책은 저장됐지만'));
+      gateway.cardFails = false;
+      state.saveBookLocally();
+      await tester.pumpAndSettle();
+      expect(gateway.bookPosts, 1);
+      expect(gateway.recordPosts, 0);
+      expect(state.screen, 'card-back');
+    },
+  );
+
+  testWidgets(
+    'collection duplicate check opens its duplicate notice without writing',
+    (tester) async {
+      final gateway = Gateway()
+        ..checkResult = const ReadingBookCheck(
+          bookId: '71',
+          alreadyInCollection: true,
+        );
+      final state = await open(tester, gateway);
+      state.collectionData = [ReadingCollection(id: '8', name: '내 모음')];
+      state.targetCollectionId = '8';
+      state.selectedBook = searchBook;
+      state.confirmBook();
+      await tester.pumpAndSettle();
+      expect(state.screen, 'collection-duplicate');
+      expect(gateway.bookPosts, 0);
+      expect(gateway.recordPosts, 0);
+    },
+  );
 
   testWidgets('failed live shelf shows retry without any preview books', (
     tester,

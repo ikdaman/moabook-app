@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/network/dio_client.dart';
-import '../../../core/env/env.dart';
 import '../../../data/datasource/auth_remote_datasource.dart';
 import '../../../data/datasource/social_auth_datasource.dart';
 import '../../../data/repository/auth_repository_impl.dart';
@@ -117,9 +116,6 @@ class AuthNotifier extends Notifier<void> {
   /// 호출해 홈 첫 진입에서 바로 보이게 한다. 실패해도 로그인 흐름은 막지 않고,
   /// 보류책은 유지되어 Home 첫 진입의 fallback 에서 재시도된다.
   Future<void> _consumePendingBook() async {
-    // The new save flow awaits a returned mybookId and exact duplicate lookup.
-    // Preserve the pending selection instead of issuing the deprecated save body.
-    if (Env.useNewReadingUi) return;
     final pending = ref.read(pendingBookProvider);
     if (pending == null) return;
     try {

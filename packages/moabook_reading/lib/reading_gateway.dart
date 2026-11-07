@@ -82,6 +82,8 @@ class ReadingCollectionDetail {
 /// The live app implements this with its authenticated network client.
 /// The offline preview does not silently substitute for a failed gateway.
 abstract interface class ReadingGateway {
+  Future<ReadingBookCheck> checkBook(ReadingBook book, {String? collectionId});
+  Future<String> saveBook(ReadingBook book, {required String reason});
   Future<ReadingShelf> loadShelf();
   Future<ReadingCard> loadCard(String bookId);
   Future<List<ReadingRecord>> loadRecords(String bookId);
@@ -97,7 +99,7 @@ abstract interface class ReadingGateway {
     required DateTime date,
     required String memo,
   });
-  Future<List<ReadingBook>> searchBooks(String keyword);
+  Future<ReadingSearchPage> searchBooks(String keyword, {int page = 1});
 }
 
 class ReadingWriteUncertain implements Exception {
@@ -122,4 +124,26 @@ class ReadingImageExport {
     if (index < 0 || index >= pageCount) throw RangeError.index(index, books);
     return books.skip(index * pageSize).take(pageSize).toList();
   }
+}
+
+class ReadingBookCheck {
+  const ReadingBookCheck({
+    required this.bookId,
+    this.alreadyInCollection = false,
+  });
+  final String? bookId;
+  final bool alreadyInCollection;
+}
+
+class ReadingSearchPage {
+  ReadingSearchPage({
+    required Iterable<ReadingBook> books,
+    required this.page,
+    required this.hasMore,
+    this.totalCount,
+  }) : books = List.unmodifiable(books);
+  final List<ReadingBook> books;
+  final int page;
+  final bool hasMore;
+  final int? totalCount;
 }

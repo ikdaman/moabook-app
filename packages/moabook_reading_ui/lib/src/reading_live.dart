@@ -176,27 +176,74 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
 
   Future<void> searchRemoteBooks(String keyword) async {
     final request = ++searchRequest;
+    final query = keyword.trim();
     _update(() {
-      searchQuery = keyword.trim();
-      isSearching = searchQuery.isNotEmpty;
-      searchError = null;
+      searchQuery = activeSearchQuery = query;
+      isSearching = query.isNotEmpty;
+      searchError = searchMoreError = null;
       remoteSearchResults = [];
+      remoteSearchPage = 0;
+      remoteSearchTotalCount = null;
+      remoteSearchHasMore = loadingMoreSearch = false;
       screen = 'search';
     });
-    if (searchQuery.isEmpty) return;
+    if (scroll.hasClients) scroll.jumpTo(0);
+    if (query.isEmpty) return;
     try {
-      final results = await gateway.searchBooks(searchQuery);
+      final result = await gateway.searchBooks(query);
       if (!mounted || request != searchRequest) return;
+      if (result.page != 1) throw const FormatException('Wrong search page');
       _update(() {
-        remoteSearchResults = results;
+        remoteSearchResults = {
+          for (final book in result.books) book.id: book,
+        }.values.toList();
+        remoteSearchPage = result.page;
+        remoteSearchTotalCount = result.totalCount;
+        remoteSearchHasMore = result.hasMore;
         isSearching = false;
-        screen = results.isEmpty ? 'search-empty' : 'search';
+        screen = result.books.isEmpty ? 'search-empty' : 'search';
       });
+      _checkSearchAfterLayout();
     } catch (_) {
       if (!mounted || request != searchRequest) return;
       _update(() {
         isSearching = false;
         searchError = '검색 결과를 불러오지 못했어요.';
+      });
+    }
+  }
+
+  Future<void> loadMoreRemoteBooks() async {
+    if (isSearching || loadingMoreSearch || !remoteSearchHasMore) return;
+    final request = searchRequest;
+    final nextPage = remoteSearchPage + 1;
+    final query = activeSearchQuery;
+    _update(() {
+      loadingMoreSearch = true;
+      searchMoreError = null;
+    });
+    try {
+      final result = await gateway.searchBooks(query, page: nextPage);
+      if (!mounted || request != searchRequest) return;
+      if (result.page != nextPage) {
+        throw const FormatException('Wrong search page');
+      }
+      _update(() {
+        remoteSearchResults = {
+          for (final book in remoteSearchResults) book.id: book,
+          for (final book in result.books) book.id: book,
+        }.values.toList();
+        remoteSearchPage = result.page;
+        remoteSearchTotalCount = result.totalCount;
+        remoteSearchHasMore = result.hasMore;
+        loadingMoreSearch = false;
+      });
+      _checkSearchAfterLayout();
+    } catch (_) {
+      if (!mounted || request != searchRequest) return;
+      _update(() {
+        loadingMoreSearch = false;
+        searchMoreError = '다음 검색 결과를 불러오지 못했어요. 다시 시도해주세요.';
       });
     }
   }
@@ -212,38 +259,133 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
       selectedBook = book;
       go('book-info');
     } catch (_) {
-      if (mounted) notice('사진에서 책을 찾지 못했어요. 다시 시도해주세요.');
+      if (mounted) notice('바코드로 책을 찾지 못했어요. 다시 시도해주세요.');
     } finally {
       selectingMedia = false;
     }
   }
 
-  void confirmRemoteBook() {
-    final exact =
-        library[selectedBook.id] ??
-        catalog.values
-            .where(
-              (b) =>
-                  ((selectedBook.aladinId != null &&
-                          b.aladinId == selectedBook.aladinId) ||
-                      (selectedBook.yes24Id != null &&
-                          b.yes24Id == selectedBook.yes24Id) ||
-                      (selectedBook.isbn13?.isNotEmpty == true &&
-                          b.isbn13 == selectedBook.isbn13)) &&
-                  !b.id.contains(':'),
-            )
-            .firstOrNull;
-    if (exact == null) {
-      notice('새 책 저장과 중복 확인은 아직 지원하지 않아요. 서가에 있는 책의 기록은 남길 수 있어요.');
-      return;
+  Future<void> confirmRemoteBook() async {
+    if (isSaving) return;
+    _update(() => isSaving = true);
+    try {
+      final result = await gateway.checkBook(
+        selectedBook,
+        collectionId: targetCollectionId,
+      );
+      if (!mounted) return;
+      if (result.bookId == null) {
+        reasonDraft = '';
+        operationError = null;
+        startedDate = finishedDate = readingDay(DateTime.now());
+        go('save-wish');
+      } else {
+        final card = await gateway.loadCard(result.bookId!);
+        if (!mounted) return;
+        selectedBook = card.book;
+        if (targetCollectionId == null) {
+          go('duplicate');
+        } else if (result.alreadyInCollection) {
+          go('collection-duplicate');
+        } else {
+          // This method owns its own submission lock.
+          _update(() => isSaving = false);
+          await addRemoteBookToCollection();
+        }
+      }
+    } catch (_) {
+      if (mounted) notice('저장 여부를 확인하지 못했어요. 다시 시도해주세요.');
+    } finally {
+      if (mounted) _update(() => isSaving = false);
     }
-    selectedBook = exact;
-    if (targetCollectionId == null) {
-      go('duplicate');
-    } else if (currentCollection.contains(exact.id)) {
-      go('collection-duplicate');
-    } else {
-      unawaited(addRemoteBookToCollection());
+  }
+
+  Future<void> saveRemoteBook() async {
+    if (isSaving) return;
+    final searchBook = selectedBook;
+    final key = searchBook.id;
+    final memo = reasonDraft.trim();
+    _update(() {
+      isSaving = true;
+      operationError = null;
+    });
+    var creatingBook = false;
+    try {
+      var id = pendingSavedBooks[key];
+      if (id == null) {
+        final check = await gateway.checkBook(
+          searchBook,
+          collectionId: targetCollectionId,
+        );
+        if (!mounted) return;
+        if (check.bookId != null) {
+          if (uncertainBookWrites.contains(key)) {
+            id = check.bookId!;
+            pendingSavedBooks[key] = id;
+            uncertainBookWrites.remove(key);
+          } else {
+            final card = await gateway.loadCard(check.bookId!);
+            if (!mounted) return;
+            selectedBook = card.book;
+            if (targetCollectionId == null) {
+              go('duplicate');
+            } else if (check.alreadyInCollection) {
+              go('collection-duplicate');
+            } else {
+              _update(() => isSaving = false);
+              await addRemoteBookToCollection();
+            }
+            return;
+          }
+        } else {
+          if (uncertainBookWrites.contains(key)) {
+            _update(
+              () => operationError = '책 저장 결과를 아직 확인하지 못했어요. 잠시 후 다시 확인해주세요.',
+            );
+            return;
+          }
+          creatingBook = true;
+          id = await gateway.saveBook(searchBook, reason: memo);
+          // Keep this even when the screen unmounts while the write is running.
+          pendingSavedBooks[key] = id;
+          creatingBook = false;
+        }
+      }
+      final card = await gateway.loadCard(id);
+      if (!mounted) return;
+      pendingSavedBooks.remove(key);
+      selectedBook = card.book;
+      await refreshRemoteShelf();
+      if (!mounted) return;
+      if (targetCollectionId != null) {
+        _update(() => isSaving = false);
+        await addRemoteBookToCollection();
+      } else {
+        _update(() {
+          history
+            ..clear()
+            ..add('shelf');
+          screen = 'card-back';
+        });
+        await loadRemoteCard(id);
+      }
+    } on ReadingWriteUncertain {
+      if (creatingBook) uncertainBookWrites.add(key);
+      if (mounted) {
+        _update(
+          () => operationError = '저장 결과를 확인하지 못했어요. 다시 누르면 저장 여부부터 확인해요.',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        _update(
+          () => operationError = pendingSavedBooks.containsKey(key)
+              ? '책은 저장됐지만 독서카드를 불러오지 못했어요. 다시 확인해주세요.'
+              : '책을 저장하지 못했어요. 입력은 그대로 남아 있어요.',
+        );
+      }
+    } finally {
+      if (mounted) _update(() => isSaving = false);
     }
   }
 
@@ -407,12 +549,12 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
   }
 
   void openRemoteLink() {
-    final id = selectedBook.aladinId;
+    final id = selectedBook.yes24Id;
     final url =
         selectedBook.link ??
         (id == null
             ? null
-            : 'https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=${Uri.encodeQueryComponent(id)}');
+            : 'https://www.yes24.com/product/goods/${Uri.encodeQueryComponent(id)}');
     if (url != null) {
       unawaited(widget.onOpenLink?.call(url) ?? Future<void>.value());
     }

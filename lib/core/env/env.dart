@@ -9,15 +9,21 @@ abstract final class Env {
     'BASE_URL',
     defaultValue: 'https://moabook.shop',
   );
-  static const catalogSearchPath = String.fromEnvironment('YES24_SEARCH_PATH');
-  static const catalogDetailPath = String.fromEnvironment('YES24_DETAIL_PATH');
+  static const catalogSearchPath = String.fromEnvironment(
+    'YES24_SEARCH_PATH',
+    defaultValue: '/books',
+  );
+  static const catalogDetailPath = String.fromEnvironment(
+    'YES24_DETAIL_PATH',
+    defaultValue: '/books/detail',
+  );
   static const useNewReadingUi = bool.fromEnvironment(
     'USE_NEW_READING_UI',
     defaultValue: true,
   );
   static const readingShelfPath = String.fromEnvironment(
     'READING_SHELF_PATH',
-    defaultValue: '/mybooks/store',
+    defaultValue: '/mybooks',
   );
   static const readingPageSizeKey = String.fromEnvironment(
     'READING_PAGE_SIZE_KEY',

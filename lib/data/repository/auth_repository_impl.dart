@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../../core/auth/shared_token_store.dart';
 import '../../domain/model/login_state.dart';
 import '../../domain/model/logout_state.dart';
 import '../../domain/model/signup_state.dart';
@@ -18,16 +17,20 @@ class AuthRepositoryImpl implements AuthRepository {
   // ── Login ─────────────────────────────────────────────────────────────────
 
   @override
-  Stream<LoginState> kakaoLogin() => _login(_social.kakaoLogin, _social.kakaoLogout);
+  Stream<LoginState> kakaoLogin() =>
+      _login(_social.kakaoLogin, _social.kakaoLogout);
 
   @override
-  Stream<LoginState> naverLogin() => _login(_social.naverLogin, _social.naverLogout);
+  Stream<LoginState> naverLogin() =>
+      _login(_social.naverLogin, _social.naverLogout);
 
   @override
-  Stream<LoginState> googleLogin() => _login(_social.googleLogin, _social.googleLogout);
+  Stream<LoginState> googleLogin() =>
+      _login(_social.googleLogin, _social.googleLogout);
 
   @override
-  Stream<LoginState> appleLogin() => _login(_social.appleLogin, _social.appleLogout);
+  Stream<LoginState> appleLogin() =>
+      _login(_social.appleLogin, _social.appleLogout);
 
   Stream<LoginState> _login(
     Future<dynamic> Function() socialLoginFn,
@@ -40,20 +43,24 @@ class AuthRepositoryImpl implements AuthRepository {
       return;
     }
 
-    final token      = social.socialAccessToken!;
-    final provider   = social.provider!;
+    final token = social.socialAccessToken!;
+    final provider = social.provider!;
     final providerId = social.providerId!;
 
     try {
       final (result, statusCode) = await _remote.login(
         socialToken: token,
-        provider:    provider,
-        providerId:  providerId,
+        provider: provider,
+        providerId: providerId,
       );
 
       if (result != null) {
-        await _saveTokens(result.authorization, result.refreshToken,
-            result.provider, result.nickname);
+        await _saveTokens(
+          result.authorization,
+          result.refreshToken,
+          result.provider,
+          result.nickname,
+        );
         yield const LoginSuccess();
       } else {
         yield const LoginError('로그인 실패');
@@ -62,8 +69,8 @@ class AuthRepositoryImpl implements AuthRepository {
       if (e.response?.statusCode == 404) {
         yield LoginSignupRequired(
           socialToken: token,
-          provider:    provider,
-          providerId:  providerId,
+          provider: provider,
+          providerId: providerId,
         );
       } else {
         yield LoginError('로그인 실패: ${e.message}');
@@ -88,14 +95,16 @@ class AuthRepositoryImpl implements AuthRepository {
   Stream<LogoutState> _logout(Future<void> Function() socialLogoutFn) async* {
     yield const LogoutLoading();
     try {
-      try { await _remote.logout(); } catch (_) {}
+      try {
+        await _remote.logout();
+      } catch (_) {}
       await socialLogoutFn();
       await _storage.deleteAll();
-      await SharedTokenStore.clear();
+
       yield const LogoutSuccess();
     } catch (e) {
       await _storage.deleteAll();
-      await SharedTokenStore.clear();
+
       yield LogoutError(e.toString());
     }
   }
@@ -113,13 +122,17 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final result = await _remote.signup(
         socialToken: socialToken,
-        provider:    provider,
-        providerId:  providerId,
-        nickname:    nickname,
+        provider: provider,
+        providerId: providerId,
+        nickname: nickname,
       );
       if (result != null) {
-        await _saveTokens(result.authorization, result.refreshToken,
-            result.provider, result.nickname);
+        await _saveTokens(
+          result.authorization,
+          result.refreshToken,
+          result.provider,
+          result.nickname,
+        );
         yield const SignupSuccess();
       } else {
         yield const SignupError('회원가입 실패');
@@ -143,12 +156,11 @@ class AuthRepositoryImpl implements AuthRepository {
     String nickname,
   ) async {
     await Future.wait([
-      _storage.write(key: 'access_token',  value: authorization),
+      _storage.write(key: 'access_token', value: authorization),
       _storage.write(key: 'refresh_token', value: refreshToken),
-      _storage.write(key: 'provider',      value: provider),
-      _storage.write(key: 'nickname',      value: nickname),
+      _storage.write(key: 'provider', value: provider),
+      _storage.write(key: 'nickname', value: nickname),
     ]);
-    await SharedTokenStore.mirror(authorization, refreshToken);
   }
 
   @override

@@ -70,3 +70,6 @@ patches/**/build/
 
 # Rebuildable design sharing archives
 /output/*.zip
+
+# Local device QA captures and account responses
+/output/device-qa/

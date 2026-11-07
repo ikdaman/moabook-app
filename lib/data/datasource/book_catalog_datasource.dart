@@ -14,3 +14,21 @@ class BookCatalogNotReady implements Exception {
   @override
   String toString() => '도서 검색을 준비하고 있어요. 잠시 후 다시 시도해주세요.';
 }
+
+/// Catalogs which publish real page metadata instead of inferring it from length.
+abstract interface class PagedBookCatalogDataSource
+    implements BookCatalogDataSource {
+  Future<BookCatalogPage> searchPage(String query, {int page = 1});
+}
+
+class BookCatalogPage {
+  BookCatalogPage({
+    required Iterable<BookItem> books,
+    required this.page,
+    required this.totalPages,
+    required this.totalCount,
+  }) : books = List.unmodifiable(books);
+  final List<BookItem> books;
+  final int page, totalPages, totalCount;
+  bool get hasMore => page < totalPages;
+}
