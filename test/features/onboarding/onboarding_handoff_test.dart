@@ -5,8 +5,8 @@
 //  - 시작하기는 의도적으로 보류책을 클리어하지 않는다. 이는 _skipToLogin /
 //    _startToLogin 으로 메서드를 분리해 보장한다(C1 버그픽스). 시작하기 →
 //    로그인 → Home 까지 보류책이 살아남아 consumePendingBook 에서 소비된다.
-//    시작하기의 풀 UI e2e(검색→저장→done→시작하기)는 TypingText/검색 네트워크
-//    의존 때문에 수동 검증으로 남긴다.
+//    전체 선택·이유 입력·로그인 전달은 onboarding_flow_test.dart와
+//    integration_test/onboarding_device_test.dart에서 샘플 검색으로 검증한다.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

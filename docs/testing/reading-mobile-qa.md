@@ -40,3 +40,14 @@ flutter drive --profile --no-dds --keep-app-running \
 ## 정상 앱 복구
 
 기기 테스트 앱 대신 `lib/main.dart`의 정상 빌드를 설치한다. Android는 동일 서명의 APK를 `adb install --no-streaming -r`로 업데이트하며 앱 제거·데이터 삭제 명령을 사용하지 않는다. iOS는 정상 Release 빌드를 설치한다. 스토어 배포는 별도 절차다.
+
+## 튜토리얼부터 첫 기록까지
+
+```sh
+flutter drive --profile --no-dds --keep-app-running \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/onboarding_device_test.dart \
+  -d DEVICE_ID --dart-define-from-file=env/prod.json
+```
+
+샘플 카탈로그로 책 선택·이유 입력·로그인 전달을 확인한 뒤, 별도의 로컬 카드에서 첫 기록을 명시적으로 작성하고 저장·복귀한다. 실제 계정 로그인이나 서버 저장을 모의 성공으로 처리하지 않는다. SharedPreferences와 키보드 입력을 테스트 구현으로 대체하므로 기기의 본래 설정과 계정에 쓰지 않는다. 키보드 여백의 작은 화면 배치는 위젯 테스트로 확인한다. iOS 시뮬레이터는 Debug로 실행한다.

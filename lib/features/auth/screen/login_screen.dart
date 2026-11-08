@@ -182,6 +182,21 @@ class LoginScreen extends ConsumerWidget {
                                     ),
                                   ],
                                 ),
+                                const SizedBox(height: 8),
+                                Center(
+                                  child: TextButton(
+                                    onPressed: isLoading
+                                        ? null
+                                        : () => context.go(Routes.onboarding),
+                                    child: Text(
+                                      '모아북 처음부터 둘러보기',
+                                      style: palette.text(
+                                        12,
+                                        color: palette.muted,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),

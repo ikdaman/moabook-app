@@ -82,11 +82,19 @@ class BookSearchNotifier extends Notifier<BookSearchState>
   BookCatalogDataSource get _catalog => ref.read(bookCatalogProvider);
   MyBookDataSource get _myBook => ref.read(myBookDataSourceProvider);
 
+  int _searchRequest = 0;
   Future<void> search(String query) async {
     if (query.trim().isEmpty) return;
-    state = state.copyWith(isLoading: true, query: query, currentPage: 1);
+    final request = ++_searchRequest;
+    state = state.copyWith(
+      isLoading: true,
+      isLoadingMore: false,
+      query: query,
+      currentPage: 1,
+    );
     try {
       final results = await _catalog.searchByTitle(query, page: 1);
+      if (request != _searchRequest) return;
       state = state.copyWith(
         results: results,
         isLoading: false,
@@ -94,12 +102,14 @@ class BookSearchNotifier extends Notifier<BookSearchState>
         currentPage: 1,
       );
     } catch (e) {
+      if (request != _searchRequest) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
   /// 검색 화면 재진입 시 이전 검색 결과가 남지 않도록 초기 상태로 되돌린다.
   void reset() {
+    _searchRequest++;
     state = const BookSearchState();
   }
 
@@ -141,11 +151,14 @@ class BookSearchNotifier extends Notifier<BookSearchState>
   }
 
   Future<void> loadMore() async {
-    if (!state.hasMore || state.isLoadingMore) return;
+    if (!state.hasMore || state.isLoadingMore || state.isLoading) return;
+    final request = _searchRequest;
+    final query = state.query;
     state = state.copyWith(isLoadingMore: true);
     try {
       final nextPage = state.currentPage + 1;
-      final more = await _catalog.searchByTitle(state.query, page: nextPage);
+      final more = await _catalog.searchByTitle(query, page: nextPage);
+      if (request != _searchRequest) return;
       state = state.copyWith(
         results: [...state.results, ...more],
         isLoadingMore: false,
@@ -153,6 +166,7 @@ class BookSearchNotifier extends Notifier<BookSearchState>
         currentPage: nextPage,
       );
     } catch (_) {
+      if (request != _searchRequest) return;
       state = state.copyWith(isLoadingMore: false);
     }
   }

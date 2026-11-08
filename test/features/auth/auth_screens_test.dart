@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:moabook/app/router/routes.dart';
 import 'package:moabook/domain/model/login_state.dart';
 import 'package:moabook/domain/model/signup_state.dart';
 import 'package:moabook/features/auth/provider/auth_provider.dart';
@@ -120,4 +122,36 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('login can reopen the tutorial without clearing app data', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 568);
+    addTearDown(tester.view.reset);
+    final router = GoRouter(
+      initialLocation: Routes.login,
+      routes: [
+        GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
+        GoRoute(
+          path: Routes.onboarding,
+          builder: (_, _) => const Scaffold(body: Text('ONBOARDING_REOPENED')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [authNotifierProvider.overrideWith(TestAuth.new)],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final action = find.text('모아북 처음부터 둘러보기');
+    await tester.ensureVisible(action);
+    await tester.pumpAndSettle();
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    expect(find.text('ONBOARDING_REOPENED'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

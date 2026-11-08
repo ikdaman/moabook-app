@@ -1,48 +1,35 @@
-// lib/features/onboarding/screen/onboarding_screen.dart
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:moabook_reading_ui/moabook_reading_ui.dart';
 import '../../../app/router/routes.dart';
-import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_typography.dart';
 import '../../../domain/model/book_item.dart';
-import '../../../features/book_search/provider/book_search_provider.dart';
+import '../../book_search/provider/book_search_provider.dart';
 import '../onboarding_prefs.dart';
 import '../provider/pending_book_provider.dart';
+import '../widget/onboarding_book.dart';
 import '../widget/onboarding_save_popup.dart';
-import '../widget/pixel_fireworks.dart';
 import '../widget/typing_text.dart';
 
 enum _Step { intro, search, done }
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
-
   @override
   ConsumerState<OnboardingScreen> createState() => OnboardingScreenState();
 }
 
 class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  static const palette = DesignPalette(Mood.a);
+  static const paper = Color(0xfff4f1ea);
+  static const muted = Color(0xffb9b5ac);
   _Step _step = _Step.intro;
   final _queryCtrl = TextEditingController();
-
-  static const _promptStyleTitle = TextStyle(
-      fontFamily: 'DungGeunMo',
-      color: AppColors.textWhite,
-      fontSize: 28,
-      height: 1.7);
-  static const _promptStyleBody = TextStyle(
-      fontFamily: 'DungGeunMo',
-      color: AppColors.textWhite,
-      fontSize: 18,
-      height: 1.5);
-
-  static const _searchPrompt =
-      '요즘 읽고 싶다고 생각한\n책이 있으신가요?\n\n어떤 책인지 궁금해요.';
-  static const _donePrompt =
-      'BOOK SAVED !\n당신의 읽고 싶은 마음이\n기록됐어요.\n\n로그인하고 이곳에서\n읽고 싶은 책을 모아보세요.';
+  BookItem? _selectedBook;
+  String? _reason;
+  bool _choosing = false;
+  int? _loadingBookId;
 
   @override
   void dispose() {
@@ -50,386 +37,224 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
-  // Skip: 보류책 버리고 로그인
   void _skipToLogin() {
     ref.read(pendingBookProvider.notifier).state = null;
     markOnboardingSeen();
     context.go(Routes.login);
   }
 
-  // 시작하기: 보류책 유지하고 로그인 (Home에서 소비)
   void _startToLogin() {
     markOnboardingSeen();
     context.go(Routes.login);
   }
 
   void _runSearch() {
-    final q = _queryCtrl.text.trim();
-    if (q.isEmpty) return;
-    ref.read(bookSearchProvider.notifier).search(q);
+    final query = _queryCtrl.text.trim();
+    if (query.isNotEmpty) ref.read(bookSearchProvider.notifier).search(query);
   }
 
   Future<void> _onBookTap(BookItem book) async {
-    final notifier = ref.read(bookSearchProvider.notifier);
-    // 상세(쪽수 등)만 가져오고 검색 목록은 유지한다. selectedBook 상태를
-    // 건드리지 않도록 searchByIsbn 대신 lookupDetail 을 쓴다.
-    BookItem selected = book;
-    if (book.isbn.isNotEmpty) {
-      final detail = await notifier.lookupDetail(book.isbn);
-      if (detail != null) selected = detail;
-    }
-    if (!mounted) return;
-    final result = await showOnboardingSavePopup(context, selected);
-    if (!mounted) return;
-    if (result != null && result.saved) {
-      ref.read(pendingBookProvider.notifier).state =
-          PendingBook(book: selected, reason: result.reason);
-      setState(() => _step = _Step.done);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // 네이비 배경 → 상태바 아이콘/텍스트 밝게(흰색).
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light, // Android
-        statusBarBrightness: Brightness.dark, // iOS
-      ),
-      child: Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Positioned.fill(child: _buildStep()),
-            // Skip (우측 상단, 작은 흰색)
-            Positioned(
-              top: 8,
-              right: 16,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _skipToLogin,
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Text('건너뛰기',
-                      style: AppTypography.dungGeunMoBody.copyWith(
-                          color: AppColors.textWhite, fontSize: 12)),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      ),
-    );
-  }
-
-  Widget _buildStep() {
-    switch (_step) {
-      case _Step.intro:
-        return _IntroStep(
-          titleStyle: _promptStyleTitle,
-          bodyStyle: _promptStyleBody,
-          onDone: () => setState(() => _step = _Step.search),
-        );
-      case _Step.search:
-        return _SearchStep(
-          promptStyle: _promptStyleBody,
-          prompt: _searchPrompt,
-          queryCtrl: _queryCtrl,
-          onSubmit: _runSearch,
-          onBookTap: _onBookTap,
-        );
-      case _Step.done:
-        return _DoneStep(
-          promptStyle: _promptStyleBody,
-          prompt: _donePrompt,
-          onStart: _startToLogin,
-        );
-    }
-  }
-}
-
-// 모든 온보딩 step 에서 아이콘 위치를 고정하기 위한 공통 좌표(Figma 기준).
-// 아이콘·프롬프트는 좌측 40 들여쓰기, 상단 120 에 정렬 → 화면 전환 시 아이콘이
-// 움직이지 않는다. 검색창/리스트만 16 들여쓰기로 더 넓게 쓴다.
-const double _kIconIndent = 40;
-const double _kIconTop = 120;
-const double _kSearchIndent = 16;
-
-/// 온보딩 공통 앱 아이콘 (50x50, 픽셀 책). intro/검색 화면 상단에 노출.
-class _OnboardingIcon extends StatelessWidget {
-  const _OnboardingIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/images/book_icon.png',
-      width: 50,
-      height: 50,
-      filterQuality: FilterQuality.none, // 픽셀 느낌 유지
-    );
-  }
-}
-
-/// intro 화면(Figma frame 2): 앱 아이콘 + "모 아 북"(28) + 부제(18).
-/// 한 화면에서 제목을 먼저 타이핑하고, 끝나면 그 밑 부제까지 이어서 타이핑한다
-/// (2단계로 화면을 나누지 않음). 부제까지 끝나면 [onDone] 으로 검색 step 진입.
-class _IntroStep extends StatefulWidget {
-  const _IntroStep({
-    required this.titleStyle,
-    required this.bodyStyle,
-    required this.onDone,
-  });
-  final TextStyle titleStyle;
-  final TextStyle bodyStyle;
-  final VoidCallback onDone;
-
-  @override
-  State<_IntroStep> createState() => _IntroStepState();
-}
-
-class _IntroStepState extends State<_IntroStep> {
-  // 제목 타이핑이 끝나야 부제 타이핑을 시작한다.
-  bool _titleDone = false;
-  // 부제 역삭제까지 끝나면 제목도 한 글자씩 지운 뒤 다음 step 으로 넘어간다.
-  bool _eraseTitle = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _kIconIndent),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: _kIconTop),
-          const _OnboardingIcon(),
-          const SizedBox(height: 12),
-          // 제목 "모 아 북" (28) — 타이핑 후 유지. 부제 삭제가 끝나면(_eraseTitle)
-          // startFull 로 떠 있는 상태에서 한 글자씩 지우고 onDone 으로 전환.
-          if (!_eraseTitle)
-            TypingText(
-              key: const ValueKey('intro-title'),
-              phrases: const ['모 아 북'],
-              style: widget.titleStyle,
-              textAlign: TextAlign.left,
-              startDelay: const Duration(milliseconds: 600),
-              onComplete: () {
-                if (mounted) setState(() => _titleDone = true);
-              },
-            )
-          else
-            TypingText(
-              key: const ValueKey('intro-title-erase'),
-              phrases: const ['모 아 북'],
-              style: widget.titleStyle,
-              textAlign: TextAlign.left,
-              startFull: true,
-              eraseAtEnd: true,
-              holdDuration: Duration.zero,
-              onComplete: widget.onDone,
-            ),
-          // 부제(18) — 제목 완료 후 그 밑에 이어서 타이핑. 다 읽을 시간(hold) 뒤
-          // 한 글자씩 역삭제하고 끝나면 제목 삭제를 시작한다.
-          if (_titleDone && !_eraseTitle) ...[
-            const SizedBox(height: 12),
-            TypingText(
-              key: const ValueKey('intro-body'),
-              phrases: const ['읽고 싶은 책을 모아두는\n나만의 공간 !'],
-              style: widget.bodyStyle,
-              textAlign: TextAlign.left,
-              eraseAtEnd: true,
-              onComplete: () {
-                if (mounted) setState(() => _eraseTitle = true);
-              },
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SearchStep extends ConsumerStatefulWidget {
-  const _SearchStep({
-    required this.promptStyle,
-    required this.prompt,
-    required this.queryCtrl,
-    required this.onSubmit,
-    required this.onBookTap,
-  });
-  final TextStyle promptStyle;
-  final String prompt;
-  final TextEditingController queryCtrl;
-  final VoidCallback onSubmit;
-  final Future<void> Function(BookItem) onBookTap;
-
-  @override
-  ConsumerState<_SearchStep> createState() => _SearchStepState();
-}
-
-class _SearchStepState extends ConsumerState<_SearchStep> {
-  // 프롬프트 타이핑이 끝나기 전엔 검색창/리스트를 숨긴다.
-  bool _promptDone = false;
-  final _focusNode = FocusNode();
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  // 프롬프트 완료 → 검색창 노출 + 키보드 포커스.
-  void _onPromptDone() {
-    if (_promptDone) return;
-    setState(() => _promptDone = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
+    if (_choosing) return;
+    setState(() {
+      _choosing = true;
+      _loadingBookId = book.itemId;
     });
+    FocusManager.instance.primaryFocus?.unfocus();
+    try {
+      BookItem selected = book;
+      if (book.isbn.isNotEmpty && book.totalPage == null) {
+        selected =
+            await ref
+                .read(bookSearchProvider.notifier)
+                .lookupDetail(book.isbn) ??
+            book;
+      }
+      if (!mounted) return;
+      setState(() => _loadingBookId = null);
+      final result = await showOnboardingSavePopup(
+        context,
+        selected,
+        initialReason: _selectedBook?.itemId == selected.itemId
+            ? _reason
+            : null,
+      );
+      if (!mounted || result == null || !result.saved) return;
+      ref.read(pendingBookProvider.notifier).state = PendingBook(
+        book: selected,
+        reason: result.reason,
+      );
+      setState(() {
+        _selectedBook = selected;
+        _reason = result.reason;
+        _step = _Step.done;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _choosing = false;
+          _loadingBookId = null;
+        });
+      }
+    }
+  }
+
+  void _showSearch() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _step = _Step.search);
   }
 
   @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(bookSearchProvider);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _kSearchIndent),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: _kIconTop),
-          // 아이콘·프롬프트는 intro 와 같은 좌측 40 위치에 맞춘다(아이콘 고정).
-          // 바깥 Padding 이 16 이므로 추가로 (_kIconIndent - _kSearchIndent) 만큼 민다.
-          Padding(
-            padding: const EdgeInsets.only(
-                left: _kIconIndent - _kSearchIndent),
+  Widget build(BuildContext context) => Theme(
+    data: palette.theme,
+    child: AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        systemNavigationBarColor: palette.ink,
+      ),
+      child: PopScope(
+        canPop: _step == _Step.intro,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && !_choosing) {
+            setState(
+              () => _step = _step == _Step.done ? _Step.search : _Step.intro,
+            );
+          }
+        },
+        child: Scaffold(
+          backgroundColor: palette.ink,
+          body: SafeArea(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _OnboardingIcon(),
-                const SizedBox(height: 12),
-                // 프롬프트는 1회 타이핑 후 유지(검색 step 동안 재타이핑 방지
-                // 위해 key 고정). 완료되면 검색창을 노출한다.
-                TypingText(
-                  key: const ValueKey('search-prompt'),
-                  phrases: [widget.prompt],
-                  style: widget.promptStyle,
-                  textAlign: TextAlign.left,
-                  onComplete: _onPromptDone,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 10, 10, 0),
+                  child: Row(
+                    children: [
+                      Text(
+                        'MOABOOK / ${_step == _Step.intro
+                            ? 'PROLOGUE'
+                            : _step == _Step.search
+                            ? '01'
+                            : '02'}',
+                        style: palette.text(10, mono: true, color: muted),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: _choosing ? null : _skipToLogin,
+                        style: TextButton.styleFrom(
+                          foregroundColor: paper,
+                          textStyle: palette.text(12, color: paper),
+                        ),
+                        child: const Text('건너뛰기'),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 280),
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween(
+                          begin: const Offset(0, .025),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    ),
+                    child: switch (_step) {
+                      _Step.intro => _intro(),
+                      _Step.search => _search(),
+                      _Step.done => _done(),
+                    },
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 40),
-          // 검색창·결과는 프롬프트 타이핑이 끝난 뒤에만 노출.
-          if (_promptDone) ...[
-            Container(
-              height: 48,
-              color: AppColors.backgroundWhite,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: widget.queryCtrl,
-                      focusNode: _focusNode,
-                      autofocus: true,
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => widget.onSubmit(),
-                      style: AppTypography.dungGeunMoBody
-                          .copyWith(color: AppColors.textPrimary),
-                      decoration: InputDecoration(
-                        hintText: '책 제목을 검색해주세요.',
-                        hintStyle: AppTypography.dungGeunMoBody
-                            .copyWith(color: AppColors.textHint),
-                        border: InputBorder.none,
-                        isCollapsed: true,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: widget.onSubmit,
-                    child: const Icon(Icons.search,
-                        color: AppColors.textPrimary),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: state.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      itemCount: state.results.length,
-                      itemBuilder: (_, i) => _ResultItem(
-                          book: state.results[i], onTap: widget.onBookTap),
-                    ),
-            ),
-          ],
-        ],
+        ),
       ),
+    ),
+  );
+
+  Widget _primary(String title, VoidCallback onPressed) => SizedBox(
+    width: double.infinity,
+    child: FilledButton(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        backgroundColor: paper,
+        foregroundColor: palette.ink,
+        minimumSize: const Size.fromHeight(54),
+        shape: const RoundedRectangleBorder(),
+        textStyle: palette.text(15, weight: 600),
+      ),
+      child: Text(title),
+    ),
+  );
+
+  Widget _intro() => LayoutBuilder(
+    key: const ValueKey('onboarding-intro'),
+    builder: (context, constraints) => SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 24),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: (constraints.maxHeight - 44).clamp(0, double.infinity),
+        ),
+        child: IntrinsicHeight(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(width: 26, height: 4, color: palette.orange),
+              const Spacer(),
+              const SizedBox(height: 44),
+              _prompt('책과 함께한 시간은\n어디에 남아 있나요?', size: 29, identity: 'intro'),
+              const SizedBox(height: 22),
+              Text(
+                '읽고 싶어진 순간부터\n오래 기억하고 싶은 문장까지.',
+                style: palette.text(14, color: muted, height: 1.8),
+              ),
+              const SizedBox(height: 44),
+              const Spacer(),
+              Divider(height: 1, color: paper.withValues(alpha: .3)),
+              const SizedBox(height: 22),
+              Text('한 권으로 시작하는 나만의 서가', style: palette.text(12, color: muted)),
+              const SizedBox(height: 14),
+              _primary('첫 책 고르기', _showSearch),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _prompt(String text, {required String identity, double size = 26}) {
+    final style = palette.text(
+      size,
+      serif: true,
+      weight: 600,
+      color: paper,
+      height: 1.5,
     );
-  }
-}
-
-/// 온보딩 검색 결과 아이템 (Figma frame 4).
-/// 썸네일(84x120, 흰 배경) + 제목/작가/출판사. 텍스트 흰색.
-class _ResultItem extends StatelessWidget {
-  const _ResultItem({required this.book, required this.onTap});
-  final BookItem book;
-  final Future<void> Function(BookItem) onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => onTap(book),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Text(text, style: style);
+    }
+    return Semantics(
+      label: text,
+      child: ExcludeSemantics(
+        child: Stack(
           children: [
-            // 썸네일: 흰 배경 박스 위 커버 이미지.
-            SizedBox(
-              width: 86,
-              height: 120,
-              child: ColoredBox(
-                color: AppColors.backgroundWhite,
-                child: book.cover.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: book.cover,
-                        fit: BoxFit.cover,
-                        placeholder: (_, _) =>
-                            const ColoredBox(color: AppColors.backgroundGray),
-                        errorWidget: (_, _, _) =>
-                            const ColoredBox(color: AppColors.backgroundGray),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ),
-            const SizedBox(width: 18),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(book.title,
-                      style: AppTypography.wantedSansBookTitle
-                          .copyWith(color: AppColors.textWhite),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 8),
-                  Text(book.author,
-                      style: AppTypography.wantedSansBodySmall
-                          .copyWith(color: AppColors.textWhite),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 4),
-                  Text(book.publisher,
-                      style: AppTypography.wantedSansBodySmall
-                          .copyWith(color: AppColors.textWhite),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                ],
+            Opacity(opacity: 0, child: Text(text, style: style)),
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: TypingText(
+                  key: ValueKey(identity),
+                  phrases: [text],
+                  style: style,
+                  textAlign: TextAlign.left,
+                  charInterval: const Duration(milliseconds: 45),
+                ),
               ),
             ),
           ],
@@ -437,69 +262,268 @@ class _ResultItem extends StatelessWidget {
       ),
     );
   }
-}
 
-class _DoneStep extends StatefulWidget {
-  const _DoneStep({
-    required this.promptStyle,
-    required this.prompt,
-    required this.onStart,
-  });
-  final TextStyle promptStyle;
-  final String prompt;
-  final VoidCallback onStart;
-
-  @override
-  State<_DoneStep> createState() => _DoneStepState();
-}
-
-class _DoneStepState extends State<_DoneStep> {
-  // 텍스트 타이핑이 끝나기 전엔 시작하기 버튼을 숨긴다.
-  bool _textDone = false;
-
-  void _onTextDone() {
-    if (!_textDone && mounted) setState(() => _textDone = true);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Figma frame 6: 상단 앵커. 폭죽 → gap40 → 텍스트(좌측정렬) → gap40 →
-    // 작은 가운데 버튼. 버튼은 전체폭/바닥 고정 아님.
+  Widget _search() {
+    final state = ref.watch(bookSearchProvider);
+    final compact =
+        MediaQuery.viewInsetsOf(context).bottom > 0 ||
+        MediaQuery.sizeOf(context).height < 640;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      key: const ValueKey('onboarding-search'),
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 90),
-        const SizedBox(width: 268, height: 150, child: PixelFireworks()),
-        const SizedBox(height: 40),
-        // 텍스트 블록: 좌우 30 패딩, 좌측정렬.
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: SizedBox(
-            width: double.infinity,
-            child: TypingText(
-              phrases: [widget.prompt],
-              style: widget.promptStyle,
-              textAlign: TextAlign.left,
-              onComplete: _onTextDone,
-            ),
+          padding: EdgeInsets.fromLTRB(
+            22,
+            compact ? 8 : 18,
+            22,
+            compact ? 12 : 20,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (compact)
+                Text(
+                  '어떤 책을 찾고 있나요?',
+                  style: palette.text(
+                    20,
+                    serif: true,
+                    color: paper,
+                    weight: 600,
+                  ),
+                )
+              else ...[
+                _prompt('요즘 읽고 싶은 책이\n있으신가요?', identity: 'search', size: 25),
+                const SizedBox(height: 12),
+                Text(
+                  '제목이나 작가 이름으로 찾아보세요.',
+                  style: palette.text(12, color: muted),
+                ),
+              ],
+              SizedBox(height: compact ? 12 : 20),
+              TextField(
+                controller: _queryCtrl,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _runSearch(),
+                style: palette.text(16),
+                decoration: InputDecoration(
+                  hintText: '책 제목 또는 작가',
+                  hintStyle: palette.text(14, color: palette.muted),
+                  filled: true,
+                  fillColor: paper,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.zero,
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: const OutlineInputBorder(
+                    borderRadius: BorderRadius.zero,
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.zero,
+                    borderSide: BorderSide(color: palette.orange, width: 1.5),
+                  ),
+                  suffixIcon: IconButton(
+                    tooltip: '책 검색',
+                    onPressed: _runSearch,
+                    icon: DesignIcon('search', color: palette.ink),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 40),
-        // 시작하기: 텍스트 타이핑 완료 후 노출. 작은 pill, 가운데정렬.
-        if (_textDone)
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.onStart,
-            child: Container(
-              color: AppColors.backgroundGray,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: Text('시작하기',
-                  style: AppTypography.dungGeunMoSubtitle
-                      .copyWith(color: AppColors.textPrimary, fontSize: 16)),
-            ),
-          ),
+        Expanded(
+          child: state.isLoading
+              ? Center(child: CircularProgressIndicator(color: paper))
+              : state.error != null
+              ? _searchMessage(
+                  '책을 찾지 못했어요.',
+                  '연결을 확인하고 다시 시도해주세요.',
+                  retry: true,
+                )
+              : state.query.isEmpty
+              ? _searchMessage('어떤 책이든 좋아요.', '제목의 일부만 떠올라도 괜찮아요.')
+              : state.results.isEmpty
+              ? _searchMessage('아직 찾지 못했어요.', '제목의 일부나 작가 이름으로 다시 찾아보세요.')
+              : NotificationListener<ScrollNotification>(
+                  onNotification: (event) {
+                    if (event.metrics.axis == Axis.vertical &&
+                        event.metrics.extentAfter < 240 &&
+                        state.hasMore &&
+                        !state.isLoadingMore) {
+                      ref.read(bookSearchProvider.notifier).loadMore();
+                    }
+                    return false;
+                  },
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    itemCount:
+                        state.results.length + (state.isLoadingMore ? 1 : 0),
+                    separatorBuilder: (_, _) =>
+                        Divider(height: 1, color: paper.withValues(alpha: .2)),
+                    itemBuilder: (context, index) =>
+                        index == state.results.length
+                        ? Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Center(
+                              child: CircularProgressIndicator(color: paper),
+                            ),
+                          )
+                        : _result(state.results[index]),
+                  ),
+                ),
+        ),
       ],
     );
   }
+
+  Widget _searchMessage(String title, String subtitle, {bool retry = false}) =>
+      Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: palette.text(17, serif: true, color: paper, weight: 600),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                subtitle,
+                style: palette.text(12, color: muted),
+                textAlign: TextAlign.center,
+              ),
+              if (retry)
+                TextButton(
+                  onPressed: _runSearch,
+                  child: Text('다시 찾기', style: palette.text(13, color: paper)),
+                ),
+            ],
+          ),
+        ),
+      );
+
+  Widget _result(BookItem book) => InkWell(
+    onTap: _choosing ? null : () => _onBookTap(book),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OnboardingBook(book: book, width: 64, height: 90),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  book.title,
+                  style: palette.text(16, weight: 600, color: paper),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  book.author,
+                  style: palette.text(12, color: muted),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  book.publisher,
+                  style: palette.text(11, color: muted),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _loadingBookId == book.itemId
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: paper,
+                  ),
+                )
+              : const DesignIcon('chevron-right', color: muted, size: 18),
+        ],
+      ),
+    ),
+  );
+
+  Widget _done() => LayoutBuilder(
+    key: const ValueKey('onboarding-done'),
+    builder: (context, constraints) => SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(22, 8, 22, 22),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: (constraints.maxHeight - 30).clamp(0, double.infinity),
+        ),
+        child: IntrinsicHeight(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FirstBookShelf(book: _selectedBook!),
+              const SizedBox(height: 28),
+              Text(
+                '첫 책을 골랐어요.',
+                style: palette.text(27, serif: true, weight: 600, color: paper),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _selectedBook!.title,
+                style: palette.text(16, color: paper, weight: 600),
+              ),
+              if (_reason?.isNotEmpty == true) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(color: palette.orange, width: 3),
+                    ),
+                  ),
+                  child: Text(
+                    _reason!,
+                    style: palette.text(13, color: muted),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              Text(
+                '로그인하면 이 책이 내 서가에 꽂혀요.\n독서카드에서 첫 기록을 남겨보세요.',
+                style: palette.text(13, color: muted, height: 1.8),
+              ),
+              const SizedBox(height: 30),
+              const Spacer(),
+              _primary('로그인하고 서가 시작하기', _startToLogin),
+              Center(
+                child: TextButton(
+                  onPressed: _showSearch,
+                  child: Text(
+                    '다른 책 고르기',
+                    style: palette.text(12, color: muted),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }

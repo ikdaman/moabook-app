@@ -2910,9 +2910,35 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     });
   }
 
+  Widget recordBookContext() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          cover(book, width: 43, height: 59),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                t(book.title, 14, weight: 600, lines: 2),
+                gap(4),
+                t(book.author, 11, color: p.muted, lines: 1),
+              ],
+            ),
+          ),
+        ],
+      ),
+      gap(18),
+      rule(),
+      gap(20),
+    ],
+  );
+
   Widget recordSheet() => sheet(
     '기록 추가',
     [
+      recordBookContext(),
       for (final group in ['독서 상태', '책 수령', '순간 기록']) ...[
         recordGroup(
           group,
@@ -2975,6 +3001,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     return sheet(
       recordKind,
       [
+        recordBookContext(),
         actionText('카테고리 바꾸기', 'chevron-left', () => go('record-options')),
         gap(16),
         if (operationError != null) ...[
