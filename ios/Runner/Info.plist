@@ -4,6 +4,8 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>서가와 컬렉션 이미지를 사진 앱에 저장하기 위해 사진 라이브러리에 접근합니다.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>서가와 컬렉션 이미지를 사진에 저장합니다.</string>
 	<key>NSCameraUsageDescription</key>
