@@ -3,12 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/router/routes.dart';
-import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_typography.dart';
 import '../../../domain/model/signup_state.dart';
 import '../../../shared/widgets/keyboard_dismisser.dart';
-import '../../../shared/widgets/pixel_shadow_box.dart';
-import '../../../shared/widgets/title_bar.dart';
+import 'package:moabook_reading_ui/moabook_reading_ui.dart';
 import '../provider/auth_provider.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -28,6 +25,7 @@ class SignupScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
+  static const palette = DesignPalette(Mood.a);
   final _controller = TextEditingController();
 
   /// 중복 안내가 떠 있는 동안 마지막으로 제출했던 닉네임.
@@ -50,10 +48,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   void _onTextChanged() {
     // 닉네임을 수정하면 중복 차단을 해제한다.
-    if (_rejectedNickname != null &&
-        _controller.text.trim() != _rejectedNickname) {
-      _rejectedNickname = null;
-    }
+    setState(() {
+      if (_controller.text.trim() != _rejectedNickname) {
+        _rejectedNickname = null;
+      }
+    });
   }
 
   void _onComplete() {
@@ -95,84 +94,173 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     });
 
     final signupState = ref.watch(signupStateProvider);
-    final isDuplicate = signupState is SignupNicknameDuplicate;
-
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      // 밝은 배경 → 상태바 아이콘/텍스트 어둡게(검정).
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark, // Android
-        statusBarBrightness: Brightness.light, // iOS
-      ),
-      child: Scaffold(
-      backgroundColor: AppColors.backgroundDefault,
-      body: KeyboardDismisser(
-        child: SafeArea(
-          child: Column(
-            children: [
-              TitleBar(
-                title: '닉네임 입력',
-                showBackButton: true,
-                onBack: () => context.pop(),
-                rightText: '완료',
-                onRight: _onComplete,
+    final isLoading = signupState is SignupLoading;
+    final isDuplicate =
+        signupState is SignupNicknameDuplicate &&
+        _rejectedNickname == _controller.text.trim();
+    final canSubmit =
+        _controller.text.trim().isNotEmpty && !isLoading && !isDuplicate;
+    return Theme(
+      data: palette.theme,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark,
+        child: PopScope(
+          canPop: !isLoading,
+          child: Scaffold(
+            backgroundColor: palette.background,
+            appBar: AppBar(
+              backgroundColor: palette.background,
+              foregroundColor: palette.ink,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              title: Text('닉네임 입력', style: palette.text(20, weight: 600)),
+              centerTitle: false,
+              leading: IconButton(
+                tooltip: '로그인으로 돌아가기',
+                onPressed: isLoading
+                    ? null
+                    : () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go(Routes.login);
+                        }
+                      },
+                icon: DesignIcon('chevron-left', color: palette.ink),
               ),
-              const SizedBox(height: 60),
-              Text(
-                '닉네임을 입력해주세요.',
-                style: AppTypography.dungGeunMoHeader.copyWith(
-                  color: AppColors.textPrimary,
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(1),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                  child: Divider(height: 1, thickness: 1, color: palette.ink),
                 ),
-                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 60),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+            body: KeyboardDismisser(
+              child: SafeArea(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PixelShadowBox(
-                      backgroundColor: AppColors.backgroundWhite,
-                      contentAlignment: Alignment.centerLeft,
-                      child: TextField(
-                        controller: _controller,
-                        autofocus: true,
-                        style: AppTypography.wantedSansBody.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                        decoration: const InputDecoration(
-                          isCollapsed: true,
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(22, 30, 22, 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'MOABOOK / YOUR NAME',
+                              style: palette.text(
+                                10,
+                                mono: true,
+                                color: palette.muted,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Text(
+                              '서가에서 사용할\n이름을 알려주세요.',
+                              style: palette.text(
+                                28,
+                                serif: true,
+                                weight: 600,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              '모아북에서 부를 나만의 이름이에요.',
+                              style: palette.text(13, color: palette.muted),
+                            ),
+                            const SizedBox(height: 32),
+                            Text('닉네임', style: palette.text(13, weight: 600)),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: _controller,
+                              autofocus: true,
+                              enabled: !isLoading,
+                              maxLength: 10,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) {
+                                if (canSubmit) _onComplete();
+                              },
+                              style: palette.text(16),
+                              decoration: InputDecoration(
+                                hintText: '닉네임을 입력해주세요.',
+                                hintStyle: palette.text(
+                                  14,
+                                  color: palette.muted,
+                                ),
+                                filled: true,
+                                fillColor: palette.card,
+                                counterStyle: palette.text(
+                                  11,
+                                  color: palette.muted,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.zero,
+                                  borderSide: BorderSide(color: palette.line),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.zero,
+                                  borderSide: BorderSide(
+                                    color: palette.ink,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                disabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.zero,
+                                  borderSide: BorderSide(color: palette.line),
+                                ),
+                              ),
+                            ),
+                            if (isDuplicate) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                '중복된 닉네임이에요.\n닉네임을 다시 확인해주세요.',
+                                style: palette.text(13, color: palette.orange),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ),
-                    if (isDuplicate) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        '중복된 닉네임이에요.',
-                        style: AppTypography.dungGeunMoTag.copyWith(
-                          color: AppColors.primary,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: canSubmit ? _onComplete : null,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: palette.button,
+                            foregroundColor: palette.onButton,
+                            disabledBackgroundColor: palette.line,
+                            disabledForegroundColor: palette.muted,
+                            minimumSize: const Size.fromHeight(54),
+                            shape: const RoundedRectangleBorder(),
+                            textStyle: palette.text(15, weight: 600),
+                          ),
+                          child: isLoading
+                              ? SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: palette.ink,
+                                  ),
+                                )
+                              : const Text('완료'),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '닉네임을 다시 확인해주세요.',
-                        style: AppTypography.dungGeunMoTag.copyWith(
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }

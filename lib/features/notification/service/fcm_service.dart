@@ -72,7 +72,6 @@ class FcmService {
     try {
       final token = await _messaging.getToken();
       if (token != null) {
-        debugPrint('FCM token: $token');
         _currentToken = token;
         onTokenIssued?.call(token);
       }
@@ -82,14 +81,14 @@ class FcmService {
 
     // 3) onTokenRefresh — 토큰 회전 시 동일 콜백 재호출.
     _onTokenRefreshSub = _messaging.onTokenRefresh.listen((t) {
-      debugPrint('FCM token refreshed: $t');
+      debugPrint('FCM token refreshed');
       _currentToken = t;
       onTokenIssued?.call(t);
     });
 
     // 4) 포그라운드 — 시스템이 안 그려주므로 로컬 알림으로 표시.
     _onMessageSub = FirebaseMessaging.onMessage.listen((msg) {
-      debugPrint('FCM onMessage: ${msg.data}');
+      debugPrint('FCM message received');
       final notif = msg.notification;
       _local.show(
         title: notif?.title ?? msg.data['title']?.toString() ?? '모아북',
@@ -100,14 +99,14 @@ class FcmService {
 
     // 5) 백그라운드 → 알림 탭 진입.
     _onOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((msg) {
-      debugPrint('FCM onMessageOpenedApp: ${msg.data}');
+      debugPrint('FCM notification opened');
       _routing.routeFromPayload(msg.data);
     });
 
     // 6) 종료 상태에서 알림 탭으로 cold-start — initState 후 한 번만 처리.
     final initial = await _messaging.getInitialMessage();
     if (initial != null) {
-      debugPrint('FCM getInitialMessage: ${initial.data}');
+      debugPrint('FCM launch notification received');
       // 라우터가 준비된 다음 프레임에 라우팅.
       scheduleMicrotask(() => _routing.routeFromPayload(initial.data));
     }
@@ -197,5 +196,5 @@ class FcmService {
 /// (FCM `notification` payload 가 시스템 알림으로 자동 표시).
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('FCM background isolate: ${message.messageId} data=${message.data}');
+  debugPrint('FCM background message received');
 }

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:gal/gal.dart';
 import 'package:moabook_reading/moabook_reading.dart';
+import 'package:moabook_reading_ui/moabook_reading_ui.dart';
 import 'reading_image_renderer.dart';
 
 class ReadingExportScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class ReadingExportScreen extends StatefulWidget {
 }
 
 class _ReadingExportScreenState extends State<ReadingExportScreen> {
+  static const palette = DesignPalette(Mood.a);
   late final renderer = widget.renderer ?? ReadingImageRenderer();
   late Future<Uint8List> preview = renderer.render(widget.request, 0);
   final saved = <int>{};
@@ -67,30 +69,54 @@ class _ReadingExportScreenState extends State<ReadingExportScreen> {
     }
   }
 
+  PreferredSizeWidget appBar() => AppBar(
+    title: Text('이미지 저장', style: palette.text(20, weight: 600)),
+    backgroundColor: palette.background,
+    foregroundColor: palette.ink,
+    surfaceTintColor: Colors.transparent,
+    elevation: 0,
+    scrolledUnderElevation: 0,
+    centerTitle: false,
+    automaticallyImplyLeading: !saving,
+    bottom: PreferredSize(
+      preferredSize: const Size.fromHeight(1),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 22),
+        child: Divider(height: 1, thickness: 1, color: palette.ink),
+      ),
+    ),
+  );
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      Theme(data: palette.theme, child: buildContent(context));
+
+  Widget buildContent(BuildContext context) {
     if (widget.request.books.isEmpty) {
       return Scaffold(
-        backgroundColor: ReadingImageRenderer.paper,
-        appBar: AppBar(title: const Text('이미지 저장')),
-        body: const Center(child: Text('저장할 책이 없어요.')),
+        backgroundColor: palette.background,
+        appBar: appBar(),
+        body: Center(
+          child: Text(
+            '저장할 책이 없어요.',
+            style: palette.text(15, color: palette.muted),
+          ),
+        ),
       );
     }
     return PopScope(
       canPop: !saving,
       child: Scaffold(
-        backgroundColor: ReadingImageRenderer.paper,
-        appBar: AppBar(
-          title: const Text('이미지 저장'),
-          automaticallyImplyLeading: !saving,
-        ),
+        backgroundColor: palette.background,
+        appBar: appBar(),
         body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
             child: Column(
               children: [
                 Text(
                   '${widget.request.books.length}권을 ${widget.request.pageCount}장의 이미지로 저장합니다.',
+                  style: palette.text(13, color: palette.muted),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
@@ -108,17 +134,29 @@ class _ReadingExportScreenState extends State<ReadingExportScreen> {
                                       page,
                                     ),
                                   ),
-                            child: const Text('미리보기 다시 만들기'),
+                            child: Text(
+                              '미리보기 다시 만들기',
+                              style: palette.text(14, weight: 600),
+                            ),
                           ),
                         );
                       }
                       if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
+                        return Center(
+                          child: CircularProgressIndicator(color: palette.ink),
+                        );
                       }
-                      return Image.memory(
-                        snapshot.data!,
-                        fit: BoxFit.contain,
-                        gaplessPlayback: true,
+                      return Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: palette.card,
+                          border: Border.all(color: palette.line),
+                        ),
+                        child: Image.memory(
+                          snapshot.data!,
+                          fit: BoxFit.contain,
+                          gaplessPlayback: true,
+                        ),
                       );
                     },
                   ),
@@ -136,7 +174,10 @@ class _ReadingExportScreenState extends State<ReadingExportScreen> {
                             }),
                       icon: const Icon(Icons.chevron_left),
                     ),
-                    Text('${page + 1} / ${widget.request.pageCount}'),
+                    Text(
+                      '${page + 1} / ${widget.request.pageCount}',
+                      style: palette.text(12, mono: true),
+                    ),
                     IconButton(
                       tooltip: '다음 이미지',
                       onPressed: saving || page + 1 == widget.request.pageCount
@@ -152,13 +193,41 @@ class _ReadingExportScreenState extends State<ReadingExportScreen> {
                 if (message != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(message!, textAlign: TextAlign.center),
+                    child: Text(
+                      message!,
+                      style: palette.text(13),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 if (saved.isNotEmpty && saved.length < widget.request.pageCount)
-                  Text('${saved.length}장 저장됨 · 다시 시도하면 남은 이미지만 저장해요.'),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      '${saved.length}장 저장됨 · 다시 시도하면 남은 이미지만 저장해요.',
+                      style: palette.text(12, color: palette.muted),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: palette.button,
+                      foregroundColor: palette.onButton,
+                      disabledBackgroundColor: palette.line,
+                      disabledForegroundColor: palette.ink,
+                      minimumSize: const Size.fromHeight(54),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 14,
+                      ),
+                      shape: const RoundedRectangleBorder(),
+                      textStyle: palette.text(
+                        15,
+                        weight: 600,
+                        color: palette.onButton,
+                      ),
+                    ),
                     onPressed:
                         saving || saved.length == widget.request.pageCount
                         ? null

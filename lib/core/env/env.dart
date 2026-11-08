@@ -27,6 +27,6 @@ abstract final class Env {
   );
   static const readingPageSizeKey = String.fromEnvironment(
     'READING_PAGE_SIZE_KEY',
-    defaultValue: 'limit',
+    defaultValue: 'size',
   );
 }

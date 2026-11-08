@@ -91,6 +91,17 @@ void main() {
       expect(state.isLive, isTrue);
       expect(state.library.keys, ['71']);
       expect(adapter.requests, containsAll(['/mybooks', '/collections']));
+      expect(find.byTooltip('새로고침'), findsNothing);
+      final shelfLoads = adapter.requests
+          .where((path) => path == '/mybooks')
+          .length;
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      expect(
+        adapter.requests.where((path) => path == '/mybooks').length,
+        shelfLoads + 1,
+      );
       state.openBook(state.library['71']!);
       await tester.pumpAndSettle();
       expect(

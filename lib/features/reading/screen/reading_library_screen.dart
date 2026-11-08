@@ -25,8 +25,28 @@ class ReadingLibraryScreen extends ConsumerStatefulWidget {
       _ReadingLibraryScreenState();
 }
 
-class _ReadingLibraryScreenState extends ConsumerState<ReadingLibraryScreen> {
+class _ReadingLibraryScreenState extends ConsumerState<ReadingLibraryScreen>
+    with WidgetsBindingObserver {
   final workspace = GlobalKey<ReadingWorkspaceState>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(workspace.currentState?.reloadFromServer());
+    }
+  }
 
   Future<ReadingBook?> capture() async {
     final result = await context.push<BookItem>(
@@ -37,11 +57,6 @@ class _ReadingLibraryScreenState extends ConsumerState<ReadingLibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(readingRefreshProvider, (previous, next) {
-      unawaited(
-        workspace.currentState?.reloadFromServer() ?? Future<void>.value(),
-      );
-    });
     return ref
         .watch(isLoggedInProvider)
         .when(

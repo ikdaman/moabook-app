@@ -154,34 +154,60 @@ class VerticalSpineTitle extends StatelessWidget {
         applyHeightToLastDescent: false,
       );
       final scaler = MediaQuery.textScalerOf(context);
-      final step = scaler.scale(style.fontSize ?? 11);
-      var count = (constraints.maxHeight / step)
-          .floor()
-          .clamp(0, glyphs.length)
-          .toInt();
+      var count = glyphs.length;
+      final spaceStyle = glyphStyle.copyWith(
+        fontSize: (style.fontSize ?? 11) * .35,
+      );
+      TextSpan paragraph(int count) => TextSpan(
+        style: spaceStyle,
+        children: [
+          for (var i = 0; i < count; i++) ...[
+            TextSpan(
+              text: i == count - 1 && glyphs.length > count ? '⋮' : glyphs[i],
+              // A word space needs a small pause, not an entire glyph cell.
+              style:
+                  glyphs[i] == ' ' && !(i == count - 1 && glyphs.length > count)
+                  ? spaceStyle
+                  : glyphStyle,
+            ),
+            if (i < count - 1) TextSpan(text: '\n', style: spaceStyle),
+          ],
+        ],
+      );
       final painter = TextPainter(
         textDirection: Directionality.of(context),
         textScaler: scaler,
         textHeightBehavior: heightBehavior,
       );
-      var visibleTitle = '';
-      while (count > 0) {
-        visibleTitle = [
-          for (var i = 0; i < count; i++)
-            i == count - 1 && glyphs.length > count ? '⋮' : glyphs[i],
-        ].join('\n');
-        painter.text = TextSpan(text: visibleTitle, style: glyphStyle);
-        painter.layout(maxWidth: constraints.maxWidth);
-        if (painter.height <= constraints.maxHeight) break;
-        count--;
+      var visibleTitle = paragraph(count);
+      painter.text = visibleTitle;
+      painter.layout(maxWidth: constraints.maxWidth);
+      if (painter.height > constraints.maxHeight) {
+        // Find the longest fitting prefix without laying out every shorter title.
+        var low = 1;
+        var high = count - 1;
+        count = 0;
+        while (low <= high) {
+          final candidate = (low + high) ~/ 2;
+          final span = paragraph(candidate);
+          painter.text = span;
+          painter.layout(maxWidth: constraints.maxWidth);
+          if (painter.height <= constraints.maxHeight) {
+            count = candidate;
+            visibleTitle = span;
+            low = candidate + 1;
+          } else {
+            high = candidate - 1;
+          }
+        }
       }
       painter.dispose();
       if (count == 0) return const SizedBox.shrink();
       return Align(
         alignment: Alignment.topCenter,
-        child: Text(
+        child: Text.rich(
           visibleTitle,
-          style: glyphStyle,
+          style: spaceStyle,
           textHeightBehavior: heightBehavior,
           maxLines: count,
           softWrap: false,

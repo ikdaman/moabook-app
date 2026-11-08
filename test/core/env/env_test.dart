@@ -8,7 +8,7 @@ void main() {
       expect(Env.catalogSearchPath, '/books');
       expect(Env.catalogDetailPath, '/books/detail');
       expect(Env.readingShelfPath, '/mybooks');
-      expect(Env.readingPageSizeKey, 'limit');
+      expect(Env.readingPageSizeKey, 'size');
     },
   );
   test('Env.baseUrl has default value', () {

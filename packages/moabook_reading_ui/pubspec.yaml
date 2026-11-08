@@ -8,5 +8,6 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_svg: ^2.0.10+1
+  cached_network_image: ^3.4.1
   moabook_reading:
     path: ../moabook_reading

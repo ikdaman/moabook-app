@@ -10,6 +10,9 @@ class Gateway implements ReadingGateway {
   bool shelfFails = false, cardFails = false;
   String? savedBookId;
   Object? bookSaveError;
+  int shelfLoads = 0, collectionLoads = 0, collectionDetailLoads = 0;
+  List<ReadingBook> shelfBooks = [serverBook];
+  List<ReadingCollectionSummary> summaries = [];
   int bookPosts = 0;
   ReadingBookCheck? checkResult;
   @override
@@ -28,12 +31,17 @@ class Gateway implements ReadingGateway {
   Completer<ReadingCollectionDetail>? collectionWrite;
   Object? recordError;
   int recordPosts = 0;
+  Future<ReadingShelf>? shelfResponse;
+  Future<List<ReadingCollectionSummary>>? collectionsResponse;
+  Future<ReadingCollectionDetail>? detailResponse;
   final records = <ReadingRecord>[];
   ReadingCategory? status = ReadingCategory.done;
   @override
   Future<ReadingShelf> loadShelf() async {
+    shelfLoads++;
     if (shelfFails) throw StateError('server unavailable');
-    return ReadingShelf(books: [serverBook], totalCount: 1);
+    if (shelfResponse != null) return await shelfResponse!;
+    return ReadingShelf(books: shelfBooks, totalCount: shelfBooks.length);
   }
 
   @override
@@ -50,13 +58,22 @@ class Gateway implements ReadingGateway {
   @override
   Future<List<ReadingRecord>> loadRecords(String bookId) async => records;
   @override
-  Future<List<ReadingCollectionSummary>> loadCollections() async => [];
+  Future<List<ReadingCollectionSummary>> loadCollections() async {
+    collectionLoads++;
+    if (collectionsResponse != null) return await collectionsResponse!;
+    return summaries;
+  }
+
   @override
-  Future<ReadingCollectionDetail> loadCollection(String collectionId) async =>
-      ReadingCollectionDetail(
-        collection: ReadingCollection(id: collectionId, name: '서버 모음'),
-        books: [],
-      );
+  Future<ReadingCollectionDetail> loadCollection(String collectionId) async {
+    collectionDetailLoads++;
+    if (detailResponse != null) return await detailResponse!;
+    return ReadingCollectionDetail(
+      collection: ReadingCollection(id: collectionId, name: '서버 모음'),
+      books: [],
+    );
+  }
+
   @override
   Future<ReadingCollectionDetail> createCollection(String name) =>
       collectionWrite!.future;
@@ -147,6 +164,134 @@ void main() {
     tester.testTextInput.hide();
     await tester.pumpAndSettle();
   }
+
+  testWidgets(
+    'library tabs reload changed server lists and collection details',
+    (tester) async {
+      final gateway = Gateway();
+      final state = await open(tester, gateway);
+      expect(gateway.shelfLoads, 1);
+      expect(gateway.collectionLoads, 1);
+      gateway.summaries = [
+        ReadingCollectionSummary(id: '9', name: '새 컬렉션', representatives: []),
+      ];
+      await tap(tester, '주제 서가');
+      await tester.pumpAndSettle();
+      expect(gateway.collectionLoads, 2);
+      expect(gateway.collectionDetailLoads, 1);
+      expect(state.currentCollection.id, '9');
+      gateway.shelfBooks = [
+        serverBook,
+        const ReadingBook('72', '새 책', '작가', '출판사', '', ''),
+      ];
+      await tap(tester, '기본 서가');
+      await tester.pumpAndSettle();
+      expect(gateway.shelfLoads, 2);
+      expect(state.library.keys, contains('72'));
+      await tap(tester, '주제 서가');
+      await tester.pumpAndSettle();
+      expect(gateway.collectionLoads, 3);
+      expect(gateway.collectionDetailLoads, 2);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'tab refresh keeps cached shelves visible while requests are pending',
+    (tester) async {
+      final gateway = Gateway()
+        ..summaries = [
+          ReadingCollectionSummary(id: '9', name: '서버 모음', representatives: []),
+        ];
+      final state = await open(tester, gateway);
+      await tap(tester, '주제 서가');
+      await tester.pumpAndSettle();
+      final shelf = Completer<ReadingShelf>();
+      gateway.shelfResponse = shelf.future;
+      await tap(tester, '기본 서가');
+      expect(find.byKey(const Key('shelf-pager')), findsOneWidget);
+      expect(find.byKey(const ValueKey('spine-71')), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      shelf.complete(ReadingShelf(books: [serverBook], totalCount: 1));
+      await tester.pumpAndSettle();
+      final summaries = Completer<List<ReadingCollectionSummary>>();
+      final detail = Completer<ReadingCollectionDetail>();
+      gateway.collectionsResponse = summaries.future;
+      gateway.detailResponse = detail.future;
+      await tap(tester, '주제 서가');
+      expect(find.byKey(const Key('collection-pager')), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      summaries.complete(gateway.summaries);
+      await tester.pump();
+      expect(state.loadedCollections, contains('9'));
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      detail.complete(
+        ReadingCollectionDetail(
+          collection: ReadingCollection(id: '9', name: '갱신된 모음'),
+          books: [],
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(state.currentCollection.name, '갱신된 모음');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'boundary transitions defer refresh until after sliding and reverse server order',
+    (tester) async {
+      final gateway = Gateway()
+        ..summaries = [
+          ReadingCollectionSummary(
+            id: '1',
+            name: '먼저 만든 모음',
+            representatives: [],
+          ),
+          ReadingCollectionSummary(
+            id: '2',
+            name: '나중에 만든 모음',
+            representatives: [],
+          ),
+        ];
+      final state = await open(tester, gateway);
+      expect(state.collectionData.map((c) => c.id), ['2', '1']);
+      expect(gateway.collectionLoads, 1);
+      expect(gateway.collectionDetailLoads, 0);
+      await tester.drag(
+        find.byKey(const Key('shelf-pager')),
+        const Offset(-300, 0),
+      );
+      await tester.pump();
+      expect(state.screen, 'collection');
+      expect(gateway.collectionLoads, 1);
+      expect(gateway.collectionDetailLoads, 0);
+      await tester.pump(const Duration(milliseconds: 140));
+      expect(gateway.collectionLoads, 1);
+      expect(gateway.collectionDetailLoads, 0);
+      await tester.pumpAndSettle();
+      expect(gateway.collectionLoads, 2);
+      expect(gateway.collectionDetailLoads, 1);
+      expect(state.currentCollection.id, '2');
+      final delayed = Completer<ReadingShelf>();
+      gateway.shelfResponse = delayed.future;
+      await tester.drag(
+        find.byKey(const Key('collection-pager')),
+        const Offset(300, 0),
+      );
+      await tester.pump();
+      expect(state.screen, 'shelf');
+      expect(gateway.shelfLoads, 1);
+      await tester.pump(const Duration(milliseconds: 140));
+      expect(gateway.shelfLoads, 1);
+      await tester.pumpAndSettle();
+      expect(gateway.shelfLoads, 2);
+      expect(find.byKey(const ValueKey('spine-71')), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      delayed.complete(ReadingShelf(books: [serverBook], totalCount: 1));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'scrolling appends pages, reuses submitted query and removes duplicates',

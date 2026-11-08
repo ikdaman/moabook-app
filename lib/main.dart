@@ -14,7 +14,6 @@ import 'core/env/env.dart';
 import 'core/network/auth_event.dart';
 import 'features/auth/provider/auth_provider.dart';
 import 'features/home/provider/home_provider.dart';
-import 'features/reading/provider/reading_gateway_provider.dart';
 import 'features/notification/provider/notification_providers.dart';
 import 'features/notification/provider/push_settings_provider.dart';
 import 'features/notification/service/fcm_service.dart';
@@ -56,7 +55,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       appRouter.go(Routes.login);
     });
     // 푸시 핸들러 와이어업 + 토큰 발급. 백엔드 등록(P2)은 onTokenIssued 콜백
-    // 에서 후속 작업. 백엔드 미구현이어도 토큰 콘솔 출력 + 메시지 수신/라우팅 동작.
+    // 에서 후속 작업. 토큰·메시지 내용은 로그에 출력하지 않는다.
     ref.read(fcmServiceProvider).initialize();
   }
 
@@ -74,12 +73,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _rescheduleCIfEnabled();
-      if (ref.read(isLoggedInProvider).valueOrNull == true) {
-        if (Env.useNewReadingUi) {
-          ref.read(readingRefreshProvider.notifier).state++;
-        } else {
-          ref.read(homeProvider.notifier).load();
-        }
+      // ReadingLibraryScreen owns refreshes for the new workspace.
+      if (!Env.useNewReadingUi &&
+          ref.read(isLoggedInProvider).valueOrNull == true) {
+        ref.read(homeProvider.notifier).load();
       }
     }
   }

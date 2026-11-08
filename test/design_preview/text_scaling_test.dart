@@ -28,9 +28,56 @@ void main() {
         matching: find.byType(Text),
       ),
     );
-    expect(text.data!.replaceAll('\n', ''), title);
-    expect(text.data, contains('을\n \n의'));
+    expect(text.textSpan!.toPlainText().replaceAll('\n', ''), title);
+    expect(text.textSpan!.toPlainText(), contains('을\n \n의'));
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.descendant(
+        of: find.byType(VerticalSpineTitle),
+        matching: find.byType(RichText),
+      ),
+    );
+    final painter = TextPainter(
+      text: paragraph.text,
+      textDirection: TextDirection.ltr,
+      textHeightBehavior: paragraph.textHeightBehavior,
+    )..layout(maxWidth: 34);
+    final lines = painter.computeLineMetrics();
+    // The pause between words is smaller than one full character cell.
+    expect(lines[4].baseline - lines[2].baseline, lessThan(17));
+    painter.dispose();
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('truncation keeps the ellipsis full size at a word boundary', (
+    tester,
+  ) async {
+    for (final height in [40.0, 50.0, 60.0, 70.0, 80.0]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: SizedBox(
+              width: 34,
+              height: height,
+              child: VerticalSpineTitle(
+                '가 가 가 가 가 가 가 가 가 가',
+                style: const DesignPalette(Mood.a).text(11, height: 1),
+              ),
+            ),
+          ),
+        ),
+      );
+      final text = tester.widget<Text>(
+        find.descendant(
+          of: find.byType(VerticalSpineTitle),
+          matching: find.byType(Text),
+        ),
+      );
+      final spans = (text.textSpan! as TextSpan).children!
+          .whereType<TextSpan>();
+      final ellipsis = spans.singleWhere((span) => span.text == '⋮');
+      expect(ellipsis.style!.fontSize, 11);
+      expect(tester.takeException(), isNull);
+    }
   });
 
   testWidgets('vertical titles keep compact baselines without clipping', (
@@ -60,7 +107,10 @@ void main() {
         matching: find.byType(Text),
       );
       expect(glyphs, findsOneWidget);
-      expect(tester.widget<Text>(glyphs).data, contains('⋮'));
+      expect(
+        tester.widget<Text>(glyphs).textSpan!.toPlainText(),
+        contains('⋮'),
+      );
       for (final element in glyphs.evaluate()) {
         final paragraph = element.renderObject! as RenderParagraph;
         expect(

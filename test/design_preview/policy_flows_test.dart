@@ -26,6 +26,39 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('record action stays visible while a long card list scrolls', (
+    tester,
+  ) async {
+    final state = await open(tester, 'card-back');
+    state.journals[state.book.id] = ReadingJournal(
+      List.generate(
+        30,
+        (i) => ReadingRecord(
+          id: 'long-$i',
+          category: ReadingCategory.free,
+          date: DateTime(2026, 11, 1),
+          memo: '기록 $i: 오래 기억할 책 속의 순간입니다.',
+        ),
+      ),
+    );
+    state.flipCard('card-back');
+    await tester.pumpAndSettle();
+    final action = find.text('기록 추가');
+    final before = tester.getCenter(action);
+    await tester.drag(
+      find.byKey(const ValueKey('card-record-list')),
+      const Offset(0, -600),
+    );
+    await tester.pumpAndSettle();
+    expect(state.scroll.offset, greaterThan(0));
+    expect(tester.getCenter(action), before);
+    expect(action.hitTestable(), findsOneWidget);
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    expect(state.screen, 'record-options');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'creation requires a name and opens a new collection with nine empty slots',
     (tester) async {

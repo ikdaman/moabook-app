@@ -166,6 +166,12 @@ void main() {
             Offset(-size.width * .8, 0),
           );
           await tester.pumpAndSettle();
+          expect(find.byKey(const Key('collection-pager')), findsOneWidget);
+          await tester.drag(
+            find.byKey(const Key('collection-pager')),
+            Offset(size.width * .8, 0),
+          );
+          await tester.pumpAndSettle();
           expect(indicator(), '$pages / $pages');
           final last = shelfPreviewBooks.last;
           await tester.tap(find.byKey(ValueKey('spine-${last.id}')));
@@ -188,6 +194,54 @@ void main() {
           expect(find.text('책 제목으로 검색'), findsOneWidget);
         }
       }
+    },
+  );
+
+  testWidgets(
+    'shelf boundaries slide between the last shelf and first collection',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(402, 874);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(const DesignPreviewApp());
+      await tester.pumpAndSettle();
+      final state = tester.state<DesignPreviewState>(
+        find.byType(DesignPreview),
+      );
+      final last = state.shelfPageCount - 1;
+      state.shelfPages.jumpToPage(last);
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byKey(const Key('shelf-pager')),
+        const Offset(-300, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(state.screen, 'collection');
+      expect(state.collectionPage, 0);
+      // Moving within the collection pager must still work normally.
+      await tester.drag(
+        find.byKey(const Key('collection-pager')),
+        const Offset(-300, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(state.screen, 'collection');
+      expect(state.collectionPage, 1);
+      await tester.drag(
+        find.byKey(const Key('collection-pager')),
+        const Offset(300, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(state.screen, 'collection');
+      expect(state.collectionPage, 0);
+      await tester.drag(
+        find.byKey(const Key('collection-pager')),
+        const Offset(300, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(state.screen, 'shelf');
+      expect(state.shelfPage, last);
+      expect(state.shelfPages.page, last.toDouble());
+      expect(tester.takeException(), isNull);
     },
   );
 

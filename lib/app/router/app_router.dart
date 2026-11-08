@@ -60,6 +60,8 @@ final appRouter = GoRouter(
     ShellRoute(
       builder: (context, state, child) {
         final path = state.uri.path;
+        // Settings is a standalone screen in both reading UI modes.
+        if (path == Routes.setting) return child;
         if (Env.useNewReadingUi &&
             ([Routes.home, Routes.searchBook, Routes.history].contains(path) ||
                 path.startsWith('/main/book-info/'))) {

@@ -1,6 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:moabook_reading_ui/moabook_reading_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -8,11 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/router/routes.dart';
-import '../../../app/theme/app_colors.dart';
-import '../../../app/theme/app_typography.dart';
 import '../../../domain/model/login_state.dart';
-import '../../../shared/widgets/pixel_shadow_box.dart';
-import '../../../shared/widgets/retro_loading.dart';
 import '../provider/auth_provider.dart';
 
 const _termsUrl =
@@ -22,6 +18,7 @@ const _privacyUrl =
 
 class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
+  static const palette = DesignPalette(Mood.a);
 
   Future<void> _open(String url) =>
       launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
@@ -41,9 +38,9 @@ class LoginScreen extends ConsumerWidget {
           },
         );
       } else if (state is LoginError && state.message.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(state.message)));
       }
     });
 
@@ -51,102 +48,168 @@ class LoginScreen extends ConsumerWidget {
     final isLoading = loginState is LoginLoading;
     final auth = ref.read(authNotifierProvider.notifier);
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      // 밝은 배경 → 상태바 아이콘/텍스트 어둡게(검정).
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark, // Android
-        statusBarBrightness: Brightness.light, // iOS
-      ),
-      child: Scaffold(
-      backgroundColor: AppColors.backgroundDefault,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                const Spacer(),
-                Image.asset(
-                  'assets/images/book_logo.png',
-                  width: 100,
-                  height: 100,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '모아북',
-                  style: AppTypography.dungGeunMoHomeTitle
-                      .copyWith(color: AppColors.textPrimary),
-                ),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: [
-                      _SocialButton(
-                        iconAsset: 'assets/images/kakao_logo.svg',
-                        label: '카카오 로그인',
-                        onTap: isLoading ? null : auth.kakaoLogin,
-                      ),
-                      const SizedBox(height: 12),
-                      _SocialButton(
-                        iconAsset: 'assets/images/naver_logo.svg',
-                        label: '네이버 로그인',
-                        onTap: isLoading ? null : auth.naverLogin,
-                      ),
-                      const SizedBox(height: 12),
-                      _SocialButton(
-                        iconAsset: 'assets/images/google_logo.svg',
-                        label: '구글 로그인',
-                        onTap: isLoading ? null : auth.googleLogin,
-                      ),
-                      if (Platform.isIOS) ...[
-                        const SizedBox(height: 12),
-                        SignInWithAppleButton(
-                          onPressed: isLoading ? () {} : auth.appleLogin,
-                          text: 'Apple로 로그인',
-                          height: 48,
-                          style: SignInWithAppleButtonStyle.black,
-                          borderRadius:
-                              const BorderRadius.all(Radius.circular(8)),
+    return Theme(
+      data: palette.theme,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark,
+        child: PopScope(
+          canPop: !isLoading,
+          child: Scaffold(
+            backgroundColor: palette.background,
+            body: SafeArea(
+              child: Stack(
+                children: [
+                  AbsorbPointer(
+                    absorbing: isLoading,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: (constraints.maxHeight - 46).clamp(
+                              0,
+                              double.infinity,
+                            ),
+                          ),
+                          child: IntrinsicHeight(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'MOABOOK / LOG IN',
+                                  style: palette.text(
+                                    10,
+                                    mono: true,
+                                    color: palette.muted,
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                Divider(
+                                  height: 1,
+                                  thickness: 1,
+                                  color: palette.ink,
+                                ),
+                                const Spacer(),
+                                const SizedBox(height: 32),
+                                Text(
+                                  '모아북',
+                                  style: palette.text(
+                                    38,
+                                    serif: true,
+                                    weight: 600,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  '책과 함께한 시간을\n모아보세요.',
+                                  style: palette.text(
+                                    28,
+                                    serif: true,
+                                    weight: 600,
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  '읽고 싶은 책부터 오래 기억할 문장까지.\n나만의 서가에 차곡차곡 담아보세요.',
+                                  style: palette.text(13, color: palette.muted),
+                                ),
+                                const SizedBox(height: 40),
+                                const Spacer(),
+                                _SocialButton(
+                                  iconAsset: 'assets/images/kakao_logo.svg',
+                                  label: '카카오 로그인',
+                                  onTap: isLoading ? null : auth.kakaoLogin,
+                                ),
+                                const SizedBox(height: 10),
+                                _SocialButton(
+                                  iconAsset: 'assets/images/naver_logo.svg',
+                                  label: '네이버 로그인',
+                                  onTap: isLoading ? null : auth.naverLogin,
+                                ),
+                                const SizedBox(height: 10),
+                                _SocialButton(
+                                  iconAsset: 'assets/images/google_logo.svg',
+                                  label: '구글 로그인',
+                                  onTap: isLoading ? null : auth.googleLogin,
+                                ),
+                                if (defaultTargetPlatform ==
+                                    TargetPlatform.iOS) ...[
+                                  const SizedBox(height: 10),
+                                  SignInWithAppleButton(
+                                    onPressed: isLoading
+                                        ? () {}
+                                        : auth.appleLogin,
+                                    text: 'Apple로 로그인',
+                                    height: 54,
+                                    style: SignInWithAppleButtonStyle.black,
+                                    borderRadius: BorderRadius.zero,
+                                  ),
+                                ],
+                                const SizedBox(height: 22),
+                                Wrap(
+                                  alignment: WrapAlignment.center,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Text(
+                                      '가입시 ',
+                                      style: palette.text(
+                                        11,
+                                        color: palette.muted,
+                                      ),
+                                    ),
+                                    _Term(
+                                      text: '이용약관',
+                                      onTap: () => _open(_termsUrl),
+                                    ),
+                                    Text(
+                                      ' 및 ',
+                                      style: palette.text(
+                                        11,
+                                        color: palette.muted,
+                                      ),
+                                    ),
+                                    _Term(
+                                      text: '개인정보처리방침',
+                                      onTap: () => _open(_privacyUrl),
+                                    ),
+                                    Text(
+                                      '에 동의하게 됩니다.',
+                                      style: palette.text(
+                                        11,
+                                        color: palette.muted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ],
-                    ],
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text('가입시 ',
-                          style: AppTypography.wantedSansBodySmall
-                              .copyWith(color: AppColors.textPrimary)),
-                      _Term(text: '이용약관', onTap: () => _open(_termsUrl)),
-                      Text(' 및 ',
-                          style: AppTypography.wantedSansBodySmall
-                              .copyWith(color: AppColors.textPrimary)),
-                      _Term(text: '개인정보처리방침', onTap: () => _open(_privacyUrl)),
-                      Text('에 동의하게 됩니다.',
-                          style: AppTypography.wantedSansBodySmall
-                              .copyWith(color: AppColors.textPrimary)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
-            if (isLoading)
-              const Positioned.fill(
-                child: ColoredBox(
-                  color: Color(0x66000000),
-                  child: RetroLoading(fillBackground: false),
-                ),
+                  if (isLoading)
+                    Positioned.fill(
+                      child: AbsorbPointer(
+                        child: ColoredBox(
+                          color: const Color(0x33000000),
+                          child: Center(
+                            child: Semantics(
+                              label: '로그인 중',
+                              child: CircularProgressIndicator(
+                                color: palette.ink,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-          ],
+            ),
+          ),
         ),
-      ),
       ),
     );
   }
@@ -165,20 +228,25 @@ class _SocialButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const palette = DesignPalette(Mood.a);
     return SizedBox(
       width: double.infinity,
-      height: 48,
-      child: PixelShadowButton(
-        onTap: onTap ?? () {},
-        backgroundColor: AppColors.backgroundWhite,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: palette.card,
+          foregroundColor: palette.ink,
+          minimumSize: const Size.fromHeight(54),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          side: BorderSide(color: palette.ink, width: 1.3),
+          shape: const RoundedRectangleBorder(),
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SvgPicture.asset(iconAsset, width: 20, height: 20),
-            const SizedBox(width: 8),
-            Text(label,
-                style: AppTypography.dungGeunMoSubtitle
-                    .copyWith(color: AppColors.textPrimary)),
+            const SizedBox(width: 10),
+            Flexible(child: Text(label, style: palette.text(14, weight: 600))),
           ],
         ),
       ),
@@ -198,11 +266,9 @@ class _Term extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: Text(
         text,
-        style: AppTypography.wantedSansBodySmall.copyWith(
-          color: AppColors.textPrimary,
-          decoration: TextDecoration.underline,
-          decorationColor: AppColors.textPrimary,
-        ),
+        style: const DesignPalette(
+          Mood.a,
+        ).text(11).copyWith(decoration: TextDecoration.underline),
       ),
     );
   }

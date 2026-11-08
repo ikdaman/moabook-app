@@ -1,10 +1,14 @@
 import 'dart:math' as math;
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:moabook_reading/moabook_reading.dart';
 import 'widgets/policy_widgets.dart';
+import 'widgets/sliding_sheet_overlay.dart';
+import 'widgets/shelf_section_transition.dart';
 import 'design_system.dart';
 import 'sample_data.dart';
 
@@ -61,6 +65,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   bool get isLive => widget.gateway != null;
   ReadingGateway get gateway => widget.gateway!;
   bool shelfLoading = false, collectionsLoading = false, cardLoading = false;
+  bool shelfLoaded = false, collectionsLoaded = false;
   bool isSaving = false, isSearching = false, recordWriteUncertain = false;
   String? shelfError,
       collectionsError,
@@ -85,6 +90,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   final Map<String, ReadingCard> cards = {};
   final Map<String, ReadingCollectionSummary> collectionSummaries = {};
   final Set<String> loadedCollections = {}, loadingCollections = {};
+  final Set<String> staleCollections = {};
   final Map<String, String> collectionErrors = {};
   final Set<String> loadedRecordBooks = {};
   List<ReadingBook> remoteSearchResults = [];
@@ -463,7 +469,9 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       (screen == 'add-options' && targetCollectionId != null);
   final GlobalKey<NavigatorState> previewNavigator =
       GlobalKey<NavigatorState>();
-  int shelfPage = 0;
+  final _shelfPage = ValueNotifier<int>(0);
+  int get shelfPage => _shelfPage.value;
+  set shelfPage(int value) => _shelfPage.value = value;
   int shelfPageCount = 1;
   bool get isShelfScreen =>
       ['shelf', 'shelf-empty'].contains(screen) ||
@@ -508,7 +516,127 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     restoreShelfPage();
   }
 
-  void go(String target) {
+  Timer? _exitBackTimer;
+  void _resetExitGuide() {
+    _exitBackTimer?.cancel();
+    _exitBackTimer = null;
+  }
+
+  bool get atLibraryRoot => const [
+    'shelf',
+    'shelf-empty',
+    'collection',
+    'collection-next',
+    'collection-end',
+    'collection-empty',
+  ].contains(screen);
+  bool get _androidExitGuide =>
+      widget.embedded &&
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.android;
+
+  Future<bool> handleSystemBack() async {
+    // A pushed route (settings, camera, export) owns its own back action.
+    if (widget.embedded &&
+        (ModalRoute.of(context)?.isCurrent == false ||
+            Navigator.of(context, rootNavigator: true).canPop())) {
+      return false;
+    }
+    if (isSaving) return true;
+    if (!atLibraryRoot) {
+      back();
+      return true;
+    }
+    if (!_androidExitGuide) return false;
+    if (_exitBackTimer?.isActive ?? false) {
+      _resetExitGuide();
+      await SystemNavigator.pop();
+    } else {
+      _exitBackTimer = Timer(const Duration(seconds: 2), _resetExitGuide);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('뒤로가기를 한 번 더 누르면 종료돼요.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+    }
+    return true;
+  }
+
+  bool _sectionTransitioning = false;
+  int _sectionDirection = 0;
+  double _sectionOverscroll = 0;
+  bool _sectionDragAtBoundary = false;
+  bool _sectionSwitchQueued = false;
+
+  bool _handleShelfBoundary(ScrollNotification event) {
+    if (event.depth != 0 ||
+        event.metrics.axis != Axis.horizontal ||
+        _sectionTransitioning ||
+        _sectionSwitchQueued) {
+      return false;
+    }
+    if (event is ScrollStartNotification) {
+      _sectionOverscroll = 0;
+      _sectionDragAtBoundary =
+          event.dragDetails != null &&
+          ((isShelfScreen &&
+                  shelfPage == shelfPageCount - 1 &&
+                  event.metrics.extentAfter < 1) ||
+              (isCollectionScreen &&
+                  collectionPage == 0 &&
+                  event.metrics.extentBefore < 1));
+    } else if (event is OverscrollNotification &&
+        event.dragDetails != null &&
+        _sectionDragAtBoundary) {
+      final delta = isShelfScreen ? event.overscroll : -event.overscroll;
+      _sectionOverscroll = math.max(0, _sectionOverscroll + delta);
+    } else if (event is ScrollEndNotification &&
+        _sectionDragAtBoundary &&
+        _sectionOverscroll >= 48) {
+      final toCollections = isShelfScreen;
+      _sectionSwitchQueued = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _sectionSwitchQueued = false;
+        if (!mounted || isSaving || !(isShelfScreen || isCollectionScreen)) {
+          return;
+        }
+        _sectionTransitioning = true;
+        _sectionDirection = toCollections ? 1 : -1;
+        targetCollectionId = null;
+        if (toCollections) {
+          collectionPage = 0;
+        } else {
+          shelfPage = shelfPageCount - 1;
+        }
+        go(toCollections ? 'collection' : 'shelf', deferLibraryLoad: true);
+      });
+    }
+    return false;
+  }
+
+  void _finishShelfSectionTransition() {
+    if (!mounted || !_sectionTransitioning) return;
+    setState(() {
+      _sectionTransitioning = false;
+      _sectionDirection = 0;
+    });
+    if (!isLive) return;
+    if (isShelfScreen && !shelfLoading) {
+      unawaited(refreshRemoteShelf());
+    } else if (isCollectionScreen && !collectionsLoading) {
+      unawaited(refreshRemoteCollections());
+    }
+  }
+
+  void go(
+    String target, {
+    bool refreshLibrary = false,
+    bool deferLibraryLoad = false,
+  }) {
+    _resetExitGuide();
     if (isLive && target == 'book-info') {
       cardRequest++;
       cardLoading = false;
@@ -535,11 +663,24 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       recordDate = readingDay(DateTime.now());
     }
     setState(() {
-      history.add(screen);
+      if (const ['shelf', 'collection'].contains(target)) {
+        history.clear();
+      } else {
+        history.add(screen);
+      }
       screen = target;
     });
     restoreShelfPage();
-    if (isLive && ['collection', 'collections'].contains(target)) {
+    if (isLive && !deferLibraryLoad && refreshLibrary && target == 'shelf') {
+      if (!shelfLoading) unawaited(refreshRemoteShelf());
+    } else if (isLive &&
+        !deferLibraryLoad &&
+        refreshLibrary &&
+        target == 'collection') {
+      if (!collectionsLoading) unawaited(refreshRemoteCollections());
+    } else if (isLive &&
+        !deferLibraryLoad &&
+        ['collection', 'collections'].contains(target)) {
       if (collectionData.isNotEmpty) {
         unawaited(loadRemoteCollection(currentCollection.id));
       }
@@ -550,6 +691,8 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   }
 
   void back() {
+    if (isSaving) return;
+    _resetExitGuide();
     if (isLive && cardLoading) {
       cardRequest++;
       cardLoading = false;
@@ -579,8 +722,10 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
 
   @override
   void dispose() {
+    _resetExitGuide();
     scroll.dispose();
     shelfPages.dispose();
+    _shelfPage.dispose();
     collectionPages.dispose();
     super.dispose();
   }
@@ -600,52 +745,31 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                 Column(
                   children: [
                     Expanded(
-                      child:
-                          remoteBlockingBody() ??
-                          (isShelfScreen
-                              ? Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    22,
-                                    12,
-                                    22,
-                                    12,
-                                  ),
-                                  child: shelf(
-                                    empty:
-                                        screen == 'shelf-empty' ||
-                                        (isLive && library.isEmpty),
-                                  ),
-                                )
-                              : isCollectionScreen
-                              ? Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    22,
-                                    12,
-                                    22,
-                                    12,
-                                  ),
-                                  child: collectionPager(),
-                                )
-                              : NotificationListener<ScrollMetricsNotification>(
-                                  onNotification: (_) {
-                                    // Layout changes also cover short pages and
-                                    // resizing without requiring another swipe.
-                                    _checkSearchAfterLayout();
-                                    return false;
-                                  },
-                                  child: SingleChildScrollView(
-                                    controller: scroll,
-                                    padding: EdgeInsets.fromLTRB(
-                                      22,
-                                      12,
-                                      22,
-                                      hasNav ? 12 : 28,
-                                    ),
-                                    child: page(),
-                                  ),
-                                )),
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: _handleShelfBoundary,
+                        child: ShelfSectionTransition(
+                          direction: _sectionTransitioning
+                              ? _sectionDirection
+                              : 0,
+                          onCompleted: _finishShelfSectionTransition,
+                          child: KeyedSubtree(
+                            key: ValueKey(
+                              isShelfScreen
+                                  ? 'shelf-section'
+                                  : isCollectionScreen
+                                  ? 'collection-section'
+                                  : screen,
+                            ),
+                            child: _workspaceBody(context),
+                          ),
+                        ),
+                      ),
                     ),
-                    if (hasNav) navigation(),
+                    if (hasNav)
+                      IgnorePointer(
+                        ignoring: _sectionTransitioning,
+                        child: navigation(),
+                      ),
                     if (!hasNav &&
                         bottomAction != null &&
                         (!screen.startsWith('card') ||
@@ -661,19 +785,16 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                       ),
                   ],
                 ),
-                if (overlay != null) ...[
-                  Positioned.fill(
-                    child: GestureDetector(
-                      onTap: back,
-                      child: ColoredBox(
-                        color: Colors.black.withValues(
-                          alpha: p.dark ? .62 : .55,
-                        ),
-                      ),
+                Positioned.fill(
+                  child: SlidingSheetOverlay(
+                    sheet: overlay,
+                    identity: screen,
+                    barrierColor: Colors.black.withValues(
+                      alpha: p.dark ? .62 : .55,
                     ),
+                    onDismiss: back,
                   ),
-                  Align(alignment: Alignment.bottomCenter, child: overlay!),
-                ],
+                ),
                 if (isSaving)
                   const Positioned.fill(
                     child: AbsorbPointer(
@@ -690,14 +811,20 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       ),
     );
     final navigable = PopScope(
-      canPop: !isSaving && history.isEmpty,
+      canPop: !isSaving && atLibraryRoot && !_androidExitGuide,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && !isSaving && history.isNotEmpty) back();
+        if (!didPop) unawaited(handleSystemBack());
       },
       child: content,
     );
+    final embeddedContent = Router.maybeOf(context) == null
+        ? navigable
+        : BackButtonListener(
+            onBackButtonPressed: handleSystemBack,
+            child: navigable,
+          );
     return widget.embedded
-        ? Theme(data: p.theme, child: navigable)
+        ? Theme(data: p.theme, child: embeddedContent)
         : MaterialApp(
             title: '모아북 디자인 시안',
             navigatorKey: previewNavigator,
@@ -706,6 +833,44 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
             home: navigable,
           );
   }
+
+  Widget _workspaceBody(BuildContext context) =>
+      remoteBlockingBody() ??
+      (isShelfScreen
+          ? Padding(
+              padding: const EdgeInsets.fromLTRB(22, 12, 22, 12),
+              child: shelf(
+                empty: screen == 'shelf-empty' || (isLive && library.isEmpty),
+              ),
+            )
+          : isCollectionScreen
+          ? Padding(
+              padding: const EdgeInsets.fromLTRB(22, 12, 22, 12),
+              child: collectionPager(),
+            )
+          : usesCardBackLayout
+          ? Padding(
+              padding: EdgeInsets.fromLTRB(
+                22,
+                12,
+                22,
+                MediaQuery.paddingOf(context).bottom + 14,
+              ),
+              child: page(),
+            )
+          : NotificationListener<ScrollMetricsNotification>(
+              onNotification: (_) {
+                // Layout changes also cover short pages and
+                // resizing without requiring another swipe.
+                _checkSearchAfterLayout();
+                return false;
+              },
+              child: SingleChildScrollView(
+                controller: scroll,
+                padding: EdgeInsets.fromLTRB(22, 12, 22, hasNav ? 12 : 28),
+                child: page(),
+              ),
+            ));
 
   bool get hasNav => [
     'shelf',
@@ -729,10 +894,6 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       '다른 검색어로 찾아보기',
       () => go('search'),
       icon: 'search',
-    ),
-    'card-back' || 'card-empty' || 'record-options' => Align(
-      alignment: Alignment.centerRight,
-      child: circularRecordButton(),
     ),
     'collection-edit' => button(
       '편집 완료',
@@ -766,6 +927,18 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     'date-picker' => dateSheet(),
     _ => null,
   };
+
+  bool get usesCardBackLayout =>
+      const [
+        'card-back',
+        'card-empty',
+        'record-options',
+        'record-entry',
+        'record-quote',
+        'record-free',
+        'record-wish',
+      ].contains(screen) ||
+      (screen == 'date-picker' && dateTarget == 'record');
 
   Widget page() => switch (screen) {
     'shelf' ||
@@ -831,7 +1004,14 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       child: SizedBox(
         width: 44,
         height: 44,
-        child: Center(child: icon(name, color: color)),
+        child: Align(
+          // Leading arrows share the content edge without an extra half-cell
+          // inset. Keep the full 44dp hit area for comfortable back navigation.
+          alignment: name == 'chevron-left'
+              ? Alignment.centerLeft
+              : Alignment.center,
+          child: icon(name, color: color),
+        ),
       ),
     ),
   );
@@ -950,7 +1130,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
               'library',
               screen.startsWith('shelf') ||
                   (screen == 'add-options' && targetCollectionId == null),
-              () => go('shelf'),
+              () => go('shelf', refreshLibrary: true),
               bottomInset: MediaQuery.paddingOf(context).bottom,
               textHeight: MediaQuery.textScalerOf(context).scale(13) * 1.5,
             ),
@@ -962,7 +1142,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
               () {
                 collectionPage = 0;
                 targetCollectionId = null;
-                go('collection');
+                go('collection', refreshLibrary: true);
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (collectionPages.hasClients) collectionPages.jumpToPage(0);
                 });
@@ -1052,10 +1232,12 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
             child: isLive
                 ? (value.coverUrl == null || value.coverUrl!.isEmpty
                       ? const ColoredBox(color: Color(0xffd4d4d4))
-                      : Image.network(
-                          value.coverUrl!,
+                      : CachedNetworkImage(
+                          imageUrl: value.coverUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, error, stack) =>
+                          placeholder: (_, _) =>
+                              const ColoredBox(color: Color(0xffd4d4d4)),
+                          errorWidget: (_, _, _) =>
                               const ColoredBox(color: Color(0xffd4d4d4)),
                         ))
                 : value.demo
@@ -1123,8 +1305,6 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         t(count, 11, mono: true, color: p.muted),
         const SizedBox(width: 8),
       ],
-      if (isLive)
-        iconButton('repeat-2', '새로고침', () => unawaited(refreshRemote())),
       iconButton('settings-2', isLive ? '설정' : '시안 설정', showDesignPicker),
     ],
   );
@@ -1156,6 +1336,9 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     builder: (context, constraints) {
       final scaler = MediaQuery.textScalerOf(context);
       final rows = shelfRows(constraints.maxWidth, scaler);
+      final bookIndices = {
+        for (final (index, id) in library.keys.indexed) id: index,
+      };
       final count = math.max(1, (rows.length / 3).ceil());
       shelfPageCount = count;
       return Column(
@@ -1205,35 +1388,48 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
               child: PageView.builder(
                 key: const Key('shelf-pager'),
                 controller: shelfPages,
+                physics: const PageScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(
+                    parent: ClampingScrollPhysics(),
+                  ),
+                ),
                 itemCount: count,
-                onPageChanged: (page) => setState(() => shelfPage = page),
-                itemBuilder: (context, page) => Column(
-                  children: [
-                    for (var row = 0; row < 3; row++) ...[
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, space) => bookShelf(
-                            page * 3 + row < rows.length
-                                ? rows[page * 3 + row]
-                                : [],
-                            space.maxHeight,
-                            scaler: scaler,
-                            key: ValueKey('shelf-$page-row-$row'),
+                allowImplicitScrolling: true,
+                onPageChanged: (page) => shelfPage = page,
+                itemBuilder: (context, page) => _KeepAliveShelfPage(
+                  keepAlive: count <= 5,
+                  child: Column(
+                    children: [
+                      for (var row = 0; row < 3; row++) ...[
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, space) => bookShelf(
+                              page * 3 + row < rows.length
+                                  ? rows[page * 3 + row]
+                                  : [],
+                              space.maxHeight,
+                              scaler: scaler,
+                              bookIndices: bookIndices,
+                              key: ValueKey('shelf-$page-row-$row'),
+                            ),
                           ),
                         ),
-                      ),
-                      if (row != 2) gap(16),
+                        if (row != 2) gap(16),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
             gap(10),
             Center(
-              child: Text(
-                '${shelfPage.clamp(0, count - 1) + 1} / $count',
-                key: const Key('shelf-page-indicator'),
-                style: p.text(11, mono: true, color: p.muted),
+              child: ValueListenableBuilder<int>(
+                valueListenable: _shelfPage,
+                builder: (context, page, _) => Text(
+                  '${page.clamp(0, count - 1) + 1} / $count',
+                  key: const Key('shelf-page-indicator'),
+                  style: p.text(11, mono: true, color: p.muted),
+                ),
               ),
             ),
           ],
@@ -1247,6 +1443,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     double height, {
     Key? key,
     required TextScaler scaler,
+    required Map<String, int> bookIndices,
   }) => Column(
     key: key,
     children: [
@@ -1259,7 +1456,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
               Builder(
                 builder: (context) {
                   final value = books[i];
-                  final n = library.keys.toList().indexOf(value.id);
+                  final n = bookIndices[value.id] ?? 0;
                   final foreground = p.dark ? const Color(0xffdddddd) : p.ink;
                   return Semantics(
                     label: '${value.title}, 독서카드 열기',
@@ -1274,7 +1471,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                         height:
                             (height - (p.dark ? 4 : 3)) *
                             spineHeights[n % spineHeights.length],
-                        clipBehavior: Clip.antiAlias,
+                        clipBehavior: Clip.hardEdge,
                         decoration: BoxDecoration(
                           color: p.dark
                               ? [
@@ -1344,6 +1541,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         child: PageView.builder(
           key: const Key('collection-pager'),
           controller: collectionPages,
+          physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
           itemCount: collectionTitles.length + 1,
           onPageChanged: (index) => setState(() {
             collectionPage = index;
@@ -1434,10 +1632,12 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         ),
         gap(16),
         if (isLive && !loadedCollections.contains(value.id))
-          remoteMessage(
-            collectionErrors[value.id],
-            () => unawaited(loadRemoteCollection(value.id, force: true)),
-          )
+          _sectionTransitioning
+              ? const SizedBox(height: 300)
+              : remoteMessage(
+                  collectionErrors[value.id],
+                  () => unawaited(loadRemoteCollection(value.id, force: true)),
+                )
         else
           collectionGrid(value),
       ],
@@ -2144,83 +2344,141 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            iconButton('chevron-left', '독서카드 앞면', () => flipCard('card-front')),
-          ],
-        ),
+        iconButton('chevron-left', '독서카드 앞면', () => flipCard('card-front')),
         gap(16),
-        Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(minHeight: 550),
-          padding: p.dark
-              ? EdgeInsets.zero
-              : const EdgeInsets.fromLTRB(18, 21, 18, 21),
-          decoration: BoxDecoration(
-            color: p.dark ? p.background : p.card,
-            borderRadius: BorderRadius.zero,
-            border: p.dark ? null : Border.all(color: p.ink, width: 1.5),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: p.dark ? const EdgeInsets.all(16) : EdgeInsets.zero,
-                color: p.dark ? p.orange : null,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            padding: p.dark
+                ? EdgeInsets.zero
+                : const EdgeInsets.fromLTRB(18, 21, 18, 21),
+            decoration: BoxDecoration(
+              color: p.dark ? p.background : p.card,
+              border: p.dark ? null : Border.all(color: p.ink, width: 1.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: p.dark ? const EdgeInsets.all(16) : EdgeInsets.zero,
+                  color: p.dark ? p.orange : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      t(
+                        book.title,
+                        p.dark ? 17 : 16,
+                        weight: p.dark ? 600 : 700,
+                        color: p.dark ? p.background : p.ink,
+                        lines: 2,
+                      ),
+                      gap(8),
+                      t(
+                        '${formatDate(bookAddedDate)} 추가',
+                        11,
+                        color: p.dark ? p.background : p.muted,
+                      ),
+                    ],
+                  ),
+                ),
+                gap(14),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    t(
-                      book.title,
-                      p.dark ? 17 : 16,
-                      weight: p.dark ? 600 : 700,
-                      color: p.dark ? p.background : p.ink,
-                    ),
-                    gap(8),
-                    t(
-                      '${formatDate(bookAddedDate)} 추가',
-                      11,
-                      color: p.dark ? p.background : p.muted,
-                    ),
+                    Expanded(child: t('독서 기록', 15, weight: 600)),
+                    if (journal.records.isNotEmpty) ...[
+                      const SizedBox(width: 16),
+                      Semantics(
+                        button: true,
+                        child: InkWell(
+                          onTap: () => go('record-options'),
+                          child: Container(
+                            constraints: const BoxConstraints(minHeight: 44),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 11,
+                            ),
+                            color: const Color(0xff121212),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                icon('plus', size: 18, color: Colors.white),
+                                const SizedBox(width: 7),
+                                t(
+                                  '기록 추가',
+                                  13,
+                                  weight: 600,
+                                  color: Colors.white,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-              ),
-              gap(14),
-              if (!p.dark) rule(color: p.ink),
-              if (journal.records.isEmpty) ...[
-                gap(80),
-                Center(child: icon('pencil', size: 34, color: p.muted)),
-                gap(18),
-                Center(
-                  child: t('첫 번째 기억을 남겨보세요', 16, serif: true, weight: 600),
-                ),
                 gap(10),
-                Center(
-                  child: t(
-                    '책을 만난 날, 떠오른 생각, 마음에 든 문장.\n어떤 순간이든 좋아요.',
-                    12,
-                    color: p.muted,
-                    align: TextAlign.center,
+                rule(color: p.ink),
+                Expanded(
+                  child: SingleChildScrollView(
+                    key: const ValueKey('card-record-list'),
+                    controller: scroll,
+                    padding: const EdgeInsets.only(top: 16, bottom: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (journal.records.isEmpty) ...[
+                          gap(40),
+                          Center(
+                            child: icon('pencil', size: 34, color: p.muted),
+                          ),
+                          gap(18),
+                          Center(
+                            child: t(
+                              '첫 번째 기억을 남겨보세요',
+                              16,
+                              serif: true,
+                              weight: 600,
+                            ),
+                          ),
+                          gap(10),
+                          Center(
+                            child: t(
+                              '책을 만난 날, 떠오른 생각, 마음에 든 문장.\n어떤 순간이든 좋아요.',
+                              12,
+                              color: p.muted,
+                              align: TextAlign.center,
+                            ),
+                          ),
+                          gap(24),
+                          button(
+                            '첫 기록 남기기',
+                            () => go('record-options'),
+                            icon: 'pencil',
+                          ),
+                        ] else ...[
+                          t('책과의 시간은 계속됩니다.', 11, color: p.muted),
+                          gap(18),
+                          for (final record
+                              in (isLive
+                                  ? journal.records
+                                  : journal.newestFirst))
+                            timeline(
+                              formatDate(record.date).substring(5),
+                              record.category.label,
+                              record.memo,
+                              categoryIcon(record.category),
+                              record.category.group,
+                            ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
-                gap(24),
-                button('첫 기록 남기기', () => go('record-options'), icon: 'pencil'),
-              ] else ...[
-                t('책과의 시간은 계속됩니다.', 11, color: p.muted),
-                gap(18),
-                for (final record
-                    in (isLive ? journal.records : journal.newestFirst))
-                  timeline(
-                    formatDate(record.date).substring(5),
-                    record.category.label,
-                    record.memo,
-                    categoryIcon(record.category),
-                    record.category.group,
-                  ),
               ],
-            ],
+            ),
           ),
         ),
       ],
@@ -2276,40 +2534,6 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       ],
     ),
   );
-  Widget circularRecordButton() => Builder(
-    builder: (context) {
-      final size = math.max(
-        p.dark ? 68.0 : 70.0,
-        MediaQuery.textScalerOf(context).scale(13) * 3 + 24,
-      );
-      return Semantics(
-        label: '기록 추가',
-        button: true,
-        child: InkWell(
-          onTap: () => go('record-options'),
-          customBorder: const RoundedRectangleBorder(),
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: p.button,
-              shape: BoxShape.rectangle,
-            ),
-            child: Center(
-              child: t(
-                '기록\n추가',
-                13,
-                weight: 600,
-                color: p.onButton,
-                align: TextAlign.center,
-              ),
-            ),
-          ),
-        ),
-      );
-    },
-  );
-
   Widget sheet(
     String title,
     List<Widget> children, {
@@ -3023,6 +3247,31 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         ),
       ),
     );
+  }
+}
+
+class _KeepAliveShelfPage extends StatefulWidget {
+  const _KeepAliveShelfPage({required this.child, required this.keepAlive});
+  final Widget child;
+  final bool keepAlive;
+  @override
+  State<_KeepAliveShelfPage> createState() => _KeepAliveShelfPageState();
+}
+
+class _KeepAliveShelfPageState extends State<_KeepAliveShelfPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => widget.keepAlive;
+  @override
+  void didUpdateWidget(covariant _KeepAliveShelfPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.keepAlive != widget.keepAlive) updateKeepAlive();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
 

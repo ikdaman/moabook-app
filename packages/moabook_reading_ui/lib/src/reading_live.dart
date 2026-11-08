@@ -24,6 +24,7 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
           ..addEntries(shelf.books.map((b) => MapEntry(b.id, b)));
         catalog.addAll(library);
         totalShelfCount = shelf.totalCount;
+        shelfLoaded = true;
         shelfLoading = false;
       });
       restoreShelfPage();
@@ -44,17 +45,27 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
     });
     final selectedId = collectionData.isEmpty ? null : currentCollection.id;
     try {
-      final summaries = await gateway.loadCollections();
+      final summaries = (await gateway.loadCollections()).reversed.toList();
       if (!mounted || request != collectionsRequest) return;
       _update(() {
         collectionSummaries
           ..clear()
           ..addEntries(summaries.map((c) => MapEntry(c.id, c)));
+        final previous = {for (final value in collectionData) value.id: value};
+        final ids = summaries.map((summary) => summary.id).toSet();
         collectionData = [
           for (final summary in summaries)
-            ReadingCollection(id: summary.id, name: summary.name),
+            ReadingCollection(
+              id: summary.id,
+              name: summary.name,
+              slots: previous[summary.id]?.slots,
+            ),
         ];
-        loadedCollections.clear();
+        loadedCollections.retainAll(ids);
+        staleCollections
+          ..clear()
+          ..addAll(loadedCollections);
+        collectionsLoaded = true;
         loadingCollections.clear();
         collectionErrors.clear();
         collectionPage = math.max(
@@ -81,12 +92,13 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
     final value = detail.collection;
     final index = collectionData.indexWhere((c) => c.id == value.id);
     if (index < 0) {
-      collectionData.add(value);
+      collectionData.insert(0, value);
     } else {
       collectionData[index] = value;
     }
     catalog.addEntries(detail.books.map((b) => MapEntry(b.id, b)));
     loadedCollections.add(value.id);
+    staleCollections.remove(value.id);
     collectionErrors.remove(value.id);
     collectionSummaries[value.id] = ReadingCollectionSummary(
       id: value.id,
@@ -99,7 +111,8 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
 
   Future<void> loadRemoteCollection(String id, {bool force = false}) async {
     if (!force &&
-        (loadedCollections.contains(id) || loadingCollections.contains(id))) {
+        ((loadedCollections.contains(id) && !staleCollections.contains(id)) ||
+            loadingCollections.contains(id))) {
       return;
     }
     final generation = collectionsRequest;
@@ -453,10 +466,11 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
     } on CollectionCreatedNeedsReload catch (created) {
       if (!mounted) return;
       _update(() {
-        collectionData.add(
+        collectionData.insert(
+          0,
           ReadingCollection(id: created.id, name: created.name),
         );
-        collectionPage = collectionData.length - 1;
+        collectionPage = 0;
         collectionErrors[created.id] = '컬렉션은 만들었지만 내용을 불러오지 못했어요.';
         screen = 'collection';
         history.clear();
@@ -561,8 +575,8 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
   }
 
   Widget? remoteBlockingBody() {
-    if (!isLive) return null;
-    if (isShelfScreen && (shelfLoading || shelfError != null)) {
+    if (!isLive || _sectionTransitioning) return null;
+    if (isShelfScreen && !shelfLoaded && (shelfLoading || shelfError != null)) {
       return remoteMessage(
         shelfError,
         () => unawaited(refreshRemoteShelf()),
@@ -570,6 +584,7 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
       );
     }
     if ((isCollectionScreen || screen == 'collections') &&
+        !collectionsLoaded &&
         (collectionsLoading || collectionsError != null)) {
       return remoteMessage(
         collectionsError,

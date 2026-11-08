@@ -7,8 +7,6 @@ import '../../../data/datasource/reading_remote_datasource.dart';
 import '../../../domain/model/book_item.dart';
 import '../../auth/provider/auth_provider.dart';
 
-final readingRefreshProvider = StateProvider<int>((ref) => 0);
-
 final readingGatewayProvider = Provider<ReadingGateway>(
   (ref) => AppReadingGateway(
     ReadingRemoteDataSource(
