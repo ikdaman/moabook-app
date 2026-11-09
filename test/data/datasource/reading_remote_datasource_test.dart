@@ -69,6 +69,19 @@ void main() {
     return ReadingRemoteDataSource(dio, config: config);
   }
 
+  test(
+    'book deletion uses the existing authenticated DELETE endpoint',
+    () async {
+      final remote = setup((request) {
+        expect(request.method, 'DELETE');
+        expect(request.path, '/mybooks/71');
+        expect(request.headers['Authorization'], 'Bearer test-only');
+        return ResponseBody.fromString('', 204);
+      });
+      await remote.deleteBook('71');
+    },
+  );
+
   const candidate = ReadingBook(
     'yes24:123',
     '새 책',

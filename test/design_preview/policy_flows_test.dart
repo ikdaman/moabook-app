@@ -26,6 +26,24 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  for (final screen in ['record-options', 'add-options']) {
+    testWidgets('$screen content clears the system navigation area', (
+      tester,
+    ) async {
+      await open(tester, screen);
+      final label = screen == 'record-options' ? '자유 기록' : '책 제목으로 검색';
+      // Compare the same sheet with and without an Android navigation inset.
+      final finder = find.text(label);
+      expect(finder, findsOneWidget);
+      final before = tester.getBottomLeft(finder).dy;
+      tester.view.padding = const FakeViewPadding(bottom: 48);
+      tester.view.viewPadding = const FakeViewPadding(bottom: 48);
+      await tester.pumpAndSettle();
+      expect(tester.getBottomLeft(finder).dy, closeTo(before - 48, 1));
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('record action stays visible while a long card list scrolls', (
     tester,
   ) async {

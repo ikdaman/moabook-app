@@ -546,7 +546,7 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
       // A failed refresh after a successful POST must not turn into another POST.
       await loadRemoteCard(bookId);
       if (!mounted) return;
-      go('record-complete');
+      showRecordComplete();
     } on ReadingWriteUncertain {
       if (!mounted) return;
       _update(() {

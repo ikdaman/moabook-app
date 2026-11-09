@@ -103,6 +103,11 @@ class ReadingRemoteDataSource {
     }
   }
 
+  Future<void> deleteBook(String bookId) async {
+    await dio.delete<void>('/mybooks/${_id(bookId)}');
+    _knownCatalogBooks.remove(bookId);
+  }
+
   Future<ReadingShelf> loadShelf() async {
     final books = <String, ReadingBook>{};
     var totalPages = 1;

@@ -49,6 +49,8 @@ class AppReadingGateway implements ReadingGateway {
   Future<String> saveBook(ReadingBook book, {required String reason}) =>
       remote.saveBook(book, reason: reason);
   @override
+  Future<void> deleteBook(String bookId) => remote.deleteBook(bookId);
+  @override
   Future<ReadingShelf> loadShelf() => remote.loadShelf();
   @override
   Future<ReadingCard> loadCard(String bookId) => remote.loadCard(bookId);

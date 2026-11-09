@@ -7,6 +7,15 @@ import 'package:moabook_reading_ui/moabook_reading_ui.dart';
 const serverBook = ReadingBook('71', '서버에서 받은 책', '작가', '출판사', '', '');
 
 class Gateway implements ReadingGateway {
+  String? deletedBookId;
+  Object? deleteError;
+  @override
+  Future<void> deleteBook(String bookId) async {
+    if (deleteError != null) throw deleteError!;
+    deletedBookId = bookId;
+    shelfBooks = shelfBooks.where((book) => book.id != bookId).toList();
+  }
+
   bool shelfFails = false, cardFails = false;
   String? savedBookId;
   Object? bookSaveError;
@@ -147,6 +156,71 @@ void main() {
     await tester.enterText(find.byType(TextFormField).first, '기억할 내용');
     tester.testTextInput.hide();
     await tester.pumpAndSettle();
+  }
+
+  testWidgets('card deletion can be cancelled and confirmed', (tester) async {
+    final gateway = Gateway();
+    final state = await open(tester, gateway);
+    state.openBook(serverBook);
+    await tester.pumpAndSettle();
+    await tap(tester, '삭제');
+    await tester.pumpAndSettle();
+    await tap(tester, '취소');
+    await tester.pumpAndSettle();
+    expect(gateway.deletedBookId, isNull);
+    expect(state.screen, 'card-front');
+    await tap(tester, '삭제');
+    await tester.pumpAndSettle();
+    await tap(tester, '삭제');
+    await tester.pumpAndSettle();
+    expect(gateway.deletedBookId, '71');
+    expect(state.screen, 'shelf');
+    expect(state.history, isEmpty);
+    expect(state.library, isEmpty);
+    expect(state.cards.containsKey('71'), isFalse);
+    expect(gateway.shelfLoads, greaterThan(1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('failed deletion preserves the card and its records', (
+    tester,
+  ) async {
+    final gateway = Gateway()..deleteError = StateError('offline');
+    final state = await open(tester, gateway);
+    state.openBook(serverBook);
+    await tester.pumpAndSettle();
+    await tap(tester, '삭제');
+    await tester.pumpAndSettle();
+    await tap(tester, '삭제');
+    await tester.pumpAndSettle();
+    expect(state.screen, 'card-front');
+    expect(state.library.containsKey('71'), isTrue);
+    expect(state.isSaving, isFalse);
+    expect(find.text('책을 삭제하지 못했어요. 다시 시도해주세요.'), findsOneWidget);
+  });
+
+  for (final systemBack in [false, true]) {
+    testWidgets('saved record back returns to shelf (system: $systemBack)', (
+      tester,
+    ) async {
+      final gateway = Gateway()..recordWrite = Completer<String>();
+      final state = await open(tester, gateway);
+      await enterRecord(tester, state);
+      await tap(tester, '기록 완료');
+      gateway.recordWrite!.complete('record-1');
+      await tester.pumpAndSettle();
+      expect(state.screen, 'record-complete');
+      expect(state.history, ['shelf']);
+      if (systemBack) {
+        await tester.binding.handlePopRoute();
+      } else {
+        await tester.tap(find.bySemanticsLabel('뒤로'));
+      }
+      await tester.pumpAndSettle();
+      expect(state.screen, 'shelf');
+      expect(find.byType(TextFormField), findsNothing);
+      expect(gateway.recordPosts, 1);
+    });
   }
 
   ReadingBook resultBook(int id) =>

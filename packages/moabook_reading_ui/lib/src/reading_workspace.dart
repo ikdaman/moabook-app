@@ -421,6 +421,142 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     }
   }
 
+  Future<void> confirmDeleteBook() async {
+    if (isSaving) return;
+    final dialogContext = widget.embedded
+        ? context
+        : previewNavigator.currentContext;
+    if (dialogContext == null) return;
+    final confirmed = await showDialog<bool>(
+      context: dialogContext,
+      barrierColor: Colors.black.withValues(alpha: p.dark ? .72 : .55),
+      builder: (context) => Theme(
+        data: p.theme,
+        child: Dialog(
+          backgroundColor: p.card,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: p.ink, width: 1.5),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: t('독서카드', 11, weight: 500, color: p.muted),
+                      ),
+                      iconButton(
+                        'x',
+                        '닫기',
+                        () => Navigator.of(context).pop(false),
+                      ),
+                    ],
+                  ),
+                  gap(8),
+                  t('책을 삭제할까요?', 25, weight: 600, serif: true),
+                  gap(18),
+                  rule(color: p.ink, width: 1.5),
+                  gap(20),
+                  t(book.title, 15, weight: 600, lines: 3),
+                  gap(12),
+                  t('책을 삭제하면 함께 남긴 모든 기록도 사라져요.', 14, color: p.muted),
+                  gap(8),
+                  t('삭제한 책과 기록은 되돌릴 수 없어요.', 12, color: p.orange),
+                  gap(28),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: button(
+                          '취소',
+                          () => Navigator.of(context).pop(false),
+                          secondary: true,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: button(
+                          '삭제',
+                          () => Navigator.of(context).pop(true),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final id = selectedBook.id;
+    setState(() => isSaving = true);
+    try {
+      if (isLive) await gateway.deleteBook(id);
+    } catch (_) {
+      if (mounted) {
+        setState(() => isSaving = false);
+        notice('책을 삭제하지 못했어요. 다시 시도해주세요.');
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      // Invalidate requests which could restore the deleted card or shelf.
+      cardRequest++;
+      shelfRequest++;
+      collectionsRequest++;
+      library.remove(id);
+      catalog.remove(id);
+      cards.remove(id);
+      journals.remove(id);
+      bookAddedDates.remove(id);
+      loadedRecordBooks.remove(id);
+      pendingSavedBooks.removeWhere((_, bookId) => bookId == id);
+      collectionData = [
+        for (final collection in collectionData)
+          ReadingCollection(
+            id: collection.id,
+            name: collection.name,
+            slots: [
+              for (final slot in collection.slots) slot == id ? null : slot,
+            ],
+          ),
+      ];
+      collectionSummaries.clear();
+      loadedCollections.clear();
+      staleCollections.clear();
+      loadingCollections.clear();
+      isSaving = false;
+    });
+    go('shelf');
+    if (isLive) {
+      await Future.wait([refreshRemoteShelf(), refreshRemoteCollections()]);
+    }
+  }
+
+  void showRecordComplete() {
+    // Completed forms must never be reopened by back navigation.
+    setState(() {
+      history
+        ..clear()
+        ..add('shelf');
+      screen = 'record-complete';
+    });
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   void returnToCardRecords() {
     final cardIndex = history.indexWhere(
       (route) => route == 'card-front' || route == 'card-back',
@@ -455,7 +591,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       journals[selectedBook.id] = journal.add(record);
       completedRecord = record;
     });
-    go('record-complete');
+    showRecordComplete();
   }
 
   bool get isCollectionScreen =>
@@ -2075,7 +2211,13 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [iconButton('chevron-left', '서가로 돌아가기', back)],
+          children: [
+            iconButton('chevron-left', '서가로 돌아가기', back),
+            TextButton(
+              onPressed: confirmDeleteBook,
+              child: t('삭제', 13, color: p.muted),
+            ),
+          ],
         ),
         gap(16),
         if (p.dark)
@@ -2542,6 +2684,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   }) => Builder(
     builder: (context) => Container(
       width: double.infinity,
+      padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * .84,
       ),
@@ -2596,12 +2739,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
           ),
           if (footer != null)
             Padding(
-              padding: EdgeInsets.fromLTRB(
-                22,
-                16,
-                22,
-                math.max(MediaQuery.paddingOf(context).bottom, 18) + 14,
-              ),
+              padding: EdgeInsets.fromLTRB(22, 16, 22, 32),
               child: footer,
             ),
         ],

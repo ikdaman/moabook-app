@@ -84,6 +84,7 @@ class ReadingCollectionDetail {
 abstract interface class ReadingGateway {
   Future<ReadingBookCheck> checkBook(ReadingBook book, {String? collectionId});
   Future<String> saveBook(ReadingBook book, {required String reason});
+  Future<void> deleteBook(String bookId);
   Future<ReadingShelf> loadShelf();
   Future<ReadingCard> loadCard(String bookId);
   Future<List<ReadingRecord>> loadRecords(String bookId);
