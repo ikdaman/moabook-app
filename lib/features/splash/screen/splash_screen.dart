@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../app/router/routes.dart';
+import '../../../shared/widgets/root_back_guard.dart';
 import '../../../features/onboarding/onboarding_prefs.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../features/auth/provider/auth_provider.dart';
@@ -38,6 +39,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     // Android 원본 SplashScreen: 단색 배경만 표시한 채 즉시 라우팅.
-    return const ColoredBox(color: AppColors.backgroundDefault);
+    return const RootBackGuard(
+      blocked: true,
+      child: ColoredBox(color: AppColors.backgroundDefault),
+    );
   }
 }

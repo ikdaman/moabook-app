@@ -386,6 +386,7 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
       selectedBook = card.book;
       await refreshRemoteShelf();
       if (!mounted) return;
+      notice('책이 잘 저장되었습니다!');
       if (targetCollectionId != null) {
         _update(() => isSaving = false);
         await addRemoteBookToCollection();
@@ -394,7 +395,7 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
           history
             ..clear()
             ..add('shelf');
-          screen = 'card-back';
+          screen = 'card-front';
         });
         await loadRemoteCard(id);
       }

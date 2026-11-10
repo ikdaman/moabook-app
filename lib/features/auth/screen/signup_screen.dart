@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/root_back_guard.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -104,8 +105,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       data: palette.theme,
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark,
-        child: PopScope(
-          canPop: !isLoading,
+        child: RootBackGuard(
+          blocked: isLoading,
+          onBack: () => context.go(Routes.login),
           child: Scaffold(
             backgroundColor: palette.background,
             appBar: AppBar(

@@ -7,6 +7,7 @@ import 'package:moabook_reading_ui/moabook_reading_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/router/routes.dart';
+import '../../../shared/widgets/root_back_guard.dart';
 import '../../../domain/model/book_item.dart';
 import '../../auth/provider/auth_provider.dart';
 import '../provider/reading_gateway_provider.dart';
@@ -57,52 +58,51 @@ class _ReadingLibraryScreenState extends ConsumerState<ReadingLibraryScreen>
 
   @override
   Widget build(BuildContext context) {
-    return ref
-        .watch(isLoggedInProvider)
-        .when(
-          loading: () =>
-              const Scaffold(body: Center(child: CircularProgressIndicator())),
-          error: (error, stack) => Scaffold(
-            body: Center(
-              child: TextButton(
-                onPressed: () => ref.invalidate(isLoggedInProvider),
-                child: const Text('로그인 상태 다시 확인'),
-              ),
-            ),
+    final auth = ref.watch(isLoggedInProvider);
+    final content = auth.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, stack) => Scaffold(
+        body: Center(
+          child: TextButton(
+            onPressed: () => ref.invalidate(isLoggedInProvider),
+            child: const Text('로그인 상태 다시 확인'),
           ),
-          data: (loggedIn) => !loggedIn
-              ? Scaffold(
-                  body: Center(
-                    child: TextButton(
-                      onPressed: () => context.go(Routes.login),
-                      child: const Text('로그인하고 내 서가 보기'),
-                    ),
-                  ),
-                )
-              : ReadingWorkspace(
-                  key: workspace,
-                  initialMood: Mood.a,
-                  initialScreen: widget.initialScreen,
-                  initialBookId: widget.bookId,
-                  embedded: true,
-                  gateway: ref.watch(readingGatewayProvider),
-                  onSettings: () => context.push(Routes.setting),
-                  onCapture: capture,
-                  onExport: (request) => Navigator.of(context).push<void>(
-                    MaterialPageRoute(
-                      builder: (_) => ReadingExportScreen(request: request),
-                    ),
-                  ),
-                  onOpenLink: (url) async {
-                    final uri = Uri.tryParse(url);
-                    if (uri != null && ['http', 'https'].contains(uri.scheme)) {
-                      await launchUrl(
-                        uri,
-                        mode: LaunchMode.externalApplication,
-                      );
-                    }
-                  },
+        ),
+      ),
+      data: (loggedIn) => !loggedIn
+          ? Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () => context.go(Routes.login),
+                  child: const Text('로그인하고 내 서가 보기'),
                 ),
-        );
+              ),
+            )
+          : ReadingWorkspace(
+              key: workspace,
+              initialMood: Mood.a,
+              initialScreen: widget.initialScreen,
+              initialBookId: widget.bookId,
+              embedded: true,
+              gateway: ref.watch(readingGatewayProvider),
+              onSettings: () => context.push(Routes.setting),
+              onCapture: capture,
+              onExport: (request) => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => ReadingExportScreen(request: request),
+                ),
+              ),
+              onOpenLink: (url) async {
+                final uri = Uri.tryParse(url);
+                if (uri != null && ['http', 'https'].contains(uri.scheme)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+    );
+    return auth.asData?.value == true
+        ? content
+        : RootBackGuard(blocked: true, child: content);
   }
 }

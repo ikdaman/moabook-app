@@ -309,7 +309,8 @@ class _EmptyResult extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-            '검색 결과가 없습니다.',
+            '아직 찾지 못했어요.\n제목의 일부나 저자 이름으로 다시 검색해보세요',
+            textAlign: TextAlign.center,
             style: AppTypography.dungGeunMoBody.copyWith(color: Colors.grey),
           ),
           const SizedBox(height: 16),

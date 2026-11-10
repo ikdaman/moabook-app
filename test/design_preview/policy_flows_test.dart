@@ -31,7 +31,7 @@ void main() {
       tester,
     ) async {
       await open(tester, screen);
-      final label = screen == 'record-options' ? '기록 완료' : '책 제목으로 검색';
+      final label = screen == 'record-options' ? '자유 기록' : '책 제목으로 검색';
       // Compare the same sheet with and without an Android navigation inset.
       final finder = find.text(label);
       expect(finder, findsOneWidget);
@@ -245,9 +245,11 @@ void main() {
       state.reasonDraft = '서점에서 만난 책';
       state.saveBookLocally();
       await tester.pumpAndSettle();
-      expect(state.screen, 'card-back');
+      expect(state.screen, 'card-front');
+      expect(find.text('책이 잘 저장되었습니다!'), findsOneWidget);
       expect(state.journal.records.length, 1);
       expect(state.book.reason, '서점에서 만난 책');
+      await tap(tester, find.byKey(const ValueKey('card-front-surface')));
       expect(find.text('기록 추가'), findsOneWidget);
       state.chooseCategory(ReadingCategory.todo);
       state.memoDraft = '';
@@ -262,6 +264,9 @@ void main() {
     'FREE validates whitespace and completed record retains actual content and date',
     (tester) async {
       final state = await open(tester, 'record-free');
+      await enter(tester, List.filled(401, '글').join());
+      expect(state.memoDraft.characters.length, 400);
+      expect(find.text('400/400'), findsOneWidget);
       await enter(tester, '  ');
       await tap(tester, find.text('기록 완료'));
       expect(state.screen, 'record-free');
@@ -279,30 +284,48 @@ void main() {
     },
   );
 
-  testWidgets(
-    'ordinary categories finish in one sheet; only free records open text entry',
-    (tester) async {
-      final state = await open(tester, 'record-options');
-      expect(find.text('쉬고 있음'), findsNothing);
-      for (final code in ['TODO', 'INPROGRESS', 'DONE', 'BUY', 'SENTENCE']) {
-        await tap(tester, find.byKey(ValueKey('category-$code')));
-        expect(state.screen, 'record-options');
-        expect(find.byType(TextFormField), findsNothing);
-        expect(find.text('기록 완료'), findsOneWidget);
-        expect(state.recordCategory.code, code);
+  testWidgets('every category opens its input screen before saving', (
+    tester,
+  ) async {
+    final state = await open(tester, 'record-options');
+    expect(find.text('쉬고 있음'), findsNothing);
+    expect(find.text('기록 완료'), findsNothing);
+    for (final category in ReadingCategory.values.where(
+      (c) => c != ReadingCategory.free,
+    )) {
+      await tap(tester, find.byKey(ValueKey('category-${category.code}')));
+      expect(state.screen, 'record-entry');
+      expect(find.byType(TextFormField), findsOneWidget);
+      expect(find.text('기록 완료'), findsOneWidget);
+      expect(find.text('자유 기록'), findsNothing);
+      expect(state.recordCategory, category);
+      expect(state.completedRecord, isNull);
+      if (category == ReadingCategory.todo) {
+        expect(find.text('읽고 싶은 이유'), findsOneWidget);
+        expect(find.text('0/400'), findsOneWidget);
+      } else {
+        expect(find.text('어떤 기억을 남기고 싶나요?'), findsOneWidget);
+      expect(find.text('0/400'), findsOneWidget);
       }
-      await tap(tester, find.text('기록 완료'));
-      expect(state.screen, 'record-complete');
-      expect(state.completedRecord!.category, ReadingCategory.sentence);
-      expect(state.completedRecord!.memo, isEmpty);
-    },
-  );
+      expect(find.text('· 선택'), findsOneWidget);
+      await enter(tester, List.filled(401, '글').join());
+      expect(state.memoDraft.characters.length, 400);
+      expect(find.text('400/400'), findsOneWidget);
+      state.back();
+      await tester.pumpAndSettle();
+    }
+    await tap(tester, find.byKey(const ValueKey('category-BUY')));
+    await enter(tester, '서점에서 만난 책');
+    await tap(tester, find.text('기록 완료'));
+    expect(state.screen, 'record-complete');
+    expect(state.completedRecord!.category, ReadingCategory.buy);
+    expect(state.completedRecord!.memo, '서점에서 만난 책');
+  });
 
   testWidgets(
     'free record opens text entry and cancellation restores the selected category',
     (tester) async {
       final state = await open(tester, 'record-options');
-      await tap(tester, find.byKey(const ValueKey('category-BUY')));
       await tap(tester, find.text('자유 기록'));
       expect(state.screen, 'record-free');
       expect(find.byType(TextFormField), findsOneWidget);
@@ -310,7 +333,7 @@ void main() {
       state.back();
       await tester.pumpAndSettle();
       expect(state.screen, 'record-options');
-      expect(state.recordCategory, ReadingCategory.buy);
+      expect(state.recordCategory, state.currentBookStatus);
       expect(state.memoDraft, isEmpty);
       expect(find.byType(TextFormField), findsNothing);
     },
@@ -322,11 +345,10 @@ void main() {
       final state = await open(tester, 'card-front');
       state.go('record-options');
       await tester.pumpAndSettle();
-      await tap(tester, find.byKey(const ValueKey('category-BUY')));
       await tap(tester, find.text('자유 기록'));
       await tap(tester, find.text('카테고리 바꾸기'));
       expect(state.screen, 'record-options');
-      expect(state.recordCategory, ReadingCategory.buy);
+      expect(state.recordCategory, state.currentBookStatus);
       state.back();
       await tester.pumpAndSettle();
       expect(state.screen, 'card-front');

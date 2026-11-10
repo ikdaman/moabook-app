@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moabook_reading_ui/moabook_reading_ui.dart';
 import '../../../app/router/routes.dart';
+import '../../../shared/widgets/root_back_guard.dart';
 import '../../../domain/model/book_item.dart';
 import '../../book_search/provider/book_search_provider.dart';
 import '../onboarding_prefs.dart';
@@ -110,15 +111,13 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       value: SystemUiOverlayStyle.light.copyWith(
         systemNavigationBarColor: palette.ink,
       ),
-      child: PopScope(
-        canPop: _step == _Step.intro,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && !_choosing) {
-            setState(
-              () => _step = _step == _Step.done ? _Step.search : _Step.intro,
-            );
-          }
-        },
+      child: RootBackGuard(
+        blocked: _choosing,
+        onBack: _step == _Step.intro
+            ? null
+            : () => setState(
+                () => _step = _step == _Step.done ? _Step.search : _Step.intro,
+              ),
         child: Scaffold(
           backgroundColor: palette.ink,
           body: SafeArea(
@@ -303,6 +302,7 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               SizedBox(height: compact ? 12 : 20),
               TextField(
                 controller: _queryCtrl,
+                autofocus: true,
                 textInputAction: TextInputAction.search,
                 onSubmitted: (_) => _runSearch(),
                 style: palette.text(16),
@@ -349,7 +349,7 @@ class OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               : state.query.isEmpty
               ? _searchMessage('어떤 책이든 좋아요.', '제목의 일부만 떠올라도 괜찮아요.')
               : state.results.isEmpty
-              ? _searchMessage('아직 찾지 못했어요.', '제목의 일부나 작가 이름으로 다시 찾아보세요.')
+              ? _searchMessage('아직 찾지 못했어요.', '제목의 일부나 저자 이름으로 다시 검색해보세요')
               : NotificationListener<ScrollNotification>(
                   onNotification: (event) {
                     if (event.metrics.axis == Axis.vertical &&

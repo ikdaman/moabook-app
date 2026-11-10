@@ -32,6 +32,26 @@ void main() {
       state.go('shelf');
       await tester.pumpAndSettle();
       expect(state.shelfPageCount, greaterThan(1));
+      final capture = find.byKey(state.shelfCaptureKey);
+      for (final label in ['서가', '책 추가', 'MOABOOK / MY BOOKS']) {
+        expect(
+          find.descendant(of: capture, matching: find.text(label)),
+          findsNothing,
+        );
+      }
+      expect(
+        find.descendant(of: capture, matching: find.byType(IconButton)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: capture,
+          matching: find.byKey(const Key('shelf-page-indicator')),
+        ),
+        findsNothing,
+      );
+      expect(find.text('책 추가'), findsOneWidget);
+      expect(find.byKey(const Key('shelf-page-indicator')), findsOneWidget);
       state.shelfPages.jumpToPage(1);
       await tester.pumpAndSettle();
       final expectedPage = state.shelfPage;

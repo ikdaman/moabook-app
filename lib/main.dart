@@ -18,6 +18,7 @@ import 'features/notification/provider/notification_providers.dart';
 import 'features/notification/provider/push_settings_provider.dart';
 import 'features/notification/service/fcm_service.dart';
 import 'firebase_options.dart';
+import 'shared/widgets/root_back_guard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -94,6 +95,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       theme: appTheme,
       builder: fixedAppTextScale,
       routerConfig: appRouter,
+      onNavigationNotification: handleAppNavigationNotification,
       debugShowCheckedModeBanner: false,
     );
   }

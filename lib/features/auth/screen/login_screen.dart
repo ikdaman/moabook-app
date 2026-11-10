@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/router/routes.dart';
+import '../../../shared/widgets/root_back_guard.dart';
 import '../../../domain/model/login_state.dart';
 import '../provider/auth_provider.dart';
 
@@ -52,8 +53,8 @@ class LoginScreen extends ConsumerWidget {
       data: palette.theme,
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark,
-        child: PopScope(
-          canPop: !isLoading,
+        child: RootBackGuard(
+          blocked: isLoading,
           child: Scaffold(
             backgroundColor: palette.background,
             body: SafeArea(

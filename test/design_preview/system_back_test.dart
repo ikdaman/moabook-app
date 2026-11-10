@@ -117,6 +117,28 @@ void main() {
     },
   );
 
+  for (final screen in [
+    'search',
+    'search-empty',
+    'book-info',
+    'save-wish',
+    'card-front',
+    'card-back',
+    'duplicate',
+    'collection-duplicate',
+  ]) {
+    testWidgets('$screen back returns to shelf without exiting', (
+      tester,
+    ) async {
+      final (_, state, calls) = await mount(tester, screen: screen);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(state.screen, 'shelf');
+      expect(calls.where((c) => c.method == 'SystemNavigator.pop'), isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('pushed screens receive back without changing the library', (
     tester,
   ) async {

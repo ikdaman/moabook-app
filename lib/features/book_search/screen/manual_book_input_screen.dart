@@ -48,7 +48,7 @@ class _ManualBookInputScreenState extends ConsumerState<ManualBookInputScreen> {
     if (ok && mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('책을 저장했어요')));
+      ).showSnackBar(const SnackBar(content: Text('책이 잘 저장되었습니다!')));
       context.go(Routes.home);
     }
   }

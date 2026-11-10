@@ -586,8 +586,11 @@ void main() {
       expect(gateway.recordPosts, 1);
       expect(gateway.records.single.category, ReadingCategory.todo);
       expect(gateway.records.single.memo, '읽고 싶은 이유');
-      expect(state.screen, 'card-back');
+      expect(state.screen, 'card-front');
+      expect(find.text('책이 잘 저장되었습니다!'), findsOneWidget);
       expect(state.selectedBook.id, '71');
+      await tester.tap(find.byKey(const ValueKey('card-front-surface')));
+      await tester.pumpAndSettle();
       expect(find.text('기록 추가'), findsOneWidget);
       await tap(tester, '기록 추가');
       await tester.pumpAndSettle();
@@ -694,29 +697,86 @@ void main() {
     });
   }
 
-  testWidgets(
-    'ordinary record selection stays in the sheet and posts once on completion',
-    (tester) async {
+  testWidgets('status selection opens its entry and posts once on completion', (
+    tester,
+  ) async {
+    final gateway = Gateway()..recordWrite = Completer<String>();
+    final state = await open(tester, gateway);
+    state.openBook(serverBook);
+    await tester.pumpAndSettle();
+    state.go('record-options');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('category-DONE')));
+    await tester.pumpAndSettle();
+    expect(state.screen, 'record-entry');
+    expect(gateway.recordPosts, 0);
+    expect(find.byType(TextFormField), findsOneWidget);
+    expect(find.text('자유 기록'), findsNothing);
+    await tap(tester, '기록 완료');
+    expect(gateway.recordPosts, 1);
+    state.saveRecordLocally();
+    expect(gateway.recordPosts, 1);
+    gateway.recordWrite!.complete('once');
+    await tester.pumpAndSettle();
+    expect(gateway.records.single.category, ReadingCategory.done);
+    expect(gateway.records.single.memo, isEmpty);
+    expect(state.screen, 'record-complete');
+  });
+
+  for (final category in [ReadingCategory.buy, ReadingCategory.sentence]) {
+    testWidgets('${category.code} opens input and saves only on completion', (
+      tester,
+    ) async {
       final gateway = Gateway()..recordWrite = Completer<String>();
       final state = await open(tester, gateway);
       state.openBook(serverBook);
       await tester.pumpAndSettle();
       state.go('record-options');
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('category-DONE')));
+      expect(find.text('기록 완료'), findsNothing);
+      await tester.tap(find.byKey(ValueKey('category-${category.code}')));
       await tester.pumpAndSettle();
-      expect(state.screen, 'record-options');
+      expect(state.screen, 'record-entry');
       expect(gateway.recordPosts, 0);
-      expect(find.byType(TextFormField), findsNothing);
+      await tester.enterText(find.byType(TextFormField), '함께한 기억');
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
       await tap(tester, '기록 완료');
       expect(gateway.recordPosts, 1);
-      state.saveRecordLocally();
+      expect(state.isSaving, isTrue);
+      expect(state.completedRecord, isNull);
+      state.chooseCategory(ReadingCategory.gift);
       expect(gateway.recordPosts, 1);
-      gateway.recordWrite!.complete('once');
+      expect(state.recordCategory, category);
+      gateway.recordWrite!.complete('record');
       await tester.pumpAndSettle();
-      expect(gateway.records.single.category, ReadingCategory.done);
-      expect(gateway.records.single.memo, isEmpty);
       expect(state.screen, 'record-complete');
+      expect(state.completedRecord!.category, category);
+      expect(state.completedRecord!.memo, '함께한 기억');
+    });
+  }
+
+  testWidgets(
+    'uncertain category record offers verification and blocks category writes',
+    (tester) async {
+      final gateway = Gateway()..recordError = const ReadingWriteUncertain();
+      final state = await open(tester, gateway);
+      state.openBook(serverBook);
+      await tester.pumpAndSettle();
+      state.go('record-options');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('category-BUY')));
+      await tester.pumpAndSettle();
+      await tap(tester, '기록 완료');
+      await tester.pumpAndSettle();
+      expect(state.screen, 'record-entry');
+      expect(find.text('기록 목록에서 저장 결과 확인'), findsOneWidget);
+      state.chooseCategory(ReadingCategory.sentence);
+      state.chooseCategory(ReadingCategory.free);
+      await tester.pumpAndSettle();
+      expect(gateway.recordPosts, 1);
+      expect(state.screen, 'record-entry');
+      expect(state.completedRecord, isNull);
     },
   );
 
@@ -738,7 +798,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(gateway.bookPosts, 1);
     expect(gateway.recordPosts, 1);
-    expect(state.screen, 'card-back');
+    expect(state.screen, 'card-front');
   });
 
   testWidgets('duplicate check opens existing book without a write', (
@@ -774,7 +834,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(gateway.bookPosts, 1);
       expect(gateway.recordPosts, 1);
-      expect(state.screen, 'card-back');
+      expect(state.screen, 'card-front');
     },
   );
 
