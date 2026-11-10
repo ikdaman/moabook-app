@@ -1040,7 +1040,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
             )
           : isCollectionScreen
           ? Padding(
-              padding: const EdgeInsets.fromLTRB(22, 12, 22, 12),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: collectionPager(),
             )
           : usesCardBackLayout
@@ -1515,13 +1515,13 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     var row = <PreviewBook>[];
     var used = 0.0;
     for (var i = 0; i < books.length; i++) {
-      final needed = spineWidth(books[i], scaler) + (row.isEmpty ? 0 : 5);
+      final needed = spineWidth(books[i], scaler);
       if (row.isNotEmpty && used + needed > width) {
         rows.add(row);
         row = [];
         used = 0;
       }
-      used += spineWidth(books[i], scaler) + (row.isEmpty ? 0 : 5);
+      used += needed;
       row.add(books[i]);
     }
     if (row.isNotEmpty) rows.add(row);
@@ -1649,6 +1649,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     required Map<String, int> bookIndices,
   }) => Column(
     key: key,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Expanded(
         child: SingleChildScrollView(
@@ -1657,7 +1658,6 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               for (var i = 0; i < books.length; i++) ...[
-                if (i != 0) const SizedBox(width: 5),
                 Builder(
                   builder: (context) {
                     final value = books[i];
@@ -1743,6 +1743,28 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
 
   Widget collectionPager() => Column(
     children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 22),
+        child: Row(
+          children: [
+            Expanded(
+              child: t(
+                'COLLECTION',
+                10,
+                mono: true,
+                color: p.dark ? p.accent : p.muted,
+              ),
+            ),
+            IconButton(
+              key: const Key('collection-picker'),
+              tooltip: '주제 서가 목록',
+              onPressed: () => go('collections'),
+              icon: icon('list', size: 24, color: p.dark ? p.accent : p.ink),
+            ),
+            iconButton('settings-2', isLive ? '설정' : '시안 설정', showDesignPicker),
+          ],
+        ),
+      ),
       Expanded(
         child: PageView.builder(
           key: const Key('collection-pager'),
@@ -1756,21 +1778,12 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
             }
           }),
           itemBuilder: (context, index) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 22),
             child: index == collectionTitles.length
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      shelfToolbar('COLLECTION'),
-                      Row(
-                        children: [
-                          Expanded(child: t('새 컬렉션 만들기', 28, weight: 600)),
-                          iconButton(
-                            'list',
-                            '주제 서가 목록',
-                            () => go('collections'),
-                          ),
-                        ],
-                      ),
+                      t('새 컬렉션 만들기', 28, weight: 600),
                       gap(16),
                       rule(color: p.ink),
                       emptyState(
@@ -1782,7 +1795,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                       ),
                     ],
                   )
-                : collection(title: collectionTitles[index], index: index),
+                : collection(index: index, showToolbar: false),
           ),
         ),
       ),
@@ -1795,12 +1808,12 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     ],
   );
 
-  Widget collection({String? title, int index = 0}) {
+  Widget collection({int index = 0, bool showToolbar = true}) {
     final value = collectionData[index];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        shelfToolbar('COLLECTION'),
+        if (showToolbar) shelfToolbar('COLLECTION'),
         Row(
           children: [
             Expanded(
@@ -1813,12 +1826,13 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                 lines: 2,
               ),
             ),
-            IconButton(
-              key: const Key('collection-picker'),
-              tooltip: '주제 서가 목록',
-              onPressed: () => go('collections'),
-              icon: icon('list', size: 24, color: p.dark ? p.accent : p.ink),
-            ),
+            if (showToolbar)
+              IconButton(
+                key: const Key('collection-picker'),
+                tooltip: '주제 서가 목록',
+                onPressed: () => go('collections'),
+                icon: icon('list', size: 24, color: p.dark ? p.accent : p.ink),
+              ),
           ],
         ),
         gap(16),
