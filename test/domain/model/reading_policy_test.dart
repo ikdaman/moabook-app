@@ -14,16 +14,58 @@ void main() {
     memo: memo,
   );
 
-  test(
-    'backdated status overrides current status without changing timeline order',
-    () {
-      final journal = ReadingJournal([
-        record('done', ReadingCategory.done, 4),
-      ]).add(record('start', ReadingCategory.inProgress, 1));
-      expect(journal.status, ReadingCategory.inProgress);
-      expect(journal.newestFirst.map((r) => r.id), ['done', 'start']);
-    },
-  );
+  test('backdated status cannot override the latest dated status', () {
+    final journal = ReadingJournal([
+      record('done', ReadingCategory.done, 4),
+    ]).add(record('start', ReadingCategory.inProgress, 1));
+    expect(journal.status, ReadingCategory.done);
+    expect(journal.newestFirst.map((r) => r.id), ['done', 'start']);
+  });
+
+  test('same-day status uses creation order rather than response order', () {
+    final journal = ReadingJournal([
+      ReadingRecord(
+        id: '20',
+        category: ReadingCategory.done,
+        date: DateTime(2026, 11, 2),
+        memo: '',
+        creationOrder: 20,
+      ),
+      ReadingRecord(
+        id: '10',
+        category: ReadingCategory.inProgress,
+        date: DateTime(2026, 11, 2),
+        memo: '',
+        creationOrder: 10,
+      ),
+      ReadingRecord(
+        id: '30',
+        category: ReadingCategory.todo,
+        date: DateTime(2026, 11, 1),
+        memo: '',
+        creationOrder: 30,
+      ),
+    ]);
+    expect(journal.status, ReadingCategory.done);
+    expect(journal.newestFirst.map((record) => record.id), ['20', '10', '30']);
+    final dated = ReadingJournal([
+      ReadingRecord(
+        id: '1',
+        category: ReadingCategory.inProgress,
+        date: DateTime(2026, 11, 2),
+        memo: '',
+        createdAt: DateTime(2026, 11, 3, 12),
+      ),
+      ReadingRecord(
+        id: '2',
+        category: ReadingCategory.done,
+        date: DateTime(2026, 11, 2),
+        memo: '',
+        createdAt: DateTime(2026, 11, 3, 10),
+      ),
+    ]);
+    expect(dated.status, ReadingCategory.inProgress);
+  });
 
   test('non-status records never override the last status', () {
     var journal = ReadingJournal([record('done', ReadingCategory.done, 1)]);
@@ -43,7 +85,7 @@ void main() {
         record('done', ReadingCategory.done, 4),
         record('old-reason', ReadingCategory.todo, 1, '과거 이유'),
       ]);
-      expect(journal.status, ReadingCategory.todo);
+      expect(journal.status, ReadingCategory.done);
       expect(journal.reason, '최근 이유');
       expect(journal.newestFirst.map((r) => r.id), [
         'done',
@@ -107,6 +149,31 @@ void main() {
   );
 
   test(
+    'adding to a selected slot preserves earlier gaps and occupied slots',
+    () {
+      final original = ReadingCollection(
+        id: 'c',
+        name: '모음',
+      ).add('a', slotIndex: 2);
+      final updated = original.add('b', slotIndex: 8);
+      expect(updated.slots, [
+        null,
+        null,
+        'a',
+        null,
+        null,
+        null,
+        null,
+        null,
+        'b',
+      ]);
+      expect(() => updated.add('c', slotIndex: 8), throwsStateError);
+      expect(() => updated.add('c', slotIndex: 9), throwsRangeError);
+      expect(original.slots[8], isNull);
+    },
+  );
+
+  test(
     'duplicate and full collection reject additions; another collection accepts same book',
     () {
       var collection = ReadingCollection(id: 'one', name: '하나');
@@ -125,14 +192,12 @@ void main() {
     },
   );
 
-  test(
-    'spines follow page count, use default for missing pages, and stay bounded',
-    () {
-      expect(bookSpineWidth(128), lessThan(bookSpineWidth(400)));
-      expect(bookSpineWidth(null), bookSpineWidth(0));
-      expect(bookSpineWidth(-1), 28);
-      expect(bookSpineWidth(1), 22);
-      expect(bookSpineWidth(10000), 38);
-    },
-  );
+  test('spines keep increasing beyond 500 pages without an upper cap', () {
+    expect(bookSpineWidth(128), lessThan(bookSpineWidth(400)));
+    expect(bookSpineWidth(null), bookSpineWidth(0));
+    expect(bookSpineWidth(-1), 28);
+    expect(bookSpineWidth(1), 22);
+    expect(bookSpineWidth(1000), greaterThan(bookSpineWidth(500)));
+    expect(bookSpineWidth(10000), 418);
+  });
 }

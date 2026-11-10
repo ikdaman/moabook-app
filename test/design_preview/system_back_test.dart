@@ -64,6 +64,8 @@ void main() {
       await tester.tap(find.text('첫 기록 남기기'));
       await tester.pumpAndSettle();
       expect(state.screen, 'record-options');
+      await tester.ensureVisible(find.text('자유 기록'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('자유 기록'));
       await tester.pumpAndSettle();
       expect(state.screen, 'record-free');

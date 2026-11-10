@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'dart:async';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -78,6 +80,8 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   // Checkpoints survive navigation so partial writes are not repeated.
   final Map<String, String> pendingSavedBooks = {};
   final Set<String> uncertainBookWrites = {};
+  final Set<String> initializedSavedBooks = {};
+  final Set<String> uncertainInitialBookWrites = {};
 
   int collectionsRequest = 0;
   void _update(VoidCallback action) {
@@ -114,9 +118,22 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   ReadingCollection? editingCollection;
   String collectionNameDraft = '';
   String? targetCollectionId;
+  int? targetCollectionSlot;
+  final GlobalKey shelfCaptureKey = GlobalKey();
+  List<List<PreviewBook>> renderedShelfRows = [];
   String searchQuery = '소년';
   String reasonDraft = '';
   String memoDraft = '';
+  ReadingCategory bookSaveCategory = ReadingCategory.todo;
+  ReadingCategory? recordStatusDraft;
+  ReadingCategory? categoryBeforeFree;
+  ReadingCategory get currentBookStatus =>
+      (isLive && !loadedRecordBooks.contains(selectedBook.id)
+          ? cards[selectedBook.id]?.status
+          : journal.status) ??
+      ReadingCategory.todo;
+  ReadingCategory get selectedRecordStatus =>
+      recordStatusDraft ?? currentBookStatus;
   ReadingCategory recordCategory = ReadingCategory.buy;
   DateTime recordDate = readingDay(DateTime.now());
   DateTime startedDate = readingDay(DateTime.now());
@@ -142,8 +159,9 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       collectionData[collectionPage.clamp(0, collectionData.length - 1)];
   String get collectionName => currentCollection.name;
   String get recordKind => recordCategory.label;
-  String get readingStatus => isLive
-      ? cards[selectedBook.id]?.status?.label ?? '기록 없음'
+  String get readingStatus =>
+      isLive && !loadedRecordBooks.contains(selectedBook.id)
+      ? (recordsError == null ? '기록 확인 중' : '기록 확인 필요')
       : journal.status?.label ?? '기록 없음';
   int? get recordCount => !isLive || loadedRecordBooks.contains(selectedBook.id)
       ? journal.records.length
@@ -274,10 +292,17 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   }
 
   void configureScreen(String target) {
+    bookSaveCategory = switch (target) {
+      'save-reading' => ReadingCategory.inProgress,
+      'save-read' => ReadingCategory.done,
+      _ => ReadingCategory.todo,
+    };
+    recordStatusDraft = null;
     recordCategory = switch (target) {
       'record-quote' => ReadingCategory.sentence,
       'record-free' => ReadingCategory.free,
       'record-wish' => ReadingCategory.todo,
+      'record-options' => currentBookStatus,
       _ => ReadingCategory.buy,
     };
     if (target == 'collections-empty') {
@@ -308,9 +333,10 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     }
   }
 
-  void startAddingToCollection() {
+  void startAddingToCollection({int? slotIndex}) {
     if (currentCollection.isFull) return;
     targetCollectionId = currentCollection.id;
+    targetCollectionSlot = slotIndex;
     go('add-options');
   }
 
@@ -373,6 +399,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       return;
     }
     reasonDraft = '';
+    bookSaveCategory = ReadingCategory.todo;
     startedDate = finishedDate = readingDay(DateTime.now());
     go('save-wish');
   }
@@ -385,9 +412,13 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     final index = collectionData.indexWhere((c) => c.id == targetCollectionId);
     if (index < 0) return;
     setState(() {
-      collectionData[index] = collectionData[index].add(selectedBook.id);
+      collectionData[index] = collectionData[index].add(
+        selectedBook.id,
+        slotIndex: targetCollectionSlot,
+      );
       collectionPage = index;
       targetCollectionId = null;
+      targetCollectionSlot = null;
       history.clear();
       screen = 'collection';
     });
@@ -404,10 +435,25 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       return;
     }
     setState(() {
-      selectedBook = selectedBook.withReason(reasonDraft.trim());
+      selectedBook = selectedBook.withReason(
+        bookSaveCategory == ReadingCategory.todo ? reasonDraft.trim() : '',
+      );
       library[selectedBook.id] = selectedBook;
       bookAddedDates[selectedBook.id] = readingDay(DateTime.now());
-      journals[selectedBook.id] = ReadingJournal();
+      journals[selectedBook.id] = ReadingJournal([
+        ReadingRecord(
+          id: 'local-${localRecordId++}',
+          category: bookSaveCategory,
+          date: bookSaveCategory == ReadingCategory.inProgress
+              ? startedDate
+              : bookSaveCategory == ReadingCategory.done
+              ? finishedDate
+              : DateTime.now(),
+          memo: bookSaveCategory == ReadingCategory.todo
+              ? reasonDraft.trim()
+              : '',
+        ),
+      ]);
     });
     if (targetCollectionId != null) {
       addBookToCollection();
@@ -641,6 +687,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       recordDate = startedDate = finishedDate = readingDay(DateTime.now());
       editingCollection = null;
       targetCollectionId = null;
+      targetCollectionSlot = null;
       completedRecord = null;
       dateTarget = 'record';
       calendarSelection = recordDate;
@@ -742,6 +789,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         _sectionTransitioning = true;
         _sectionDirection = toCollections ? 1 : -1;
         targetCollectionId = null;
+        targetCollectionSlot = null;
         if (toCollections) {
           collectionPage = 0;
         } else {
@@ -790,10 +838,16 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       operationError = null;
       creationWriteUncertain = false;
     }
-    if (target == 'add-options' && isShelfScreen) targetCollectionId = null;
+    if (target == 'add-options' && isShelfScreen) {
+      targetCollectionId = null;
+      targetCollectionSlot = null;
+    }
     if (target == 'record-options' &&
         ['card-front', 'card-back', 'card-empty'].contains(screen)) {
       memoDraft = '';
+      recordStatusDraft = null;
+      categoryBeforeFree = null;
+      recordCategory = currentBookStatus;
       recordWriteUncertain = false;
       operationError = null;
       recordDate = readingDay(DateTime.now());
@@ -840,6 +894,11 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       loadingMoreSearch = false;
     }
     FocusManager.instance.primaryFocus?.unfocus();
+    if (screen == 'record-free' && categoryBeforeFree != null) {
+      recordCategory = categoryBeforeFree!;
+      categoryBeforeFree = null;
+      memoDraft = '';
+    }
     setState(() => screen = history.isEmpty ? 'shelf' : history.removeLast());
     restoreShelfPage();
   }
@@ -1278,6 +1337,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
               () {
                 collectionPage = 0;
                 targetCollectionId = null;
+                targetCollectionSlot = null;
                 go('collection', refreshLibrary: true);
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (collectionPages.hasClients) collectionPages.jumpToPage(0);
@@ -1336,7 +1396,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   );
 
   Color reasonColor(String type) => p.orange;
-  Color reasonTextColor(String type) => const Color(0xff1b1b1b);
+  Color reasonTextColor(String type) => Colors.white;
 
   Widget cover(
     PreviewBook value, {
@@ -1472,104 +1532,111 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     builder: (context, constraints) {
       final scaler = MediaQuery.textScalerOf(context);
       final rows = shelfRows(constraints.maxWidth, scaler);
+      renderedShelfRows = rows;
       final bookIndices = {
         for (final (index, id) in library.keys.indexed) id: index,
       };
       final count = math.max(1, (rows.length / 3).ceil());
       shelfPageCount = count;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          shelfToolbar(
-            'MOABOOK / MY BOOKS',
-            count: empty
-                ? '0권'
-                : '${isLive ? totalShelfCount : shelfBooks.length}권',
-          ),
-          Row(
+      return RepaintBoundary(
+        key: shelfCaptureKey,
+        child: ColoredBox(
+          color: p.background,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: t(
-                  '서가',
-                  p.dark ? 36 : 28,
-                  weight: p.dark ? 600 : 700,
-                  serif: true,
-                  color: p.dark ? p.accent : p.ink,
+              shelfToolbar(
+                'MOABOOK / MY BOOKS',
+                count: empty
+                    ? '0권'
+                    : '${isLive ? totalShelfCount : shelfBooks.length}권',
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: t(
+                      '서가',
+                      p.dark ? 36 : 28,
+                      weight: p.dark ? 600 : 700,
+                      serif: true,
+                      color: p.dark ? p.accent : p.ink,
+                    ),
+                  ),
+                  actionText('책 추가', 'plus', () => go('add-options')),
+                  iconButton(
+                    'download',
+                    '서가 이미지 저장',
+                    () => unawaited(exportImages()),
+                  ),
+                ],
+              ),
+              gap(12),
+              rule(color: p.ink),
+              gap(16),
+              if (empty)
+                Expanded(
+                  child: Center(
+                    child: emptyState(
+                      'book-open',
+                      '어떤 책이 떠오르나요?',
+                      '읽고 싶은 책도, 오래 간직한 책도.\n첫 번째 책을 서가에 꽂아보세요.',
+                      null,
+                    ),
+                  ),
+                )
+              else ...[
+                Expanded(
+                  child: PageView.builder(
+                    key: const Key('shelf-pager'),
+                    controller: shelfPages,
+                    physics: const PageScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(
+                        parent: ClampingScrollPhysics(),
+                      ),
+                    ),
+                    itemCount: count,
+                    allowImplicitScrolling: true,
+                    onPageChanged: (page) => shelfPage = page,
+                    itemBuilder: (context, page) => _KeepAliveShelfPage(
+                      keepAlive: count <= 5,
+                      child: Column(
+                        children: [
+                          for (var row = 0; row < 3; row++) ...[
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, space) => bookShelf(
+                                  page * 3 + row < rows.length
+                                      ? rows[page * 3 + row]
+                                      : [],
+                                  space.maxHeight,
+                                  scaler: scaler,
+                                  bookIndices: bookIndices,
+                                  key: ValueKey('shelf-$page-row-$row'),
+                                ),
+                              ),
+                            ),
+                            if (row != 2) gap(16),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              actionText('책 추가', 'plus', () => go('add-options')),
-              iconButton(
-                'download',
-                '서가 이미지 저장',
-                () => unawaited(exportImages()),
-              ),
+                gap(10),
+                Center(
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: _shelfPage,
+                    builder: (context, page, _) => Text(
+                      '${page.clamp(0, count - 1) + 1} / $count',
+                      key: const Key('shelf-page-indicator'),
+                      style: p.text(11, mono: true, color: p.muted),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
-          gap(12),
-          rule(color: p.ink),
-          gap(16),
-          if (empty)
-            Expanded(
-              child: Center(
-                child: emptyState(
-                  'book-open',
-                  '어떤 책이 떠오르나요?',
-                  '읽고 싶은 책도, 오래 간직한 책도.\n첫 번째 책을 서가에 꽂아보세요.',
-                  null,
-                ),
-              ),
-            )
-          else ...[
-            Expanded(
-              child: PageView.builder(
-                key: const Key('shelf-pager'),
-                controller: shelfPages,
-                physics: const PageScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(
-                    parent: ClampingScrollPhysics(),
-                  ),
-                ),
-                itemCount: count,
-                allowImplicitScrolling: true,
-                onPageChanged: (page) => shelfPage = page,
-                itemBuilder: (context, page) => _KeepAliveShelfPage(
-                  keepAlive: count <= 5,
-                  child: Column(
-                    children: [
-                      for (var row = 0; row < 3; row++) ...[
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder: (context, space) => bookShelf(
-                              page * 3 + row < rows.length
-                                  ? rows[page * 3 + row]
-                                  : [],
-                              space.maxHeight,
-                              scaler: scaler,
-                              bookIndices: bookIndices,
-                              key: ValueKey('shelf-$page-row-$row'),
-                            ),
-                          ),
-                        ),
-                        if (row != 2) gap(16),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            gap(10),
-            Center(
-              child: ValueListenableBuilder<int>(
-                valueListenable: _shelfPage,
-                builder: (context, page, _) => Text(
-                  '${page.clamp(0, count - 1) + 1} / $count',
-                  key: const Key('shelf-page-indicator'),
-                  style: p.text(11, mono: true, color: p.muted),
-                ),
-              ),
-            ),
-          ],
-        ],
+        ),
       );
     },
   );
@@ -1584,87 +1651,90 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     key: key,
     children: [
       Expanded(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            for (var i = 0; i < books.length; i++) ...[
-              if (i != 0) const SizedBox(width: 5),
-              Builder(
-                builder: (context) {
-                  final value = books[i];
-                  final n = bookIndices[value.id] ?? 0;
-                  final foreground = p.dark ? const Color(0xffdddddd) : p.ink;
-                  return Semantics(
-                    label: '${value.title}, 독서카드 열기',
-                    button: true,
-                    child: InkWell(
-                      key: ValueKey('spine-${value.id}'),
-                      onTap: () {
-                        openBook(value);
-                      },
-                      child: Container(
-                        width: spineWidth(value, scaler),
-                        height:
-                            (height - (p.dark ? 4 : 3)) *
-                            spineHeights[n % spineHeights.length],
-                        clipBehavior: Clip.hardEdge,
-                        decoration: BoxDecoration(
-                          color: p.dark
-                              ? [
-                                  const Color(0xff2e2e2e),
-                                  const Color(0xff3a3a3a),
-                                  const Color(0xff262626),
-                                ][n % 3]
-                              : const Color(0xffe3ded1),
-                          border: Border.all(
-                            color: p.dark ? Colors.transparent : p.ink,
-                            width: 1.5,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (var i = 0; i < books.length; i++) ...[
+                if (i != 0) const SizedBox(width: 5),
+                Builder(
+                  builder: (context) {
+                    final value = books[i];
+                    final n = bookIndices[value.id] ?? 0;
+                    final foreground = p.dark ? const Color(0xffdddddd) : p.ink;
+                    return Semantics(
+                      label: '${value.title}, 독서카드 열기',
+                      button: true,
+                      child: InkWell(
+                        key: ValueKey('spine-${value.id}'),
+                        onTap: () {
+                          openBook(value);
+                        },
+                        child: Container(
+                          width: spineWidth(value, scaler),
+                          height:
+                              (height - (p.dark ? 4 : 3)) *
+                              spineHeights[n % spineHeights.length],
+                          clipBehavior: Clip.hardEdge,
+                          decoration: BoxDecoration(
+                            color: p.dark
+                                ? [
+                                    const Color(0xff2e2e2e),
+                                    const Color(0xff3a3a3a),
+                                    const Color(0xff262626),
+                                  ][n % 3]
+                                : const Color(0xffe3ded1),
+                            border: Border.all(
+                              color: p.dark ? Colors.transparent : p.ink,
+                              width: 1.5,
+                            ),
                           ),
-                        ),
-                        child: Column(
-                          children: [
-                            gap(8),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                ),
-                                child: VerticalSpineTitle(
-                                  value.title,
-                                  style: p.text(
-                                    11,
-                                    weight: p.dark ? 500 : 600,
-                                    height: 1,
-                                    color: foreground,
+                          child: Column(
+                            children: [
+                              gap(8),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  child: VerticalSpineTitle(
+                                    value.title,
+                                    style: p.text(
+                                      11,
+                                      weight: p.dark ? 500 : 600,
+                                      height: 1,
+                                      color: foreground,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            gap(8),
-                            if (value.reason.isNotEmpty)
-                              Container(
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: reasonColor(value.reasonType),
-                                  border: p.dark
-                                      ? null
-                                      : Border(
-                                          top: BorderSide(
-                                            color: p.ink,
-                                            width: 1.5,
+                              gap(8),
+                              if (value.reason.isNotEmpty)
+                                Container(
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: reasonColor(value.reasonType),
+                                    border: p.dark
+                                        ? null
+                                        : Border(
+                                            top: BorderSide(
+                                              color: p.ink,
+                                              width: 1.5,
+                                            ),
                                           ),
-                                        ),
+                                  ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  },
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
       Container(height: p.dark ? 4 : 3, color: p.dark ? p.accent : p.ink),
@@ -1789,7 +1859,9 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
             return EmptyCollectionSlot(
               palette: p,
               index: index,
-              onTap: editing ? null : startAddingToCollection,
+              onTap: editing
+                  ? null
+                  : () => startAddingToCollection(slotIndex: index),
             );
           }
           final original = library[id] ?? catalog[id]!;
@@ -2146,18 +2218,34 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       gap(12),
       t('${book.author} · ${book.publisher}', 13, color: p.muted),
       gap(23),
-      rule(color: p.ink),
-      gap(19),
-      Wrap(
-        spacing: 30,
-        runSpacing: 12,
-        children: [
-          if (book.totalPage != null && book.totalPage! > 0)
-            infoStat('페이지', '${book.totalPage}쪽'),
-          if (book.publishDate != null) infoStat('출간일', book.publishDate!),
-        ],
-      ),
-      gap(18),
+      if ((book.totalPage != null && book.totalPage! > 0) ||
+          (book.publishDate?.trim().isNotEmpty ?? false)) ...[
+        Container(
+          key: const ValueKey('book-info-metadata'),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          decoration: BoxDecoration(
+            border: Border.symmetric(
+              horizontal: BorderSide(color: p.ink, width: 3),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (book.totalPage != null && book.totalPage! > 0)
+                Expanded(child: infoStat('페이지', '${book.totalPage}쪽')),
+              if (book.publishDate?.trim().isNotEmpty ?? false)
+                Expanded(
+                  child: infoStat(
+                    '출간일',
+                    formatPublicationDate(book.publishDate!),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        gap(18),
+      ],
       actionText(
         isLive && book.yes24Id != null ? 'YES24에서 더보기' : '알라딘에서 더보기',
         'arrow-right',
@@ -2172,12 +2260,17 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       gap(12),
     ],
   );
+  String formatPublicationDate(String value) {
+    final date = DateTime.tryParse(value.replaceAll('.', '-'));
+    return date == null ? value : formatDate(date);
+  }
+
   Widget infoStat(String name, String value) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      t(name, 10, color: p.muted),
-      gap(5),
-      t(value, 12, weight: 500),
+      t(name, 11, color: p.muted),
+      gap(7),
+      t(value, 16, weight: 600, mono: true, color: p.dark ? p.accent : p.ink),
     ],
   );
 
@@ -2603,10 +2696,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                         ] else ...[
                           t('책과의 시간은 계속됩니다.', 11, color: p.muted),
                           gap(18),
-                          for (final record
-                              in (isLive
-                                  ? journal.records
-                                  : journal.newestFirst))
+                          for (final record in journal.newestFirst)
                             timeline(
                               formatDate(record.date).substring(5),
                               record.category.label,
@@ -2681,6 +2771,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     List<Widget> children, {
     Widget? footer,
     String? subtitle,
+    bool bookSave = false,
   }) => Builder(
     builder: (context) => Container(
       width: double.infinity,
@@ -2694,7 +2785,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         border: Border(
           top: BorderSide(
             color: p.dark ? p.accent : p.ink,
-            width: p.dark ? 4 : 2,
+            width: bookSave ? 1 : (p.dark ? 4 : 2),
           ),
         ),
         boxShadow: [
@@ -2717,7 +2808,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
                 gap(12),
                 Row(
                   children: [
-                    Expanded(child: t(title, 16, weight: 600)),
+                    Expanded(child: t(title, 16, weight: bookSave ? 700 : 600)),
                     iconButton('x', '닫기', back),
                   ],
                 ),
@@ -2889,83 +2980,233 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     ),
   );
 
-  Widget saveSheet() => sheet('책 저장', [
-    Container(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        children: [
-          cover(book, width: 43, height: 59),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                t(book.title, 13, weight: 600, lines: 2),
-                gap(4),
-                t(book.author, 11, color: p.muted),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-    rule(),
-    gap(19),
-    field(
-      '읽고 싶은 이유 · 선택',
-      reasonDraft,
-      hint: '어디서 만났나요? 무엇이 마음에 남았나요?',
-      lines: 4,
-      maxLength: 400,
-      onChanged: (value) => setState(() => reasonDraft = value),
-    ),
-    gap(7),
-    Align(
-      alignment: Alignment.centerRight,
-      child: t(
-        '${reasonDraft.characters.length}/400',
-        10,
-        mono: true,
-        color: p.muted,
-      ),
-    ),
-    gap(18),
-    t('저장한 뒤 독서카드에서 첫 기록을 남겨보세요.', 13, color: p.muted),
-    if (operationError != null) ...[
-      gap(12),
-      t(operationError!, 13, color: p.orange),
-    ],
-  ], footer: button('저장하기', saveBookLocally, icon: 'bookmark'));
-  Widget dateField(String title, DateTime value, {String target = 'record'}) =>
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          t(title, 14, weight: 500),
-          gap(9),
-          InkWell(
-            onTap: () {
-              dateTarget = target;
-              calendarSelection = value;
-              go('date-picker');
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-              decoration: BoxDecoration(
-                color: p.card,
-                borderRadius: BorderRadius.zero,
-                border: Border.all(color: p.line),
-              ),
-              child: Row(
+  Widget saveSheet() => sheet(
+    '책 저장',
+    [
+      Container(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Row(
+          children: [
+            cover(book, width: 43, height: 59),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  t(formatDate(value), 14, mono: true),
-                  const Spacer(),
-                  icon('calendar-days', size: 20, color: p.muted),
+                  t(book.title, 13, weight: 600, lines: 2),
+                  gap(4),
+                  t(book.author, 11, color: p.muted),
                 ],
               ),
             ),
-          ),
+          ],
+        ),
+      ),
+      rule(color: p.ink),
+      gap(20),
+      t('지금 이 책과 어떤 사이인가요?', 16, weight: 700),
+      gap(12),
+      Row(
+        children: [
+          for (final category in [
+            ReadingCategory.todo,
+            ReadingCategory.inProgress,
+            ReadingCategory.done,
+          ]) ...[
+            if (category != ReadingCategory.todo) const SizedBox(width: 6),
+            Expanded(
+              child: Semantics(
+                selected: bookSaveCategory == category,
+                button: true,
+                child: InkWell(
+                  key: ValueKey('save-status-${category.code}'),
+                  onTap: () => setState(() => bookSaveCategory = category),
+                  child: Container(
+                    height: 42,
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    decoration: BoxDecoration(
+                      color: bookSaveCategory == category ? p.button : p.card,
+                      border: Border.all(
+                        color: bookSaveCategory == category ? p.button : p.line,
+                      ),
+                    ),
+                    child: t(
+                      switch (category) {
+                        ReadingCategory.todo => '읽고 싶은 책',
+                        ReadingCategory.inProgress => '읽고 있는 책',
+                        _ => '읽은 책',
+                      },
+                      13,
+                      weight: bookSaveCategory == category ? 600 : 400,
+                      align: TextAlign.center,
+                      color: bookSaveCategory == category
+                          ? p.onButton
+                          : p.muted,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
-      );
+      ),
+      gap(24),
+      if (bookSaveCategory == ReadingCategory.todo) ...[
+        saveReasonField(),
+        gap(7),
+        Align(
+          alignment: Alignment.centerRight,
+          child: t(
+            '${reasonDraft.characters.length}/400',
+            11,
+            mono: true,
+            color: p.muted,
+          ),
+        ),
+      ] else ...[
+        if (bookSaveCategory == ReadingCategory.inProgress)
+          dateField('읽기 시작한 날', startedDate, target: 'start', emphasized: true)
+        else
+          dateField('다 읽은 날', finishedDate, target: 'finish', emphasized: true),
+        gap(14),
+        t('책과 함께한 시간을 독서카드에 남겨요.', 12, color: p.muted),
+      ],
+      gap(24),
+      if (operationError != null) ...[
+        gap(12),
+        t(operationError!, 13, color: p.orange),
+      ],
+    ],
+    footer: button(
+      uncertainInitialBookWrites.contains(selectedBook.id)
+          ? '독서카드에서 저장 결과 확인'
+          : '저장하기',
+      uncertainInitialBookWrites.contains(selectedBook.id)
+          ? openPendingSavedCard
+          : saveBookLocally,
+      icon: 'bookmark',
+    ),
+    bookSave: true,
+  );
+  Widget saveReasonField() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: '읽고 싶은 이유', style: p.text(14, weight: 700)),
+            TextSpan(
+              text: ' · 선택',
+              style: p.text(12, color: p.muted),
+            ),
+          ],
+        ),
+      ),
+      gap(10),
+      SizedBox(
+        height: 120,
+        child: TextFormField(
+          key: const ValueKey('save-reason'),
+          initialValue: reasonDraft,
+          expands: true,
+          minLines: null,
+          maxLines: null,
+          maxLength: 400,
+          textAlignVertical: TextAlignVertical.top,
+          onChanged: (value) => setState(() => reasonDraft = value),
+          style: p.text(16),
+          decoration: InputDecoration(
+            counterText: '',
+            hintText: '이 책을 읽고 싶은 이유를 남겨보세요',
+            hintStyle: p.text(14, color: p.muted),
+            filled: true,
+            fillColor: p.card,
+            contentPadding: const EdgeInsets.all(16),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.zero,
+              borderSide: BorderSide(color: p.line),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.zero,
+              borderSide: BorderSide(
+                color: p.dark ? p.accent : p.ink,
+                width: 1.4,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+
+  void openPendingSavedCard() {
+    final id = pendingSavedBooks[selectedBook.id];
+    if (id == null) return;
+    selectedBook = ReadingBook(
+      id,
+      selectedBook.title,
+      selectedBook.author,
+      selectedBook.publisher,
+      '',
+      '',
+    );
+    history
+      ..clear()
+      ..add('shelf');
+    go('card-back');
+    unawaited(loadRemoteCard(id));
+  }
+
+  Widget dateField(
+    String title,
+    DateTime value, {
+    String target = 'record',
+    bool emphasized = false,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      t(title, 14, weight: emphasized ? 700 : 500),
+      gap(9),
+      InkWell(
+        onTap: () {
+          dateTarget = target;
+          calendarSelection = value;
+          go('date-picker');
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: emphasized ? 16 : 14,
+            vertical: emphasized ? 12 : 16,
+          ),
+          decoration: BoxDecoration(
+            color: p.card,
+            borderRadius: BorderRadius.zero,
+            border: Border.all(color: p.line),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: t(
+                      formatDate(value),
+                      emphasized ? 18 : 14,
+                      mono: true,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              icon('calendar-days', size: emphasized ? 18 : 20, color: p.muted),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
 
   Widget duplicateDialog() => Builder(
     builder: (context) => Padding(
@@ -3039,44 +3280,31 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
   };
 
   void chooseCategory(ReadingCategory value) {
-    recordCategory = value;
-    go(switch (value) {
-      ReadingCategory.todo => 'record-wish',
-      ReadingCategory.sentence => 'record-quote',
-      ReadingCategory.free => 'record-free',
-      _ => 'record-entry',
+    if (value == ReadingCategory.free) {
+      categoryBeforeFree = recordCategory == ReadingCategory.free
+          ? selectedRecordStatus
+          : recordCategory;
+      recordCategory = value;
+      memoDraft = '';
+      go('record-free');
+      return;
+    }
+    setState(() {
+      recordCategory = value;
+      memoDraft = '';
+      if (value.changesStatus) recordStatusDraft = value;
     });
   }
 
-  Widget recordBookContext() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        children: [
-          cover(book, width: 43, height: 59),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                t(book.title, 14, weight: 600, lines: 2),
-                gap(4),
-                t(book.author, 11, color: p.muted, lines: 1),
-              ],
-            ),
-          ),
-        ],
-      ),
-      gap(18),
-      rule(),
-      gap(20),
-    ],
-  );
+  bool recordOptionSelected(ReadingCategory option) => option.changesStatus
+      ? option == selectedRecordStatus
+      : option == recordCategory;
 
   Widget recordSheet() => sheet(
     '기록 추가',
     [
-      recordBookContext(),
+      dateField('날짜', recordDate),
+      gap(20),
       for (final group in ['독서 상태', '책 수령', '순간 기록']) ...[
         recordGroup(
           group,
@@ -3084,11 +3312,26 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         ),
         gap(18),
       ],
+      button(
+        '자유 기록',
+        () => chooseCategory(ReadingCategory.free),
+        icon: 'pencil',
+        secondary: true,
+      ),
+      if (operationError != null) ...[
+        gap(12),
+        t(operationError!, 13, color: p.orange),
+      ],
     ],
     footer: button(
-      '자유 기록',
-      () => chooseCategory(ReadingCategory.free),
-      icon: 'pencil',
+      recordWriteUncertain ? '기록 목록에서 저장 결과 확인' : '기록 완료',
+      recordWriteUncertain
+          ? () {
+              returnToCardRecords();
+              unawaited(loadRemoteCard(selectedBook.id));
+            }
+          : saveRecordLocally,
+      icon: 'check',
     ),
   );
 
@@ -3103,28 +3346,45 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         runSpacing: 8,
         children: [
           for (final option in options)
-            InkWell(
-              key: ValueKey('category-${option.code}'),
-              onTap: () => chooseCategory(option),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: p.card,
-                  border: Border.all(
-                    color: p.dark ? const Color(0xff555555) : p.ink,
-                    width: 1.5,
+            Semantics(
+              selected: recordOptionSelected(option),
+              button: true,
+              child: InkWell(
+                key: ValueKey('category-${option.code}'),
+                onTap: () => chooseCategory(option),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 9,
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    icon(categoryIcon(option), size: 18, color: p.muted),
-                    const SizedBox(width: 6),
-                    t(option.label, 13, weight: 500),
-                  ],
+                  decoration: BoxDecoration(
+                    color: recordOptionSelected(option) ? p.button : p.card,
+                    border: Border.all(
+                      color: p.dark ? const Color(0xff555555) : p.ink,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      icon(
+                        categoryIcon(option),
+                        size: 18,
+                        color: recordOptionSelected(option)
+                            ? p.onButton
+                            : p.muted,
+                      ),
+                      const SizedBox(width: 6),
+                      t(
+                        option.label,
+                        13,
+                        weight: 500,
+                        color: recordOptionSelected(option)
+                            ? p.onButton
+                            : p.ink,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -3139,8 +3399,21 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     return sheet(
       recordKind,
       [
-        recordBookContext(),
-        actionText('카테고리 바꾸기', 'chevron-left', () => go('record-options')),
+        actionText('카테고리 바꾸기', 'chevron-left', () {
+          if (recordCategory == ReadingCategory.free &&
+              categoryBeforeFree != null &&
+              history.isNotEmpty &&
+              history.last == 'record-options') {
+            back();
+            return;
+          }
+          if (recordCategory == ReadingCategory.free) {
+            recordCategory = categoryBeforeFree ?? selectedRecordStatus;
+            categoryBeforeFree = null;
+            memoDraft = '';
+          }
+          go('record-options');
+        }),
         gap(16),
         if (operationError != null) ...[
           t(operationError!, 13, color: p.orange),
@@ -3339,6 +3612,51 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
       Center(child: t('바코드가 인식되면 책을 찾아요.', 11, color: p.muted)),
     ],
   );
+  Future<ReadingImageExport> captureShelfImages() async {
+    final rows = renderedShelfRows.map((row) => row.toList()).toList();
+    final count = (rows.length / 3).ceil();
+    final originalPage = shelfPage;
+    final pages = <ReadingShelfImage>[];
+    try {
+      for (var page = 0; page < count; page++) {
+        if (!mounted || !shelfPages.hasClients) {
+          throw StateError('Shelf is no longer visible');
+        }
+        shelfPages.jumpToPage(page);
+        shelfPage = page;
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) throw StateError('Shelf is no longer visible');
+        final boundary =
+            shelfCaptureKey.currentContext!.findRenderObject()
+                as RenderRepaintBoundary;
+        final image = await boundary.toImage(
+          pixelRatio: 1080 / boundary.size.width,
+        );
+        try {
+          final data = await image.toByteData(format: ui.ImageByteFormat.png);
+          if (data == null) throw StateError('PNG encoding failed');
+          pages.add(
+            ReadingShelfImage(
+              books: rows.skip(page * 3).take(3).expand((row) => row),
+              png: data.buffer.asUint8List(
+                data.offsetInBytes,
+                data.lengthInBytes,
+              ),
+            ),
+          );
+        } finally {
+          image.dispose();
+        }
+      }
+    } finally {
+      if (mounted && shelfPages.hasClients) {
+        shelfPages.jumpToPage(originalPage);
+        shelfPage = originalPage;
+      }
+    }
+    return ReadingImageExport.shelf(title: '나의 서가', pages: pages);
+  }
+
   Future<void> exportImages({ReadingCollection? collection}) async {
     if (exporting) return;
     if (widget.onExport == null) {
@@ -3359,7 +3677,15 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
     exporting = true;
     try {
       await widget.onExport!(
-        ReadingImageExport(title: collection?.name ?? '나의 서가', books: books),
+        collection == null
+            ? await captureShelfImages()
+            : ReadingImageExport.collection(
+                title: collection.name,
+                slots: [
+                  for (final id in collection.slots)
+                    id == null ? null : catalog[id]!,
+                ],
+              ),
       );
     } catch (_) {
       if (mounted) notice('이미지를 만들지 못했어요. 다시 시도해주세요.');

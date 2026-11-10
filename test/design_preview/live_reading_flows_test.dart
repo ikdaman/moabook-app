@@ -110,12 +110,28 @@ class Gateway implements ReadingGateway {
   }) async {
     recordPosts++;
     if (recordError != null) throw recordError!;
-    final id = await recordWrite!.future;
+    final id =
+        await (recordWrite?.future ?? Future.value('initial-$recordPosts'));
     records.add(
       ReadingRecord(id: id, category: category, date: date, memo: memo),
     );
     if (category.changesStatus) status = category;
     return id;
+  }
+}
+
+class SlotGateway extends Gateway {
+  ReadingCollection collection = ReadingCollection(id: '8', name: '슬롯 테스트');
+  ReadingCollection? submitted;
+  @override
+  Future<ReadingCollectionDetail> loadCollection(String collectionId) async =>
+      ReadingCollectionDetail(collection: collection, books: [serverBook]);
+  @override
+  Future<ReadingCollectionDetail> updateCollection(
+    ReadingCollection value,
+  ) async {
+    submitted = collection = value;
+    return ReadingCollectionDetail(collection: collection, books: [serverBook]);
   }
 }
 
@@ -157,6 +173,33 @@ void main() {
     tester.testTextInput.hide();
     await tester.pumpAndSettle();
   }
+
+  testWidgets('live slot selection survives save and collection reload', (
+    tester,
+  ) async {
+    final gateway = SlotGateway()
+      ..summaries = [
+        ReadingCollectionSummary(id: '8', name: '슬롯 테스트', representatives: []),
+      ];
+    final state = await open(tester, gateway);
+    state.go('collection');
+    await tester.pumpAndSettle();
+    final slot = find.byKey(const ValueKey('collection-slot-8'));
+    await tester.ensureVisible(slot);
+    await tester.tap(slot);
+    await tester.pumpAndSettle();
+    expect(state.targetCollectionSlot, 8);
+    state.selectedBook = serverBook;
+    state.addBookToCollection();
+    await tester.pumpAndSettle();
+    expect(gateway.submitted!.slots[8], serverBook.id);
+    expect(gateway.submitted!.slots.take(8), everyElement(isNull));
+    state.go('collection', refreshLibrary: true);
+    await tester.pumpAndSettle();
+    expect(state.currentCollection.slots[8], serverBook.id);
+    expect(state.currentCollection.slots.take(8), everyElement(isNull));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('card deletion can be cancelled and confirmed', (tester) async {
     final gateway = Gateway();
@@ -525,7 +568,7 @@ void main() {
   );
 
   testWidgets(
-    'new book opens an empty card and only the explicit first-record action writes a record',
+    'new book saves its selected initial status before allowing further records',
     (tester) async {
       final gateway = Gateway()
         ..status = null
@@ -540,15 +583,16 @@ void main() {
       state.saveBookLocally();
       await tester.pumpAndSettle();
       expect(gateway.bookPosts, 1);
-      expect(gateway.recordPosts, 0);
-      expect(gateway.records, isEmpty);
+      expect(gateway.recordPosts, 1);
+      expect(gateway.records.single.category, ReadingCategory.todo);
+      expect(gateway.records.single.memo, '읽고 싶은 이유');
       expect(state.screen, 'card-back');
       expect(state.selectedBook.id, '71');
-      expect(find.text('첫 기록 남기기'), findsOneWidget);
-      await tap(tester, '첫 기록 남기기');
+      expect(find.text('기록 추가'), findsOneWidget);
+      await tap(tester, '기록 추가');
       await tester.pumpAndSettle();
       expect(state.screen, 'record-options');
-      expect(gateway.recordPosts, 0);
+      expect(gateway.recordPosts, 1);
       await tap(tester, '자유 기록');
       await tester.pumpAndSettle();
       expect(state.screen, 'record-free');
@@ -558,8 +602,120 @@ void main() {
       await tap(tester, '기록 완료');
       await tester.pumpAndSettle();
       expect(gateway.bookPosts, 1);
+      expect(gateway.recordPosts, 2);
+      expect(gateway.records.last.memo, '첫 기억');
+      expect(state.screen, 'record-complete');
+    },
+  );
+
+  for (final category in [ReadingCategory.inProgress, ReadingCategory.done]) {
+    testWidgets(
+      'new book saves ${category.code} with the chosen date and no hidden reason',
+      (tester) async {
+        final gateway = Gateway()..status = null;
+        final state = await open(tester, gateway);
+        state.selectedBook = searchBook;
+        state.confirmBook();
+        await tester.pumpAndSettle();
+        final date = DateTime(2026, 5, 7);
+        state.bookSaveCategory = category;
+        state.startedDate = state.finishedDate = date;
+        state.reasonDraft = '숨겨진 이전 입력';
+        state.saveBookLocally();
+        await tester.pumpAndSettle();
+        expect(gateway.bookPosts, 1);
+        expect(gateway.records.single.category, category);
+        expect(gateway.records.single.date, date);
+        expect(gateway.records.single.memo, isEmpty);
+        expect(state.readingStatus, category.label);
+      },
+    );
+  }
+
+  testWidgets('uncertain initial status never repeats book or record writes', (
+    tester,
+  ) async {
+    final gateway = Gateway()..recordError = const ReadingWriteUncertain();
+    final state = await open(tester, gateway);
+    state.selectedBook = searchBook;
+    state.confirmBook();
+    await tester.pumpAndSettle();
+    state.saveBookLocally();
+    await tester.pumpAndSettle();
+    state.saveBookLocally();
+    await tester.pumpAndSettle();
+    expect(gateway.bookPosts, 1);
+    expect(gateway.recordPosts, 1);
+    expect(find.text('독서카드에서 저장 결과 확인'), findsOneWidget);
+    expect(state.operationError, contains('독서 상태의 저장 결과'));
+  });
+
+  for (final category in [
+    ReadingCategory.todo,
+    ReadingCategory.inProgress,
+    ReadingCategory.done,
+  ]) {
+    testWidgets('record options preselect the current ${category.code} state', (
+      tester,
+    ) async {
+      final gateway = Gateway()
+        ..records.add(
+          ReadingRecord(
+            id: '1',
+            category: category,
+            date: DateTime(2026, 11, 1),
+            memo: '',
+          ),
+        );
+      final state = await open(tester, gateway);
+      state.openBook(serverBook);
+      await tester.pumpAndSettle();
+      state.go('record-options');
+      await tester.pumpAndSettle();
+      expect(state.selectedRecordStatus, category);
+      expect(state.recordCategory, category);
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is Semantics && widget.properties.selected == true,
+        ),
+        findsOneWidget,
+      );
+      state.chooseCategory(ReadingCategory.buy);
+      await tester.pumpAndSettle();
+      state.go('record-options');
+      await tester.pumpAndSettle();
+      expect(state.selectedRecordStatus, category);
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is Semantics && widget.properties.selected == true,
+        ),
+        findsNWidgets(2),
+      );
+    });
+  }
+
+  testWidgets(
+    'ordinary record selection stays in the sheet and posts once on completion',
+    (tester) async {
+      final gateway = Gateway()..recordWrite = Completer<String>();
+      final state = await open(tester, gateway);
+      state.openBook(serverBook);
+      await tester.pumpAndSettle();
+      state.go('record-options');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('category-DONE')));
+      await tester.pumpAndSettle();
+      expect(state.screen, 'record-options');
+      expect(gateway.recordPosts, 0);
+      expect(find.byType(TextFormField), findsNothing);
+      await tap(tester, '기록 완료');
       expect(gateway.recordPosts, 1);
-      expect(gateway.records.single.memo, '첫 기억');
+      state.saveRecordLocally();
+      expect(gateway.recordPosts, 1);
+      gateway.recordWrite!.complete('once');
+      await tester.pumpAndSettle();
+      expect(gateway.records.single.category, ReadingCategory.done);
+      expect(gateway.records.single.memo, isEmpty);
       expect(state.screen, 'record-complete');
     },
   );
@@ -581,7 +737,7 @@ void main() {
     state.saveBookLocally();
     await tester.pumpAndSettle();
     expect(gateway.bookPosts, 1);
-    expect(gateway.recordPosts, 0);
+    expect(gateway.recordPosts, 1);
     expect(state.screen, 'card-back');
   });
 
@@ -617,7 +773,7 @@ void main() {
       state.saveBookLocally();
       await tester.pumpAndSettle();
       expect(gateway.bookPosts, 1);
-      expect(gateway.recordPosts, 0);
+      expect(gateway.recordPosts, 1);
       expect(state.screen, 'card-back');
     },
   );
@@ -658,7 +814,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('server current status wins over the dated timeline', (
+  testWidgets('card status uses dated records instead of the server summary', (
     tester,
   ) async {
     final gateway = Gateway()
@@ -673,7 +829,7 @@ void main() {
     final state = await open(tester, gateway);
     state.openBook(serverBook);
     await tester.pumpAndSettle();
-    expect(state.readingStatus, ReadingCategory.done.label);
+    expect(state.readingStatus, ReadingCategory.inProgress.label);
     expect(state.journal.status, ReadingCategory.inProgress);
     expect(state.library.keys, ['71']);
   });

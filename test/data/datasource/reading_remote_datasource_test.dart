@@ -222,6 +222,49 @@ void main() {
   );
 
   test(
+    'shelf honors creation dates before IDs when dates are supplied',
+    () async {
+      final remote = setup((request) {
+        expect(request.queryParameters['sort'], 'createdAt,asc');
+        return jsonBody({
+          'totalPages': 1,
+          'totalElements': 3,
+          'books': [
+            {...book(1), 'createdDate': '2026-11-03T00:00:00Z'},
+            {...book(10), 'createdDate': '2026-11-01T00:00:00Z'},
+            {...book(2), 'createdDate': '2026-11-02T00:00:00Z'},
+          ],
+        });
+      });
+      expect((await remote.loadShelf()).books.map((book) => book.id), [
+        '10',
+        '2',
+        '1',
+      ]);
+    },
+  );
+
+  test(
+    'newest-first server pages become registration order across all pages',
+    () async {
+      final remote = setup((request) {
+        final page = request.queryParameters['page'] as int;
+        return jsonBody({
+          'totalPages': 2,
+          'totalElements': 4,
+          'books': page == 0 ? [book(101), book(100)] : [book(11), book(2)],
+        });
+      });
+      expect((await remote.loadShelf()).books.map((book) => book.id), [
+        '2',
+        '11',
+        '100',
+        '101',
+      ]);
+    },
+  );
+
+  test(
     'failed or inconsistent shelf never becomes an empty successful shelf',
     () async {
       final remote = setup(
@@ -297,6 +340,41 @@ void main() {
       final records = await remote.loadRecords('7');
       expect(records.first.id, '9');
       expect(records.first.memo, '내용 &amp;');
+    },
+  );
+
+  test(
+    'same-day server records use their creation identity, independent of list order',
+    () async {
+      final remote = setup(
+        (request) => jsonBody([
+          {
+            'recordId': 20,
+            'recordType': 'DONE',
+            'recordDate': '2026-11-03',
+            'createdAt': '2026-11-04T12:00:00Z',
+          },
+          {
+            'recordId': 10,
+            'recordType': 'INPROGRESS',
+            'recordDate': '2026-11-03',
+            'createdAt': '2026-11-04T10:00:00Z',
+          },
+          {
+            'recordId': 30,
+            'recordType': 'TODO',
+            'recordDate': '2026-11-01',
+            'createdAt': '2026-11-05T10:00:00Z',
+          },
+        ]),
+      );
+      final journal = ReadingJournal(await remote.loadRecords('7'));
+      expect(journal.status, ReadingCategory.done);
+      expect(journal.newestFirst.map((record) => record.id), [
+        '20',
+        '10',
+        '30',
+      ]);
     },
   );
 

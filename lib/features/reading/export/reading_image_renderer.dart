@@ -15,19 +15,20 @@ class ReadingImageRenderer {
     if (count < 1 || count > ReadingImageExport.pageSize) {
       throw RangeError.range(count, 1, ReadingImageExport.pageSize, 'count');
     }
-    final rows = (count / 3).ceil();
-    return 1720 - (3 - rows) * rowHeight;
+    return 1720;
   }
 
   static const ink = Color(0xff232c28), paper = Color(0xfff6f4ef);
 
   Future<Uint8List> render(ReadingImageExport request, int page) async {
-    final books = request.page(page);
+    final pageBooks = request.page(page);
+    final books = request.collectionSlots ?? pageBooks;
+    if (request.shelfPages.isNotEmpty) return request.shelfPages[page].png;
     final height = heightForBooks(books.length);
     final images = await Future.wait(
       books.map((b) async {
         try {
-          return await loadCover(b.coverUrl);
+          return b == null ? null : await loadCover(b.coverUrl);
         } catch (_) {
           return null;
         }
@@ -82,6 +83,7 @@ class ReadingImageRenderer {
     try {
       for (var i = 0; i < books.length; i++) {
         final book = books[i];
+        if (book == null) continue;
         final left = 54.0 + (i % 3) * 330;
         final top = 246.0 + (i ~/ 3) * 454;
         final rect = Rect.fromLTWH(left + 42, top, 228, 300);
@@ -106,6 +108,7 @@ class ReadingImageRenderer {
             Offset(rect.left + 10, top + 246),
             17,
             208,
+            color: Colors.white,
             lines: 2,
           );
         }

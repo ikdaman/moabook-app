@@ -50,6 +50,28 @@ void main() {
     expect(() => value.page(3), throwsRangeError);
   });
   test(
+    'basic shelf uses captured spine pages without reflowing into cover grids',
+    () async {
+      final books = request(20).books;
+      final value = ReadingImageExport.shelf(
+        title: '나의 서가',
+        pages: [
+          ReadingShelfImage(books: books.take(15), png: tinyPng),
+          ReadingShelfImage(books: books.skip(15), png: tinyPng),
+        ],
+      );
+      expect(value.pageCount, 2);
+      expect(value.page(0).length, 15);
+      expect(value.page(1).length, 5);
+      expect(value.books.map((book) => book.id), books.map((book) => book.id));
+      final renderer = ReadingImageRenderer(
+        loadCover: (_) async => throw StateError('Spines do not load covers'),
+      );
+      expect(await renderer.render(value, 1), same(tinyPng));
+    },
+  );
+
+  test(
     'missing and failed cover downloads still produce a full-resolution PNG',
     () async {
       final renderer = ReadingImageRenderer(
@@ -60,13 +82,13 @@ void main() {
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
       expect(frame.image.width, 1080);
-      expect(frame.image.height, 812);
+      expect(frame.image.height, 1720);
       frame.image.dispose();
       codec.dispose();
     },
   );
   test(
-    'PNG height follows occupied rows, including the last page, with real covers and long text',
+    'cover exports always retain the full nine-slot canvas, including the last page',
     () async {
       var covers = 0;
       final renderer = ReadingImageRenderer(
@@ -108,20 +130,44 @@ void main() {
         try {
           final image = (await codec.getNextFrame()).image;
           expect(image.width, 1080);
-          expect(
-            image.height,
-            count == 4
-                ? 1266
-                : count == 9
-                ? 1720
-                : 812,
-          );
+          expect(image.height, 1720);
           image.dispose();
         } finally {
           codec.dispose();
         }
       }
       expect(covers, 15);
+    },
+  );
+
+  test(
+    'a single book in slot nine leaves the first eight slots blank',
+    () async {
+      final value = ReadingImageExport.collection(
+        title: '모음',
+        slots: [...List<ReadingBook?>.filled(8, null), request(1).books.single],
+      );
+      final bytes = await ReadingImageRenderer(
+        loadCover: (_) async => null,
+      ).render(value, 0);
+      final codec = await ui.instantiateImageCodec(bytes);
+      final image = (await codec.getNextFrame()).image;
+      try {
+        expect(image.width, 1080);
+        expect(image.height, 1720);
+        expect(value.books.length, 1);
+        final pixels = await image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        );
+        List<int> pixel(int x, int y) => pixels!.buffer
+            .asUint8List(pixels.offsetInBytes + (y * image.width + x) * 4, 4)
+            .toList();
+        expect(pixel(100, 250), [246, 244, 239, 255]);
+        expect(pixel(760, 1158), [222, 219, 210, 255]);
+      } finally {
+        image.dispose();
+        codec.dispose();
+      }
     },
   );
 

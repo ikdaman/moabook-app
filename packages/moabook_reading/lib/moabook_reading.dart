@@ -34,6 +34,8 @@ class ReadingRecord {
     required this.category,
     required DateTime date,
     required this.memo,
+    this.createdAt,
+    this.creationOrder,
   }) : date = readingDay(date) {
     if (memo.characters.length > 400) {
       throw ArgumentError('내용은 400자까지 입력할 수 있어요.');
@@ -46,23 +48,24 @@ class ReadingRecord {
   final ReadingCategory category;
   final DateTime date;
   final String memo;
+  final DateTime? createdAt;
+  final int? creationOrder;
 }
 
-/// Records are held in successful creation order, independent of their dates.
-/// Server adapters must preserve that order; display order must not infer status.
+/// Status follows the latest record date; creation order breaks same-day ties.
 class ReadingJournal {
   ReadingJournal([Iterable<ReadingRecord> records = const []])
     : records = List.unmodifiable(records);
   final List<ReadingRecord> records;
 
   ReadingCategory? get status {
-    for (final record in records.reversed) {
+    for (final record in newestFirst) {
       if (record.category.changesStatus) return record.category;
     }
     return null;
   }
 
-  /// Band policy remains date based, independently of last-added status.
+  /// The most recently dated TODO supplies the band, including an empty reason.
   String? get reason {
     for (final record in newestFirst) {
       if (record.category == ReadingCategory.todo) {
@@ -73,10 +76,21 @@ class ReadingJournal {
   }
 
   List<ReadingRecord> get newestFirst {
+    final hasCreationDates = records.every(
+      (record) => record.createdAt != null,
+    );
     final indexed = records.indexed.toList()
       ..sort((a, b) {
         final byDate = b.$2.date.compareTo(a.$2.date);
-        return byDate == 0 ? b.$1.compareTo(a.$1) : byDate;
+        if (byDate != 0) return byDate;
+        final aCreated = a.$2.createdAt, bCreated = b.$2.createdAt;
+        if (hasCreationDates && aCreated != null && bCreated != null) {
+          final byCreation = bCreated.compareTo(aCreated);
+          if (byCreation != 0) return byCreation;
+        }
+        final aOrder = a.$2.creationOrder ?? a.$1;
+        final bOrder = b.$2.creationOrder ?? b.$1;
+        return bOrder.compareTo(aOrder);
       });
     return List.unmodifiable(indexed.map((entry) => entry.$2));
   }
@@ -112,10 +126,12 @@ class ReadingCollection {
   ReadingCollection rename(String name) =>
       ReadingCollection(id: id, name: name, slots: slots);
 
-  ReadingCollection add(String bookId) {
+  ReadingCollection add(String bookId, {int? slotIndex}) {
     if (contains(bookId)) throw StateError('이미 이 컬렉션에 담긴 책이에요.');
-    final index = slots.indexOf(null);
+    final index = slotIndex ?? slots.indexOf(null);
     if (index < 0) throw StateError('컬렉션에는 9권까지 담을 수 있어요.');
+    RangeError.checkValidIndex(index, slots, 'slotIndex');
+    if (slots[index] != null) throw StateError('선택한 칸에 이미 책이 있어요.');
     final updated = slots.toList()..[index] = bookId;
     return ReadingCollection(id: id, name: name, slots: updated);
   }
@@ -126,7 +142,9 @@ class ReadingCollection {
   }
 }
 
-/// Bounded widths preserve usable touch targets and three shelf rows.
-double bookSpineWidth(int? totalPages) => totalPages == null || totalPages <= 0
-    ? 28
-    : (22 + (totalPages - 100) * .04).clamp(22, 38).toDouble();
+/// Page count sets thickness without an upper cap; unknown counts use a default.
+double bookSpineWidth(int? totalPages) {
+  if (totalPages == null || totalPages <= 0) return 28;
+  final width = 22 + (totalPages - 100) * .04;
+  return width < 22 ? 22 : width;
+}

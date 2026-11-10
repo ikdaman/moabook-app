@@ -31,7 +31,7 @@ void main() {
       tester,
     ) async {
       await open(tester, screen);
-      final label = screen == 'record-options' ? '자유 기록' : '책 제목으로 검색';
+      final label = screen == 'record-options' ? '기록 완료' : '책 제목으로 검색';
       // Compare the same sheet with and without an Android navigation inset.
       final finder = find.text(label);
       expect(finder, findsOneWidget);
@@ -78,6 +78,40 @@ void main() {
   });
 
   testWidgets(
+    'record bottom sheets omit the repeated book thumbnail and metadata',
+    (tester) async {
+      final state = await open(tester, 'record-options');
+      for (final screen in ['record-options', 'record-entry']) {
+        state.go(screen);
+        await tester.pumpAndSettle();
+        // Only the overlay subtree is inspected; the underlying card keeps its book details.
+        final text = find.text(state.book.title);
+        expect(text.hitTestable(), findsNothing);
+        expect(find.text(state.book.author).hitTestable(), findsNothing);
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('book metadata has bold horizontal rules and stronger values', (
+    tester,
+  ) async {
+    final state = await open(tester, 'book-info');
+    final metadata = tester.widget<Container>(
+      find.byKey(const ValueKey('book-info-metadata')),
+    );
+    final border = (metadata.decoration! as BoxDecoration).border! as Border;
+    expect(border.top.width, 3);
+    expect(border.bottom.width, 3);
+    expect(border.left.style, BorderStyle.none);
+    final pageText = tester.widget<Text>(find.text('${state.book.totalPage}쪽'));
+    expect(pageText.style!.fontSize, 16);
+    expect(pageText.style!.fontFamily, 'PlexMono');
+    expect(state.formatPublicationDate('2026-11-10'), '2026.11.10');
+    expect(state.reasonTextColor(''), Colors.white);
+  });
+
+  testWidgets(
     'creation requires a name and opens a new collection with nine empty slots',
     (tester) async {
       final state = await open(tester, 'collections');
@@ -117,6 +151,46 @@ void main() {
   );
 
   testWidgets(
+    'tapping the ninth empty slot saves there without filling the first slot',
+    (tester) async {
+      final state = await open(tester, 'collection-empty');
+      await tap(tester, find.byKey(const ValueKey('collection-slot-8')));
+      expect(state.targetCollectionSlot, 8);
+      state.selectedBook = state.library.values.first;
+      state.confirmBook();
+      await tester.pumpAndSettle();
+      expect(state.currentCollection.slots[8], state.selectedBook.id);
+      expect(state.currentCollection.slots.take(8), everyElement(isNull));
+      expect(state.targetCollectionSlot, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'very thick spines retain their calculated width without overflow',
+    (tester) async {
+      final state = await open(tester, 'shelf');
+      state.library.clear();
+      state.library['thick'] = const ReadingBook(
+        'thick',
+        '두꺼운 책',
+        '작가',
+        '',
+        '',
+        '',
+        totalPage: 10000,
+      );
+      state.go('shelf');
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(find.byKey(const ValueKey('spine-thick'))).width,
+        bookSpineWidth(10000),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'collection add reuses a saved book and repeated add shows collection-specific duplicate',
     (tester) async {
       final state = await open(tester, 'collection-empty');
@@ -143,44 +217,43 @@ void main() {
     },
   );
 
-  testWidgets(
-    'new collection book is saved without an automatic first record',
-    (tester) async {
-      final state = await open(tester, 'collection-empty');
-      await tap(tester, find.bySemanticsLabel('1번 빈 칸, 책 추가').hitTestable());
-      await tap(tester, find.text('책 제목으로 검색'));
-      await enter(tester, '다음 계절');
-      await tester.testTextInput.receiveAction(TextInputAction.search);
-      await tester.pumpAndSettle();
-      await tap(tester, find.text('다음 계절에 읽을 책').last);
-      await tap(tester, find.text('컬렉션에 담기'));
-      expect(state.screen, 'save-wish');
-      expect(find.text('읽기 시작한 날'), findsNothing);
-      await tap(tester, find.text('저장하기'));
-      expect(state.screen, 'collection');
-      expect(state.currentCollection.slots.first, 'new-book');
-      final journal = state.journals['new-book']!;
-      expect(journal.records, isEmpty);
-      expect(journal.status, isNull);
-    },
-  );
+  testWidgets('new collection book saves the selected initial status', (
+    tester,
+  ) async {
+    final state = await open(tester, 'collection-empty');
+    await tap(tester, find.bySemanticsLabel('1번 빈 칸, 책 추가').hitTestable());
+    await tap(tester, find.text('책 제목으로 검색'));
+    await enter(tester, '다음 계절');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tap(tester, find.text('다음 계절에 읽을 책').last);
+    await tap(tester, find.text('컬렉션에 담기'));
+    expect(state.screen, 'save-wish');
+    expect(find.text('읽기 시작한 날'), findsNothing);
+    await tap(tester, find.text('저장하기'));
+    expect(state.screen, 'collection');
+    expect(state.currentCollection.slots.first, 'new-book');
+    final journal = state.journals['new-book']!;
+    expect(journal.records.length, 1);
+    expect(journal.status, ReadingCategory.todo);
+  });
 
   testWidgets(
-    'saved reason exists independently of records and an explicit TODO can clear it',
+    'initial TODO stores its reason and a later empty TODO clears the band',
     (tester) async {
       final state = await open(tester, 'save-wish');
       state.reasonDraft = '서점에서 만난 책';
       state.saveBookLocally();
       await tester.pumpAndSettle();
       expect(state.screen, 'card-back');
-      expect(state.journal.records, isEmpty);
+      expect(state.journal.records.length, 1);
       expect(state.book.reason, '서점에서 만난 책');
-      expect(find.text('첫 기록 남기기'), findsOneWidget);
+      expect(find.text('기록 추가'), findsOneWidget);
       state.chooseCategory(ReadingCategory.todo);
       state.memoDraft = '';
       state.saveRecordLocally();
       await tester.pumpAndSettle();
-      expect(state.journal.records.length, 1);
+      expect(state.journal.records.length, 2);
       expect(state.book.reason, isEmpty);
     },
   );
@@ -207,18 +280,56 @@ void main() {
   );
 
   testWidgets(
-    'TODO and quote use one content field; categories exclude pause',
+    'ordinary categories finish in one sheet; only free records open text entry',
     (tester) async {
-      await open(tester, 'record-options');
+      final state = await open(tester, 'record-options');
       expect(find.text('쉬고 있음'), findsNothing);
-      await tap(tester, find.byKey(const ValueKey('category-TODO')));
-      expect(find.text('읽고 싶은 이유 · 선택'), findsOneWidget);
+      for (final code in ['TODO', 'INPROGRESS', 'DONE', 'BUY', 'SENTENCE']) {
+        await tap(tester, find.byKey(ValueKey('category-$code')));
+        expect(state.screen, 'record-options');
+        expect(find.byType(TextFormField), findsNothing);
+        expect(find.text('기록 완료'), findsOneWidget);
+        expect(state.recordCategory.code, code);
+      }
+      await tap(tester, find.text('기록 완료'));
+      expect(state.screen, 'record-complete');
+      expect(state.completedRecord!.category, ReadingCategory.sentence);
+      expect(state.completedRecord!.memo, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'free record opens text entry and cancellation restores the selected category',
+    (tester) async {
+      final state = await open(tester, 'record-options');
+      await tap(tester, find.byKey(const ValueKey('category-BUY')));
+      await tap(tester, find.text('자유 기록'));
+      expect(state.screen, 'record-free');
       expect(find.byType(TextFormField), findsOneWidget);
+      await enter(tester, '취소할 기록');
+      state.back();
+      await tester.pumpAndSettle();
+      expect(state.screen, 'record-options');
+      expect(state.recordCategory, ReadingCategory.buy);
+      expect(state.memoDraft, isEmpty);
+      expect(find.byType(TextFormField), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'changing category from free text returns without leaving a hidden input route',
+    (tester) async {
+      final state = await open(tester, 'card-front');
+      state.go('record-options');
+      await tester.pumpAndSettle();
+      await tap(tester, find.byKey(const ValueKey('category-BUY')));
+      await tap(tester, find.text('자유 기록'));
       await tap(tester, find.text('카테고리 바꾸기'));
-      await tap(tester, find.byKey(const ValueKey('category-SENTENCE')));
-      expect(find.byType(TextFormField), findsOneWidget);
-      expect(find.text('페이지 · 선택'), findsNothing);
-      expect(find.text('어떤 기억을 남기고 싶나요? · 선택'), findsOneWidget);
+      expect(state.screen, 'record-options');
+      expect(state.recordCategory, ReadingCategory.buy);
+      state.back();
+      await tester.pumpAndSettle();
+      expect(state.screen, 'card-front');
     },
   );
 

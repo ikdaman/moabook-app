@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'moabook_reading.dart';
 
 class ReadingBook {
@@ -116,13 +117,46 @@ class ReadingImageExport {
   ReadingImageExport({
     required this.title,
     required Iterable<ReadingBook> books,
-  }) : books = List.unmodifiable(books);
+  }) : books = List.unmodifiable(books),
+       shelfPages = const [],
+       collectionSlots = null;
+
+  factory ReadingImageExport.collection({
+    required String title,
+    required Iterable<ReadingBook?> slots,
+  }) {
+    final values = List<ReadingBook?>.unmodifiable(slots);
+    if (values.length != pageSize) throw ArgumentError('컬렉션은 9칸입니다.');
+    return ReadingImageExport._collection(title, values);
+  }
+
+  ReadingImageExport._collection(this.title, this.collectionSlots)
+    : books = List.unmodifiable(collectionSlots!.whereType<ReadingBook>()),
+      shelfPages = const [];
+
+  factory ReadingImageExport.shelf({
+    required String title,
+    required Iterable<ReadingShelfImage> pages,
+  }) {
+    final images = List<ReadingShelfImage>.unmodifiable(pages);
+    return ReadingImageExport._shelf(title, images);
+  }
+
+  ReadingImageExport._shelf(this.title, this.shelfPages)
+    : books = List.unmodifiable(shelfPages.expand((page) => page.books)),
+      collectionSlots = null;
+
+  final List<ReadingShelfImage> shelfPages;
+  final List<ReadingBook?>? collectionSlots;
   final String title;
   final List<ReadingBook> books;
   static const pageSize = 9;
-  int get pageCount => (books.length / pageSize).ceil();
+  int get pageCount => shelfPages.isNotEmpty
+      ? shelfPages.length
+      : (books.length / pageSize).ceil();
   List<ReadingBook> page(int index) {
     if (index < 0 || index >= pageCount) throw RangeError.index(index, books);
+    if (shelfPages.isNotEmpty) return shelfPages[index].books;
     return books.skip(index * pageSize).take(pageSize).toList();
   }
 }
@@ -147,4 +181,12 @@ class ReadingSearchPage {
   final int page;
   final bool hasMore;
   final int? totalCount;
+}
+
+/// A rendered page of the basic shelf, retaining its spine layout and book order.
+class ReadingShelfImage {
+  ReadingShelfImage({required Iterable<ReadingBook> books, required this.png})
+    : books = List.unmodifiable(books);
+  final List<ReadingBook> books;
+  final Uint8List png;
 }

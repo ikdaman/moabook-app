@@ -289,6 +289,7 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
       if (!mounted) return;
       if (result.bookId == null) {
         reasonDraft = '';
+        bookSaveCategory = ReadingCategory.todo;
         operationError = null;
         startedDate = finishedDate = readingDay(DateTime.now());
         go('save-wish');
@@ -317,12 +318,20 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
     if (isSaving) return;
     final searchBook = selectedBook;
     final key = searchBook.id;
-    final memo = reasonDraft.trim();
+    if (uncertainInitialBookWrites.contains(key)) return;
+    final category = bookSaveCategory;
+    final date = category == ReadingCategory.inProgress
+        ? startedDate
+        : category == ReadingCategory.done
+        ? finishedDate
+        : readingDay(DateTime.now());
+    final memo = category == ReadingCategory.todo ? reasonDraft.trim() : '';
     _update(() {
       isSaving = true;
       operationError = null;
     });
     var creatingBook = false;
+    var creatingInitialRecord = false;
     try {
       var id = pendingSavedBooks[key];
       if (id == null) {
@@ -364,9 +373,16 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
           creatingBook = false;
         }
       }
+      if (!initializedSavedBooks.contains(key)) {
+        creatingInitialRecord = true;
+        await gateway.addRecord(id, category: category, date: date, memo: memo);
+        initializedSavedBooks.add(key);
+        creatingInitialRecord = false;
+      }
       final card = await gateway.loadCard(id);
       if (!mounted) return;
       pendingSavedBooks.remove(key);
+      initializedSavedBooks.remove(key);
       selectedBook = card.book;
       await refreshRemoteShelf();
       if (!mounted) return;
@@ -384,16 +400,21 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
       }
     } on ReadingWriteUncertain {
       if (creatingBook) uncertainBookWrites.add(key);
+      if (creatingInitialRecord) uncertainInitialBookWrites.add(key);
       if (mounted) {
         _update(
-          () => operationError = '저장 결과를 확인하지 못했어요. 다시 누르면 저장 여부부터 확인해요.',
+          () => operationError = creatingInitialRecord
+              ? '책은 저장됐지만 독서 상태의 저장 결과를 확인하지 못했어요. 독서카드에서 확인해주세요.'
+              : '저장 결과를 확인하지 못했어요. 다시 누르면 저장 여부부터 확인해요.',
         );
       }
     } catch (_) {
       if (mounted) {
         _update(
           () => operationError = pendingSavedBooks.containsKey(key)
-              ? '책은 저장됐지만 독서카드를 불러오지 못했어요. 다시 확인해주세요.'
+              ? (creatingInitialRecord
+                    ? '책은 저장됐지만 독서 상태를 저장하지 못했어요. 다시 시도해주세요.'
+                    : '책은 저장됐지만 독서카드를 불러오지 못했어요. 다시 확인해주세요.')
               : '책을 저장하지 못했어요. 입력은 그대로 남아 있어요.',
         );
       }
@@ -495,13 +516,17 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
     _update(() => isSaving = true);
     try {
       final current = await gateway.loadCollection(id);
-      final next = current.collection.add(selectedBook.id);
+      final next = current.collection.add(
+        selectedBook.id,
+        slotIndex: targetCollectionSlot,
+      );
       final result = await gateway.updateCollection(next);
       if (!mounted) return;
       _update(() {
         installRemoteCollection(result);
         collectionPage = collectionData.indexWhere((c) => c.id == id);
         targetCollectionId = null;
+        targetCollectionSlot = null;
         history.clear();
         screen = 'collection';
       });

@@ -110,12 +110,17 @@ class ReadingRemoteDataSource {
 
   Future<ReadingShelf> loadShelf() async {
     final books = <String, ReadingBook>{};
+    final registeredAt = <String, DateTime>{};
     var totalPages = 1;
     var totalCount = 0;
     for (var page = 0; page < totalPages; page++) {
       final response = await dio.get<Object?>(
         config.shelfPath,
-        queryParameters: {'page': page, config.pageSizeKey: 100},
+        queryParameters: {
+          'page': page,
+          config.pageSizeKey: 100,
+          'sort': 'createdAt,asc',
+        },
       );
       final data = _map(response.data);
       totalPages = _integer(data['totalPages']);
@@ -128,14 +133,31 @@ class ReadingRemoteDataSource {
         throw const FormatException('Incomplete shelf pagination');
       }
       for (final item in items) {
-        final book = _book(_map(item));
+        final data = _map(item);
+        final book = _book(data);
         books[book.id] = book;
+        final created = DateFormatter.parseToLocal(
+          _text(data['createdDate'] ?? data['createdAt']),
+        );
+        if (created != null) registeredAt[book.id] = created;
       }
     }
     if (books.length != totalCount) {
       throw const FormatException('Shelf changed while paging');
     }
-    return ReadingShelf(books: books.values, totalCount: totalCount);
+    // Keep registration order across all pages. Older DTOs omit creation
+    // dates, so fall back to the server's allocated saved-book IDs.
+    final hasDates = registeredAt.length == books.length;
+    final ordered = books.values.toList()
+      ..sort((a, b) {
+        final byDate = hasDates
+            ? registeredAt[a.id]!.compareTo(registeredAt[b.id]!)
+            : 0;
+        return byDate != 0
+            ? byDate
+            : BigInt.parse(a.id).compareTo(BigInt.parse(b.id));
+      });
+    return ReadingShelf(books: ordered, totalCount: totalCount);
   }
 
   Future<ReadingCard> loadCard(String bookId) async {
@@ -361,6 +383,10 @@ class ReadingRemoteDataSource {
       category: _category(data['recordType']),
       date: date,
       memo: data['memo']?.toString() ?? '',
+      createdAt: DateFormatter.parseToLocal(
+        _text(data['createdAt'] ?? data['createdDate']),
+      ),
+      creationOrder: int.tryParse(data['recordId']?.toString() ?? '') ?? -index,
     );
   }
 

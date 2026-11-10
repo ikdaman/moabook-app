@@ -108,7 +108,7 @@ void main() {
         adapter.requests,
         containsAll(['/mybooks/71', '/mybooks/71/records']),
       );
-      expect(state.readingStatus, '다 읽은 책');
+      expect(state.readingStatus, '기록 없음');
       expect(find.text('인증된 내 책'), findsWidgets);
       expect(tester.takeException(), isNull);
     },
