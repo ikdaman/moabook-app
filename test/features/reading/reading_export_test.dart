@@ -72,6 +72,22 @@ void main() {
   );
 
   test(
+    'collection export uses its captured screen image without reflow or downloads',
+    () async {
+      final value = ReadingImageExport.collection(
+        title: '화면의 컬렉션 이름',
+        slots: [request(1).books.first, ...List<ReadingBook?>.filled(8, null)],
+        png: tinyPng,
+      );
+      final renderer = ReadingImageRenderer(
+        loadCover: (_) async =>
+            throw StateError('Captured covers must not download again'),
+      );
+      expect(await renderer.render(value, 0), same(tinyPng));
+      expect(value.title, '화면의 컬렉션 이름');
+    },
+  );
+  test(
     'missing and failed cover downloads still produce a full-resolution PNG',
     () async {
       final renderer = ReadingImageRenderer(
@@ -163,13 +179,58 @@ void main() {
             .asUint8List(pixels.offsetInBytes + (y * image.width + x) * 4, 4)
             .toList();
         expect(pixel(100, 250), [246, 244, 239, 255]);
-        expect(pixel(760, 1158), [222, 219, 210, 255]);
+        expect(pixel(760, 1170), [222, 219, 210, 255]);
       } finally {
         image.dispose();
         codec.dispose();
       }
     },
   );
+
+  test('collection image contains only covers and border lines', () async {
+    final renderer = ReadingImageRenderer(
+      loadCover: (_) async {
+        final data = await rootBundle.load(
+          'assets/design_preview/covers/human.jpg',
+        );
+        final codec = await ui.instantiateImageCodec(
+          data.buffer.asUint8List(),
+          targetWidth: 228,
+        );
+        try {
+          return (await codec.getNextFrame()).image;
+        } finally {
+          codec.dispose();
+        }
+      },
+    );
+    ReadingImageExport collection(String text) => ReadingImageExport.collection(
+      title: text,
+      slots: [
+        ReadingBook('1', text, text, text, text, '', coverUrl: 'cover'),
+        ...List<ReadingBook?>.filled(8, null),
+      ],
+    );
+    final bytes = await renderer.render(collection('제목, 저자, 설명을 숨겨요'), 0);
+    expect(bytes, await renderer.render(collection('전혀 다른 내용'), 0));
+    final codec = await ui.instantiateImageCodec(bytes);
+    final image = (await codec.getNextFrame()).image;
+    try {
+      final pixels = (await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      ))!;
+      List<int> pixel(int x, int y) => pixels.buffer
+          .asUint8List(pixels.offsetInBytes + (y * image.width + x) * 4, 4)
+          .toList();
+      expect(pixel(54, 100), [35, 44, 40, 255]);
+      expect(pixel(100, 600), [246, 244, 239, 255]);
+      expect(pixel(100, 1600), [246, 244, 239, 255]);
+      expect(pixel(200, 350), isNot([246, 244, 239, 255]));
+    } finally {
+      image.dispose();
+      codec.dispose();
+    }
+  });
 
   testWidgets(
     'empty export shows an empty state without rendering or offering save',

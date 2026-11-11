@@ -61,7 +61,7 @@ void main() {
     'Android back closes first-record sheet before leaving the card',
     (tester) async {
       final (_, state, calls) = await mount(tester, screen: 'card-empty');
-      await tester.tap(find.text('첫 기록 남기기'));
+      await tester.tap(find.byKey(const ValueKey('card-add-record')));
       await tester.pumpAndSettle();
       expect(state.screen, 'record-options');
       await tester.ensureVisible(find.text('자유 기록'));
@@ -80,7 +80,7 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(state.screen, 'card-empty');
-      expect(find.text('첫 기록 남기기'), findsOneWidget);
+      expect(find.byKey(const ValueKey('card-add-record')), findsOneWidget);
       expect(calls.where((c) => c.method == 'SystemNavigator.pop'), isEmpty);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
@@ -139,6 +139,32 @@ void main() {
     });
   }
 
+  for (final origin in ['shelf', 'collection']) {
+    for (final action in ['책 제목으로 검색', '바코드 스캔']) {
+      testWidgets('$origin add options are dismissed before $action', (
+        tester,
+      ) async {
+        final (_, state, calls) = await mount(tester, screen: origin);
+        if (origin == 'collection') {
+          state.targetCollectionId = state.currentCollection.id;
+        }
+        state.go('add-options');
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(action));
+        await tester.pumpAndSettle();
+        expect(state.screen, action == '바코드 스캔' ? 'capture' : 'search');
+        expect(state.history, isNot(contains('add-options')));
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(state.screen, origin);
+        expect(find.text('책 제목으로 검색'), findsNothing);
+        expect(find.text('바코드 스캔'), findsNothing);
+        expect(calls.where((c) => c.method == 'SystemNavigator.pop'), isEmpty);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
   testWidgets('pushed screens receive back without changing the library', (
     tester,
   ) async {
@@ -175,7 +201,7 @@ void main() {
     final (_, state, _) = await mount(tester, screen: 'card-empty');
     state.go('record-options');
     await tester.pump();
-    final title = find.text('기록 추가');
+    final title = find.text('기록 추가').last;
     final start = tester.getTopLeft(title).dy;
     await tester.pump(const Duration(milliseconds: 100));
     final middle = tester.getTopLeft(title).dy;
@@ -188,6 +214,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(tester.getTopLeft(title).dy, greaterThan(end));
     await tester.pumpAndSettle();
-    expect(title, findsNothing);
+    expect(find.text('기록 추가'), findsOneWidget);
   });
 }

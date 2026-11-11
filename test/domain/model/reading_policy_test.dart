@@ -192,12 +192,13 @@ void main() {
     },
   );
 
-  test('spines keep increasing beyond 500 pages without an upper cap', () {
+  test('spines increase beyond 500 pages up to a generous upper cap', () {
     expect(bookSpineWidth(128), lessThan(bookSpineWidth(400)));
     expect(bookSpineWidth(null), bookSpineWidth(0));
     expect(bookSpineWidth(-1), 28);
     expect(bookSpineWidth(1), 22);
     expect(bookSpineWidth(1000), greaterThan(bookSpineWidth(500)));
-    expect(bookSpineWidth(10000), 418);
+    expect(bookSpineWidth(1550), 80);
+    expect(bookSpineWidth(10000), 80);
   });
 }

@@ -23,6 +23,28 @@ class ReadingBook {
   final int? totalPage;
   final String? publishDate, coverUrl, aladinId, yes24Id, isbn13, link;
   String get cover => 'assets/design_preview/covers/$id.jpg';
+
+  /// Partial list/detail responses must not erase a known page count.
+  ReadingBook withPageCountFallback(int? previous) {
+    if ((totalPage ?? 0) > 0 || (previous ?? 0) <= 0) return this;
+    return ReadingBook(
+      id,
+      title,
+      author,
+      publisher,
+      reason,
+      reasonType,
+      demo: demo,
+      totalPage: previous,
+      publishDate: publishDate,
+      coverUrl: coverUrl,
+      aladinId: aladinId,
+      yes24Id: yes24Id,
+      isbn13: isbn13,
+      link: link,
+    );
+  }
+
   ReadingBook withReason(String value) => ReadingBook(
     id,
     title,
@@ -119,19 +141,24 @@ class ReadingImageExport {
     required Iterable<ReadingBook> books,
   }) : books = List.unmodifiable(books),
        shelfPages = const [],
-       collectionSlots = null;
+       collectionSlots = null,
+       collectionPng = null;
 
   factory ReadingImageExport.collection({
     required String title,
     required Iterable<ReadingBook?> slots,
+    Uint8List? png,
   }) {
     final values = List<ReadingBook?>.unmodifiable(slots);
     if (values.length != pageSize) throw ArgumentError('컬렉션은 9칸입니다.');
-    return ReadingImageExport._collection(title, values);
+    return ReadingImageExport._collection(title, values, png);
   }
 
-  ReadingImageExport._collection(this.title, this.collectionSlots)
-    : books = List.unmodifiable(collectionSlots!.whereType<ReadingBook>()),
+  ReadingImageExport._collection(
+    this.title,
+    this.collectionSlots,
+    this.collectionPng,
+  ) : books = List.unmodifiable(collectionSlots!.whereType<ReadingBook>()),
       shelfPages = const [];
 
   factory ReadingImageExport.shelf({
@@ -144,10 +171,12 @@ class ReadingImageExport {
 
   ReadingImageExport._shelf(this.title, this.shelfPages)
     : books = List.unmodifiable(shelfPages.expand((page) => page.books)),
-      collectionSlots = null;
+      collectionSlots = null,
+      collectionPng = null;
 
   final List<ReadingShelfImage> shelfPages;
   final List<ReadingBook?>? collectionSlots;
+  final Uint8List? collectionPng;
   final String title;
   final List<ReadingBook> books;
   static const pageSize = 9;

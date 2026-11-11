@@ -334,6 +334,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Switch.adaptive(
               value: asyncEnabled.valueOrNull ?? true,
               activeTrackColor: _palette.ink,
+              inactiveTrackColor: _palette.line,
+              inactiveThumbColor: _palette.card,
+              trackOutlineColor: WidgetStateProperty.resolveWith(
+                (states) => states.contains(WidgetState.selected)
+                    ? null
+                    : _palette.line,
+              ),
               onChanged: asyncEnabled.isLoading || _busy
                   ? null
                   : (value) =>

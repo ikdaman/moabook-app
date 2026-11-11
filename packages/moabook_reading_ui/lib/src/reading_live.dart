@@ -19,9 +19,16 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
       final shelf = await gateway.loadShelf();
       if (!mounted || request != shelfRequest) return;
       _update(() {
+        final books = shelf.books
+            .map(
+              (book) => book.withPageCountFallback(
+                library[book.id]?.totalPage ?? catalog[book.id]?.totalPage,
+              ),
+            )
+            .toList();
         library
           ..clear()
-          ..addEntries(shelf.books.map((b) => MapEntry(b.id, b)));
+          ..addEntries(books.map((b) => MapEntry(b.id, b)));
         catalog.addAll(library);
         totalShelfCount = shelf.totalCount;
         shelfLoaded = true;
@@ -157,10 +164,18 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
       final card = await gateway.loadCard(id);
       if (!mounted || request != cardRequest) return;
       _update(() {
-        cards[id] = card;
-        selectedBook = card.book;
-        catalog[id] = card.book;
-        if (library.containsKey(id)) library[id] = card.book;
+        final book = card.book.withPageCountFallback(
+          library[id]?.totalPage ?? catalog[id]?.totalPage,
+        );
+        cards[id] = ReadingCard(
+          book: book,
+          createdDate: card.createdDate,
+          status: card.status,
+          recordCount: card.recordCount,
+        );
+        selectedBook = book;
+        catalog[id] = book;
+        if (library.containsKey(id)) library[id] = book;
       });
     } catch (_) {
       if (!mounted || request != cardRequest) return;
@@ -222,6 +237,7 @@ extension _LiveReadingWorkspace on ReadingWorkspaceState {
       _update(() {
         isSearching = false;
         searchError = '검색 결과를 불러오지 못했어요.';
+        screen = 'search-empty';
       });
     }
   }

@@ -17,6 +17,7 @@ class Gateway implements ReadingGateway {
   }
 
   bool shelfFails = false, cardFails = false;
+  ReadingBook cardBook = serverBook;
   String? savedBookId;
   Object? bookSaveError;
   int shelfLoads = 0, collectionLoads = 0, collectionDetailLoads = 0;
@@ -57,7 +58,7 @@ class Gateway implements ReadingGateway {
   Future<ReadingCard> loadCard(String bookId) async {
     if (cardFails) throw StateError('card unavailable');
     return ReadingCard(
-      book: serverBook,
+      book: cardBook,
       createdDate: DateTime(2026, 11, 1),
       status: status,
       recordCount: records.length,
@@ -138,8 +139,9 @@ class SlotGateway extends Gateway {
 void main() {
   Future<ReadingWorkspaceState> open(
     WidgetTester tester,
-    Gateway gateway,
-  ) async {
+    Gateway gateway, {
+    Future<ReadingBook?> Function()? onCapture,
+  }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(402, 874);
     addTearDown(tester.view.reset);
@@ -148,6 +150,7 @@ void main() {
         initialMood: Mood.a,
         initialScreen: 'shelf',
         gateway: gateway,
+        onCapture: onCapture,
       ),
     );
     await tester.pumpAndSettle();
@@ -172,6 +175,115 @@ void main() {
     await tester.enterText(find.byType(TextFormField).first, '기억할 내용');
     tester.testTextInput.hide();
     await tester.pumpAndSettle();
+  }
+
+  testWidgets('page counts survive card navigation and partial shelf reloads', (
+    tester,
+  ) async {
+    const thickBook = ReadingBook(
+      '71',
+      '두꺼운 책',
+      '작가',
+      '',
+      '',
+      '',
+      totalPage: 1200,
+    );
+    final gateway = Gateway()..shelfBooks = [thickBook];
+    final state = await open(tester, gateway);
+    final spine = find.byKey(const ValueKey('spine-71'));
+    final width = tester.getSize(spine).width;
+    for (final pages in [null, 0]) {
+      gateway.cardBook = ReadingBook(
+        '71',
+        '두꺼운 책',
+        '작가',
+        '',
+        '',
+        '',
+        totalPage: pages,
+      );
+      state.openBook(state.library['71']!);
+      await tester.pumpAndSettle();
+      expect(state.selectedBook.totalPage, 1200);
+      gateway.shelfBooks = [gateway.cardBook];
+      state.go('shelf', refreshLibrary: true);
+      await tester.pumpAndSettle();
+      expect(tester.getSize(spine).width, width);
+      state.go('collection');
+      await tester.pumpAndSettle();
+      state.go('shelf', refreshLibrary: true);
+      await tester.pumpAndSettle();
+      expect(tester.getSize(spine).width, width);
+    }
+    gateway.cardBook = const ReadingBook(
+      '71',
+      '수정된 책',
+      '작가',
+      '',
+      '',
+      '',
+      totalPage: 400,
+    );
+    state.openBook(state.library['71']!);
+    await tester.pumpAndSettle();
+    state.go('shelf');
+    await tester.pumpAndSettle();
+    expect(tester.getSize(spine).width, bookSpineWidth(400));
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final fails in [false, true]) {
+    testWidgets(
+      '${fails ? "failed" : "empty"} search offers another keyword and resets input',
+      (tester) async {
+        final gateway = Gateway()
+          ..search = (_, _) async {
+            if (fails) throw StateError('Search request failed');
+            return ReadingSearchPage(
+              books: [],
+              page: 1,
+              hasMore: false,
+              totalCount: 0,
+            );
+          };
+        final state = await open(tester, gateway);
+        state.go('search');
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextFormField), '없는 책');
+        await tester.testTextInput.receiveAction(TextInputAction.search);
+        await tester.pumpAndSettle();
+        expect(find.text('아직 찾지 못했어요.'), findsOneWidget);
+        expect(find.text('제목의 일부나 저자 이름으로 다시 검색해보세요'), findsOneWidget);
+        expect(find.text('검색 결과를 불러오지 못했어요.'), findsNothing);
+        expect(find.text('다시 시도'), findsNothing);
+        await tester.tap(find.text('다른 검색어로 찾아보기'));
+        await tester.pumpAndSettle();
+        expect(state.screen, 'search');
+        expect(state.searchQuery, isEmpty);
+        expect(
+          tester
+              .widget<EditableText>(find.byType(EditableText))
+              .controller
+              .text,
+          isEmpty,
+        );
+        expect(tester.testTextInput.isVisible, isTrue);
+        expect(state.searchError, isNull);
+        gateway.search = (_, _) async => ReadingSearchPage(
+          books: [serverBook],
+          page: 1,
+          hasMore: false,
+          totalCount: 1,
+        );
+        await tester.enterText(find.byType(TextFormField), '다른 검색어');
+        await tester.testTextInput.receiveAction(TextInputAction.search);
+        await tester.pumpAndSettle();
+        expect(state.screen, 'search');
+        expect(find.text(serverBook.title), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   testWidgets('live slot selection survives save and collection reload', (
@@ -557,6 +669,41 @@ void main() {
     expect(find.text('책 표지나 바코드 촬영'), findsNothing);
   });
 
+  for (final outcome in ['cancel', 'success', 'failure']) {
+    testWidgets('live barcode $outcome does not restore add options', (
+      tester,
+    ) async {
+      final capture = Completer<ReadingBook?>();
+      final state = await open(
+        tester,
+        Gateway(),
+        onCapture: () => capture.future,
+      );
+      state.go('add-options');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('바코드 스캔'));
+      await tester.pumpAndSettle();
+      expect(state.screen, 'shelf');
+      expect(state.history, isNot(contains('add-options')));
+      expect(find.text('바코드 스캔'), findsNothing);
+      if (outcome == 'failure') {
+        capture.completeError(StateError('Scan failed'));
+      } else {
+        capture.complete(outcome == 'success' ? serverBook : null);
+      }
+      await tester.pumpAndSettle();
+      if (outcome == 'success') {
+        expect(state.screen, 'book-info');
+        state.back();
+        await tester.pumpAndSettle();
+      }
+      expect(state.screen, 'shelf');
+      expect(find.text('책 제목으로 검색'), findsNothing);
+      expect(find.text('바코드 스캔'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   const searchBook = ReadingBook(
     'yes24:123',
     '새 책',
@@ -589,7 +736,10 @@ void main() {
       expect(state.screen, 'card-front');
       expect(find.text('책이 잘 저장되었습니다!'), findsOneWidget);
       expect(state.selectedBook.id, '71');
-      await tester.tap(find.byKey(const ValueKey('card-front-surface')));
+      await tester.drag(
+        find.byKey(const ValueKey('card-front-surface')),
+        const Offset(-100, 0),
+      );
       await tester.pumpAndSettle();
       expect(find.text('기록 추가'), findsOneWidget);
       await tap(tester, '기록 추가');

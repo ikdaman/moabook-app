@@ -142,9 +142,9 @@ class ReadingCollection {
   }
 }
 
-/// Page count sets thickness without an upper cap; unknown counts use a default.
+/// Page count sets thickness up to 80; unknown counts use a default.
 double bookSpineWidth(int? totalPages) {
   if (totalPages == null || totalPages <= 0) return 28;
   final width = 22 + (totalPages - 100) * .04;
-  return width < 22 ? 22 : width;
+  return width.clamp(22, 80).toDouble();
 }

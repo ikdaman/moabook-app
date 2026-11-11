@@ -85,9 +85,9 @@ class _SearchBookScreenState extends ConsumerState<SearchBookScreen> {
     ref.read(bookSearchProvider.notifier).reset();
   }
 
-  Future<void> _onManualInput() async {
-    await context.push(Routes.manualBookInput);
+  void _onSearchAgain() {
     _clearSearch();
+    _focusNode.requestFocus();
   }
 
   @override
@@ -127,7 +127,7 @@ class _SearchBookScreenState extends ConsumerState<SearchBookScreen> {
                       child: _Content(
                         state: state,
                         onBookTap: _onBookTap,
-                        onManualInput: _onManualInput,
+                        onSearchAgain: _onSearchAgain,
                         scrollController: _scrollCtrl,
                       ),
                     ),
@@ -249,13 +249,13 @@ class _Content extends StatelessWidget {
   const _Content({
     required this.state,
     required this.onBookTap,
-    required this.onManualInput,
+    required this.onSearchAgain,
     required this.scrollController,
   });
 
   final BookSearchState state;
   final Future<void> Function(BookItem book) onBookTap;
-  final VoidCallback onManualInput;
+  final VoidCallback onSearchAgain;
   final ScrollController scrollController;
 
   @override
@@ -264,7 +264,7 @@ class _Content extends StatelessWidget {
       return const RetroLoading();
     }
     if (state.results.isEmpty && state.query.isNotEmpty) {
-      return _EmptyResult(onManualInput: onManualInput);
+      return _EmptyResult(onSearchAgain: onSearchAgain);
     }
     if (state.results.isEmpty) {
       return const SizedBox.shrink();
@@ -297,8 +297,8 @@ class _Content extends StatelessWidget {
 // ── EmptyResult ───────────────────────────────────────────────────────────
 
 class _EmptyResult extends StatelessWidget {
-  const _EmptyResult({required this.onManualInput});
-  final VoidCallback onManualInput;
+  const _EmptyResult({required this.onSearchAgain});
+  final VoidCallback onSearchAgain;
 
   @override
   Widget build(BuildContext context) {
@@ -315,12 +315,12 @@ class _EmptyResult extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           PixelShadowButton(
-            onTap: onManualInput,
+            onTap: onSearchAgain,
             backgroundColor: AppColors.backgroundGray,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text(
-                '직접 입력하기',
+                '다른 검색어로 찾아보기',
                 style: AppTypography.dungGeunMoSubtitle.copyWith(
                   color: AppColors.textPrimary,
                 ),

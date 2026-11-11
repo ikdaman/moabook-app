@@ -22,6 +22,7 @@ class ReadingImageRenderer {
 
   Future<Uint8List> render(ReadingImageExport request, int page) async {
     final pageBooks = request.page(page);
+    if (request.collectionPng != null) return request.collectionPng!;
     final books = request.collectionSlots ?? pageBooks;
     if (request.shelfPages.isNotEmpty) return request.shelfPages[page].png;
     final height = heightForBooks(books.length);
@@ -37,55 +38,17 @@ class ReadingImageRenderer {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     canvas.drawColor(paper, BlendMode.src);
-    void text(
-      String value,
-      Offset at,
-      double size,
-      double maxWidth, {
-      int lines = 1,
-      Color color = ink,
-      FontWeight weight = FontWeight.normal,
-    }) {
-      final painter = TextPainter(
-        text: TextSpan(
-          text: value,
-          style: TextStyle(
-            fontFamily: 'PlexKR',
-            fontSize: size,
-            color: color,
-            fontWeight: weight,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-        maxLines: lines,
-        ellipsis: '…',
-      )..layout(maxWidth: maxWidth);
-      painter.paint(canvas, at);
-      painter.dispose();
-    }
-
-    text('MOABOOK', const Offset(54, 40), 25, 972, weight: FontWeight.w600);
-    text(
-      request.title,
-      const Offset(54, 88),
-      44,
-      972,
-      lines: 2,
-      weight: FontWeight.w600,
-    );
-    canvas.drawLine(
-      const Offset(54, 212),
-      const Offset(1026, 212),
-      Paint()
-        ..color = ink
-        ..strokeWidth = 2,
-    );
+    final border = Paint()
+      ..color = ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawRect(Rect.fromLTWH(54, 54, 972, height - 108.0), border);
     try {
       for (var i = 0; i < books.length; i++) {
         final book = books[i];
         if (book == null) continue;
         final left = 54.0 + (i % 3) * 330;
-        final top = 246.0 + (i ~/ 3) * 454;
+        final top = 256.0 + (i ~/ 3) * rowHeight;
         final rect = Rect.fromLTWH(left + 42, top, 228, 300);
         canvas.drawRect(rect, Paint()..color = const Color(0xffdedbd2));
         if (images[i] != null) {
@@ -95,46 +58,9 @@ class ReadingImageRenderer {
             image: images[i]!,
             fit: BoxFit.contain,
           );
-        } else {
-          text(book.title, Offset(rect.left + 16, top + 90), 24, 196, lines: 4);
         }
-        if (book.reason.isNotEmpty) {
-          canvas.drawRect(
-            Rect.fromLTWH(rect.left, top + 242, 228, 58),
-            Paint()..color = const Color(0xffdf6c38),
-          );
-          text(
-            book.reason,
-            Offset(rect.left + 10, top + 246),
-            17,
-            208,
-            color: Colors.white,
-            lines: 2,
-          );
-        }
-        text(
-          book.title,
-          Offset(left, top + 314),
-          24,
-          312,
-          lines: 2,
-          weight: FontWeight.w600,
-        );
-        text(
-          book.author,
-          Offset(left, top + 385),
-          18,
-          312,
-          lines: 2,
-          color: const Color(0xff626d66),
-        );
+        canvas.drawRect(rect, border);
       }
-      text(
-        '${request.books.length}권 · ${page + 1} / ${request.pageCount}',
-        Offset(54, height - 75.0),
-        22,
-        972,
-      );
       final picture = recorder.endRecording();
       try {
         final image = await picture.toImage(width, height);

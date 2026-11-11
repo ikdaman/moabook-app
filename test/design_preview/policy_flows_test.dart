@@ -71,8 +71,42 @@ void main() {
     expect(state.scroll.offset, greaterThan(0));
     expect(tester.getCenter(action), before);
     expect(action.hitTestable(), findsOneWidget);
+    expect(
+      tester.getTopLeft(action).dy,
+      greaterThan(
+        tester
+            .getBottomLeft(find.byKey(const ValueKey('card-record-surface')))
+            .dy,
+      ),
+    );
     await tester.tap(action);
     await tester.pumpAndSettle();
+    expect(state.screen, 'record-options');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('empty card keeps guidance inside and record action outside', (
+    tester,
+  ) async {
+    await open(tester, 'card-empty');
+    final card = find.byKey(const ValueKey('card-record-surface'));
+    final action = find.byKey(const ValueKey('card-add-record'));
+    expect(
+      find.descendant(of: card, matching: find.text('첫 번째 기억을 남겨보세요')),
+      findsOneWidget,
+    );
+    expect(find.descendant(of: card, matching: action), findsNothing);
+    expect(find.text('첫 기록 남기기'), findsNothing);
+    expect(
+      tester.getTopLeft(action).dy,
+      greaterThan(tester.getBottomLeft(card).dy),
+    );
+    expect(action.hitTestable(), findsOneWidget);
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    final state = tester.state<ReadingWorkspaceState>(
+      find.byType(ReadingWorkspace),
+    );
     expect(state.screen, 'record-options');
     expect(tester.takeException(), isNull);
   });
@@ -109,6 +143,72 @@ void main() {
     expect(pageText.style!.fontFamily, 'PlexMono');
     expect(state.formatPublicationDate('2026-11-10'), '2026.11.10');
     expect(state.reasonTextColor(''), Colors.white);
+  });
+
+  testWidgets(
+    'creation sheet preserves the collection list and scroll while opening and closing',
+    (tester) async {
+      final state = await open(tester, 'collections');
+      state.collectionData.addAll(
+        List.generate(
+          20,
+          (i) => ReadingCollection(id: 'extra-$i', name: '모음 $i'),
+        ),
+      );
+      state.go('collections');
+      await tester.pumpAndSettle();
+      state.scroll.jumpTo(80);
+      await tester.pumpAndSettle();
+      final background = tester.element(
+        find.byKey(const ValueKey('collections')),
+      );
+      state.go('collection-create');
+      for (final elapsed in [0, 80, 200]) {
+        await tester.pump(Duration(milliseconds: elapsed));
+        expect(
+          tester.element(find.byKey(const ValueKey('collections'))),
+          same(background),
+        );
+        expect(find.byKey(const Key('collection-pager')), findsNothing);
+        expect(state.scroll.offset, 80);
+      }
+      state.back();
+      for (final elapsed in [0, 80, 200]) {
+        await tester.pump(Duration(milliseconds: elapsed));
+        expect(
+          tester.element(find.byKey(const ValueKey('collections'))),
+          same(background),
+        );
+        expect(state.scroll.offset, 80);
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('creation sheet keeps the last pager page mounted', (
+    tester,
+  ) async {
+    final state = await open(tester, 'collection');
+    state.collectionPages.jumpToPage(state.collectionData.length);
+    await tester.pumpAndSettle();
+    final pager = tester.element(find.byKey(const Key('collection-pager')));
+    state.go('collection-create');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(
+      tester.element(find.byKey(const Key('collection-pager'))),
+      same(pager),
+    );
+    expect(state.collectionPages.page, state.collectionData.length.toDouble());
+    expect(find.text('나의 컬렉션'), findsNothing);
+    state.back();
+    await tester.pumpAndSettle();
+    expect(
+      tester.element(find.byKey(const Key('collection-pager'))),
+      same(pager),
+    );
+    expect(state.collectionPages.page, state.collectionData.length.toDouble());
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -166,29 +266,28 @@ void main() {
     },
   );
 
-  testWidgets(
-    'very thick spines retain their calculated width without overflow',
-    (tester) async {
-      final state = await open(tester, 'shelf');
-      state.library.clear();
-      state.library['thick'] = const ReadingBook(
-        'thick',
-        '두꺼운 책',
-        '작가',
-        '',
-        '',
-        '',
-        totalPage: 10000,
-      );
-      state.go('shelf');
-      await tester.pumpAndSettle();
-      expect(
-        tester.getSize(find.byKey(const ValueKey('spine-thick'))).width,
-        bookSpineWidth(10000),
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
+  testWidgets('very thick spines use the capped width without overflow', (
+    tester,
+  ) async {
+    final state = await open(tester, 'shelf');
+    state.library.clear();
+    state.library['thick'] = const ReadingBook(
+      'thick',
+      '두꺼운 책',
+      '작가',
+      '',
+      '',
+      '',
+      totalPage: 10000,
+    );
+    state.go('shelf');
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byKey(const ValueKey('spine-thick'))).width,
+      bookSpineWidth(10000),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'collection add reuses a saved book and repeated add shows collection-specific duplicate',
@@ -249,7 +348,11 @@ void main() {
       expect(find.text('책이 잘 저장되었습니다!'), findsOneWidget);
       expect(state.journal.records.length, 1);
       expect(state.book.reason, '서점에서 만난 책');
-      await tap(tester, find.byKey(const ValueKey('card-front-surface')));
+      await tester.drag(
+        find.byKey(const ValueKey('card-front-surface')),
+        const Offset(-100, 0),
+      );
+      await tester.pumpAndSettle();
       expect(find.text('기록 추가'), findsOneWidget);
       state.chooseCategory(ReadingCategory.todo);
       state.memoDraft = '';
@@ -305,7 +408,7 @@ void main() {
         expect(find.text('0/400'), findsOneWidget);
       } else {
         expect(find.text('어떤 기억을 남기고 싶나요?'), findsOneWidget);
-      expect(find.text('0/400'), findsOneWidget);
+        expect(find.text('0/400'), findsOneWidget);
       }
       expect(find.text('· 선택'), findsOneWidget);
       await enter(tester, List.filled(401, '글').join());

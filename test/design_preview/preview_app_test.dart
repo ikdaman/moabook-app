@@ -93,41 +93,68 @@ void main() {
     },
   );
 
-  testWidgets('card tap and swipe flip without trapping back navigation', (
-    tester,
-  ) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(402, 874);
-    addTearDown(tester.view.reset);
-    for (final mood in Mood.values) {
-      await tester.pumpWidget(
-        DesignPreviewApp(
-          key: UniqueKey(),
-          initialMood: mood,
-          initialScreen: 'card-front',
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('카드 뒤의 기록 보기'), findsNothing);
-      await tester.tap(find.text(previewBooks.first.title));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('card-back-surface')), findsOneWidget);
-      await tester.drag(
-        find.byKey(const ValueKey('card-back-surface')),
-        const Offset(100, 0),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('card-front-surface')), findsOneWidget);
-      await tester.tap(find.text('추가하기'));
-      await tester.pumpAndSettle();
-      expect(find.text('순간 기록'), findsOneWidget);
-      await tester.tap(find.bySemanticsLabel('닫기').first);
-      await tester.pumpAndSettle();
-      await tester.tap(find.bySemanticsLabel('서가로 돌아가기'));
-      await tester.pumpAndSettle();
-      expect(find.text('서가'), findsOneWidget);
-    }
-  });
+  testWidgets(
+    'only swiping the card flips it without trapping back navigation',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(402, 874);
+      addTearDown(tester.view.reset);
+      for (final mood in Mood.values) {
+        await tester.pumpWidget(
+          DesignPreviewApp(
+            key: UniqueKey(),
+            initialMood: mood,
+            initialScreen: 'card-front',
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('카드 뒤의 기록 보기'), findsNothing);
+        final front = find.byKey(const ValueKey('card-front-surface'));
+        await tester.tap(find.text(previewBooks.first.title));
+        await tester.pumpAndSettle();
+        expect(front, findsOneWidget);
+        // The header and the gap above the card must not flip it.
+        await tester.dragFrom(const Offset(150, 35), const Offset(100, 0));
+        await tester.dragFrom(
+          tester.getTopLeft(front) + const Offset(120, -8),
+          const Offset(100, 0),
+        );
+        await tester.pumpAndSettle();
+        expect(front, findsOneWidget);
+        await tester.drag(front, const Offset(-100, 0));
+        await tester.pumpAndSettle();
+        final back = find.byKey(const ValueKey('card-back-surface'));
+        expect(back, findsOneWidget);
+        await tester.dragFrom(
+          tester.getBottomLeft(back) + const Offset(100, 25),
+          const Offset(100, 0),
+        );
+        await tester.drag(
+          find.byKey(const ValueKey('card-add-record')),
+          const Offset(-100, 0),
+        );
+        await tester.pumpAndSettle();
+        expect(back, findsOneWidget);
+        await tester.drag(
+          find.byKey(const ValueKey('card-back-surface')),
+          const Offset(100, 0),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('card-front-surface')),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('추가하기'));
+        await tester.pumpAndSettle();
+        expect(find.text('순간 기록'), findsOneWidget);
+        await tester.tap(find.bySemanticsLabel('닫기').first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('서가로 돌아가기'));
+        await tester.pumpAndSettle();
+        expect(find.text('서가'), findsOneWidget);
+      }
+    },
+  );
 
   testWidgets(
     'shelf has three visible rows and swipes through all sample pages',
