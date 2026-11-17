@@ -316,6 +316,33 @@ void main() {
     },
   );
 
+  testWidgets('tapping outside the save reason dismisses the keyboard', (
+    tester,
+  ) async {
+    final state = await open(tester, 'save-wish');
+    final field = find.byKey(const ValueKey('save-reason'));
+    await tester.enterText(field, '서점에서 만난 책');
+    await tester.pumpAndSettle();
+    final editable = tester.widget<EditableText>(
+      find.descendant(of: field, matching: find.byType(EditableText)),
+    );
+    expect(editable.focusNode.hasFocus, isTrue);
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    // The space above the book summary has no button or input handler.
+    final summary = tester.getRect(find.text('지금 이 책과 어떤 사이인가요?'));
+    await tester.tapAt(Offset(summary.left, summary.top - 10));
+    await tester.pumpAndSettle();
+    expect(editable.focusNode.hasFocus, isFalse);
+    expect(tester.testTextInput.isVisible, isFalse);
+    expect(state.reasonDraft, '서점에서 만난 책');
+    expect(state.screen, 'save-wish');
+
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+    expect(editable.focusNode.hasFocus, isTrue);
+  });
+
   testWidgets('new collection book saves the selected initial status', (
     tester,
   ) async {

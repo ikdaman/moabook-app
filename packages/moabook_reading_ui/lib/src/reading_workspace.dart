@@ -3182,6 +3182,7 @@ class ReadingWorkspaceState extends State<ReadingWorkspace> {
         height: 120,
         child: TextFormField(
           key: const ValueKey('save-reason'),
+          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           initialValue: reasonDraft,
           expands: true,
           minLines: null,

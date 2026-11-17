@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:moabook_reading/moabook_reading.dart';
 import '../../core/util/date_formatter.dart';
 import '../../core/util/html_text.dart';
@@ -93,9 +94,23 @@ class ReadingRemoteDataSource {
         _knownCatalogBooks[id] = book;
         return id;
       } on FormatException {
+        if (kDebugMode) {
+          debugPrint(
+            'Book save: POST /mybooks HTTP ${response.statusCode}, '
+            'missing valid mybookId',
+          );
+        }
         throw const ReadingWriteUncertain();
       }
     } on DioException catch (error) {
+      if (kDebugMode) {
+        final data = error.response?.data;
+        final code = data is Map ? int.tryParse('${data['code']}') : null;
+        debugPrint(
+          'Book save: POST /mybooks ${error.type.name}, '
+          'HTTP ${error.response?.statusCode}, server code $code',
+        );
+      }
       if (error.response == null || (error.response?.statusCode ?? 0) >= 500) {
         throw const ReadingWriteUncertain();
       }
