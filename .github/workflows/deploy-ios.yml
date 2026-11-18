@@ -1,6 +1,7 @@
 name: Deploy to TestFlight
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'ios-v*'
@@ -11,12 +12,23 @@ env:
 jobs:
   deploy:
     name: Build & Deploy to TestFlight
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 45
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Verify Xcode and iOS SDK
+        run: |
+          xcodebuild -version
+          xcode-select -p
+          IOS_SDK_VERSION=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "iOS SDK: $IOS_SDK_VERSION"
+          if [ "${IOS_SDK_VERSION%%.*}" -lt 27 ]; then
+            echo "::error::iOS SDK 27 or later is required."
+            exit 1
+          fi
 
       - name: Extract version from pubspec
         id: version
@@ -27,7 +39,7 @@ jobs:
           VERSION_NAME=${PUBSPEC_VERSION%+*}
           VERSION_CODE=${PUBSPEC_VERSION#*+}
           TAG_VERSION=${GITHUB_REF#refs/tags/ios-v}
-          if [ "$VERSION_NAME" != "$TAG_VERSION" ]; then
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$VERSION_NAME" != "$TAG_VERSION" ]; then
             echo "::error::Tag version ($TAG_VERSION) != pubspec version ($VERSION_NAME). pubspec.yaml 을 먼저 bump 하고 동일 버전의 태그를 푸시하세요."
             exit 1
           fi
