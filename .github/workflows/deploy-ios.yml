@@ -96,6 +96,8 @@ jobs:
           cd ios
           bundle exec fastlane deploy_testflight
         env:
+          FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: "120"
+          FASTLANE_XCODEBUILD_SETTINGS_RETRIES: "2"
           APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
           APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
           APP_STORE_KEY_PATH: fastlane/AuthKey_35SHWLN842.p8
